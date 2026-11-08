@@ -125,27 +125,39 @@ box-sizing:border-box;border-radius:7px;text-decoration:none!important;white-spa
 </style>'''
 
 
-def render_company_review(st,ticker,view,*,profile_key):
+def _selected_cik_valid(cik):
+    return isinstance(cik,str) and len(cik)==10 and cik.isascii() and cik.isdigit() and cik!='0000000000'
+
+
+def render_company_review(st,ticker,view,*,profile_key,expected_cik=None):
     if not _ticker(ticker) or _mode_reason('research'):return
     st.markdown(CONTROL_STYLE,unsafe_allow_html=True)
     with st.container(key='sec-review-panel'):
-        _render_company_review(st,ticker,view,profile_key=profile_key)
+        _render_company_review(st,ticker,view,profile_key=profile_key,expected_cik=expected_cik)
 
 
-def _render_company_review(st,ticker,view,*,profile_key):
+def _render_company_review(st,ticker,view,*,profile_key,expected_cik=None):
     st.markdown('### Saved SEC evidence review')
     st.caption(f'{ticker} · Supports direct US-GAAP / USD annual 10-K and 10-K/A fields. Save explicitly for offline replay. Canonical financials, source permissions and research journal updates require separate actions.')
+    if expected_cik is not None:
+        if not _selected_cik_valid(expected_cik):
+            st.error('Saved SEC evidence is unavailable. The selected issuer requires a verified, nonzero 10-digit CIK.')
+            return
+        st.caption('Selected issuer CIK '+expected_cik+' · Only matching issuer evidence can be saved, imported or replayed here.')
     token = st.query_params.get('sec_pair')
     if ticker in SUPPORTED_DISPOSITION_COMPANIES and token:
         if st.query_params.get('online') == '1':
             st.warning(f'Open this evidence pair from Monitor on the saved {ticker} company page.')
         else:
-            _render_pinned_pair(st, profile_key, ticker, token)
+            _render_pinned_pair(st, profile_key, ticker, token, expected_cik=expected_cik)
         return
     scope=f'{profile_key}:{ticker}'
     try:
         candidate=capture_review(view,profile_key=profile_key)
         if candidate['ticker']!=ticker:candidate=None
+        if candidate is not None and expected_cik is not None and candidate['sec_cik']!=expected_cik:
+            st.warning(f"Current evidence CIK {candidate['sec_cik']} differs from selected issuer CIK {expected_cik}. This observation cannot be saved here.")
+            candidate=None
     except (ValueError,TypeError,OSError):candidate=None
     if ticker=='NEM':candidate=_check_candidate(st,candidate,scope)
     if st.button('Save current SEC evidence',key='sec-review-save:'+scope,disabled=candidate is None):
@@ -159,10 +171,22 @@ def _render_company_review(st,ticker,view,*,profile_key):
             try:
                 upload.seek(0);packet=load_review(upload.read(MAX_BYTES+1))
                 if packet['profile_key']!=profile_key or packet['ticker']!=ticker:raise ValueError('selected_scope_mismatch')
+                if expected_cik is not None and packet['sec_cik']!=expected_cik:raise ValueError('selected_issuer_mismatch')
                 save_review(packet,PROJECT_ROOT);st.success('Evidence package imported. The saved file is replayed below.')
-            except (ValueError,OSError):st.error('Import failed. Check for a damaged file, company or research profile mismatch, unavailable storage or a full receipt history.')
+            except (ValueError,OSError):
+                issuer_reason='selected issuer CIK mismatch, ' if expected_cik is not None else ''
+                st.error('Import failed. Check for a damaged file, company or research profile mismatch, '+issuer_reason+'unavailable storage or a full receipt history.')
     try:packets=list_reviews(PROJECT_ROOT,profile_key,ticker)
     except (ValueError,OSError):st.error('Saved evidence could not be fully verified. Comparison is paused. Retain the files and check the storage folder.');return
+    if expected_cik is not None:
+        excluded=[packet for packet in packets if packet['sec_cik']!=expected_cik]
+        packets=[packet for packet in packets if packet['sec_cik']==expected_cik]
+        if excluded:
+            other_ciks=', '.join(sorted({packet['sec_cik'] for packet in excluded}))
+            st.warning(f'Excluded {len(excluded)} saved evidence package(s) for other issuer CIKs ({other_ciks}). Only selected issuer CIK {expected_cik} is available for replay. The saved files are retained.')
+        if excluded and not packets:
+            st.info('No saved evidence matches selected issuer CIK '+expected_cik+'. Save or import a matching observation to replay it here.')
+            return
     if not packets:st.info('No evidence saved yet. Save the first observation, then save or import another observation to compare.');return
     st.markdown('#### Replay saved evidence')
     st.caption('Each option shows the reporting period, UTC save time and evidence ID. Full timestamps appear in the source details below.')
@@ -188,7 +212,8 @@ def _render_company_review(st,ticker,view,*,profile_key):
 
 def _render_monitor_link(st, ticker, *, token=''):
     from src.research_workspace import research_monitor_handoff_href
-    monitor_href = research_monitor_handoff_href(ticker, online=st.query_params.get('online') == '1', sec_pair=token)
+    monitor_href = research_monitor_handoff_href(ticker, online=st.query_params.get('online') == '1', sec_pair=token,
+        **({'notes_cik':st.query_params.get('notes_cik')} if st.query_params.get('notes_cik') else {}))
     label = 'Return to this review in Monitor' if token else 'View review items in Monitor'
     st.markdown(
         '<a class="sec-review-link" data-research-session-route="monitor" '
@@ -219,16 +244,21 @@ def _render_receipt_sources(st, current, title, *, show_values=True):
                 st.caption(row['taxonomy']+':'+row['concept']+' · '+row['period_start']+' to '+row['period_end'])
 
 
-def _pinned_pair(profile_key, ticker, token):
+def _pinned_pair(profile_key, ticker, token, *, expected_cik=None):
     before_id, _, after_id = token.partition('.')
-    return resolve_pair(list_reviews(PROJECT_ROOT, profile_key, ticker), before_id, after_id, ticker=ticker)
+    pair=resolve_pair(list_reviews(PROJECT_ROOT, profile_key, ticker), before_id, after_id, ticker=ticker)
+    if expected_cik is not None and (not _selected_cik_valid(expected_cik) or any(packet['sec_cik']!=expected_cik for packet in pair)):
+        raise ValueError('selected_issuer_mismatch')
+    return pair
 
 
-def _render_pinned_pair(st, profile_key, ticker, token):
+def _render_pinned_pair(st, profile_key, ticker, token, *, expected_cik=None):
     try:
-        before, after = _pinned_pair(profile_key, ticker, token)
+        before, after = _pinned_pair(profile_key, ticker, token, expected_cik=expected_cik)
     except (ValueError, OSError):
         st.warning(PAIR_UNAVAILABLE)
+        if expected_cik is not None:
+            st.warning('Selected issuer CIK '+expected_cik+' is required. Evidence for other issuer CIKs is excluded from this comparison.')
         _render_monitor_link(st, ticker)
         return
     st.markdown('#### Pinned SEC evidence comparison')

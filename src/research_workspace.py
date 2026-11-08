@@ -1528,6 +1528,7 @@ class MonitorOrigin:
     section: str
     online_cik: str | None
     section_widget_key: str | None = None
+    notes_cik: str | None = None
 
     def workbench_query(self) -> dict[str, str]:
         query = {
@@ -1535,6 +1536,8 @@ class MonitorOrigin:
         }
         if self.online_cik is not None:
             query["online"] = "1"
+        if self.notes_cik is not None:
+            query["notes_cik"] = self.notes_cik
         query["section"] = self.section
         return query
 
@@ -1550,12 +1553,19 @@ def open_research_monitor(st, ticker: str, profile_key: str) -> None:
         return
     online = params.get("online") == "1"
     candidate = online_company_candidate_for_route(ticker, st.session_state) if online else None
+    from src.company_research_notes import saved_company_notes_scope
+    notes_cik = params.get("notes_cik") if not online else None
+    note_scope = saved_company_notes_scope(ticker, profile_key, sec_cik=notes_cik) if notes_cik else None
     query = {"mode": "research", "page": "monitor"}
-    if online and candidate is None:
+    if online and candidate is None or notes_cik and note_scope is None:
         st.session_state.pop(_MONITOR_ORIGIN_KEY, None)
     else:
+        from src.company_workbench_ui import retain_saved_tool_inputs
+        retain_saved_tool_inputs(st.session_state,profile_key,ticker,
+            identity_scope=candidate['cik'] if candidate else note_scope.sec_cik if note_scope else None)
         section = section_key(params.get("section"))
-        scopes = ("online:" + candidate["cik"],) if candidate else ("saved", "receipts")
+        scopes = (("online:" + candidate["cik"],) if candidate else
+                  ("notes:" + note_scope.sec_cik,) if note_scope else ("saved", "receipts"))
         widget_keys = [f"company-section:{profile_key}:{ticker}:{scope}" for scope in scopes]
         widget_keys = [key for key in widget_keys if key in st.session_state]
         if len(widget_keys) > 1:
@@ -1564,10 +1574,13 @@ def open_research_monitor(st, ticker: str, profile_key: str) -> None:
             profile_key, ticker, section,
             candidate["cik"] if candidate else None,
             widget_keys[0] if len(widget_keys) == 1 else None,
+            note_scope.sec_cik if note_scope else None,
         )
         query["return_ticker"] = ticker
         if online:
             query["return_online"] = "1"
+        if note_scope:
+            query["return_notes_cik"] = note_scope.sec_cik
     if not online and params.get("section") == "notes":
         query.update(_monitor_pair_query(ticker, params.get("sec_pair")))
     params.from_dict(query)
@@ -1581,6 +1594,10 @@ def research_monitor_origin(state, profile_key: str, ticker: str) -> MonitorOrig
     if origin.online_cik is not None:
         candidate = online_company_candidate_for_route(ticker, state)
         if candidate is None or candidate["cik"] != origin.online_cik:
+            return None
+    if origin.notes_cik is not None:
+        from src.company_research_notes import saved_company_notes_scope
+        if saved_company_notes_scope(ticker, profile_key, sec_cik=origin.notes_cik) is None:
             return None
     return origin
 
@@ -1600,10 +1617,12 @@ def return_to_research_workbench(st, origin: MonitorOrigin) -> None:
         or params.get("page") != "monitor"
         or str(params.get("return_ticker") or "").strip().upper() != origin.ticker
         or (params.get("return_online") == "1") != (origin.online_cik is not None)
+        or params.get("return_notes_cik") != origin.notes_cik
         or research_monitor_origin(st.session_state, origin.profile_key, origin.ticker) != origin
     ):
         return
-    scopes = ("online:" + origin.online_cik,) if origin.online_cik is not None else ("saved", "receipts")
+    scopes = (("online:" + origin.online_cik,) if origin.online_cik is not None else
+              ("notes:" + origin.notes_cik,) if origin.notes_cik else ("saved", "receipts"))
     if origin.section_widget_key in {
         f"company-section:{origin.profile_key}:{origin.ticker}:{scope}" for scope in scopes
     }:
@@ -1663,18 +1682,22 @@ def _monitor_pair_query(ticker: str, sec_pair: str | None) -> dict[str, str]:
     return {"sec_pair": sec_pair, "sec_ticker": ticker}
 
 
-def research_monitor_handoff_href(ticker: str, *, online: bool = False, sec_pair: str = "") -> str:
+def research_monitor_handoff_href(ticker: str, *, online: bool = False, sec_pair: str = "", notes_cik: str | None = None) -> str:
     query = {"mode": "research", "page": "monitor"}
     if ticker and not online:
         query["return_ticker"] = str(ticker).strip().upper()
     if not online:
         query.update(_monitor_pair_query(ticker, sec_pair))
+        from src.company_research_notes import valid_notes_cik
+        if valid_notes_cik(notes_cik):
+            query["return_notes_cik"] = notes_cik
     return "?" + urlencode(query)
 
 
 def research_workflow_navigation_html(
     *, active_page: str, ticker: str = "", monitor_handoff: bool = False, online_workbench: bool = False,
     monitor_origin: MonitorOrigin | None = None,
+    notes_cik: str | None = None,
 ) -> str:
     """Render the deterministic Personal Research route sequence."""
 
@@ -1688,7 +1711,7 @@ def research_workflow_navigation_html(
     if monitor_origin is not None and monitor_origin.online_cik is not None:
         workbench_href = "?mode=research&page=company-workbench"
     routes.append(("Company Workbench", "company-workbench", workbench_href))
-    monitor_href = research_monitor_handoff_href(ticker, online=online_workbench)
+    monitor_href = research_monitor_handoff_href(ticker, online=online_workbench, notes_cik=notes_cik)
     routes.append(("Monitor", "monitor", monitor_href))
     links: list[str] = []
     for label, slug, href in routes:

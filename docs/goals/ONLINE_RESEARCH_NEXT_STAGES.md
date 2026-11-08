@@ -16,11 +16,13 @@ The NEM implementation is described in [NEM SEC review](../NEM_SEC_REVIEW.md). S
 
 Exit: clean-checkout replay works with the declared permitted input; an unchanged second review is visibly unchanged; changed fields link to exact evidence; the next review action is clear. Demand, source rights and independent validation remain separate.
 
-## Current stage: reusable multi-company review
+## Completed foundation: reusable multi-company review
 
 Execute [the multi-company goal](MULTI_COMPANY_REVIEW_GOAL.md): reuse qualified annual US-GAAP/USD Companyfacts capture, import and comparison across issuers, preserve NEM v1/v2, and show saved-company data gaps separately from research-process counts in Monitor. Validate real AMD and DUK observations alongside NEM; report exact scope, unsupported bases and unchanged protected data. No universally complete analysis claim follows from this software scope.
 
 ## Following stages and exit gates
+
+The online notes/evidence/Monitor continuity slice is implemented separately from model eligibility. See [its release evidence](../ONLINE_COMPANY_WORKFLOW_RELEASE.md). Existing journals and model tools remain available in their own scopes; saved notes are not current listing proof. The next executable milestone is one named economic-peer relationship with an earnings-quality and comparability explanation, as prioritized by the active roadmap.
 
 | Stage | Executable outcome | Gate before expanding |
 | --- | --- | --- |

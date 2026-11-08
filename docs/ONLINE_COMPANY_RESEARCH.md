@@ -1,8 +1,20 @@
 # Online Company Research
 
-The five sections share one company scope: **概览** shows direct fields and dated prices; **财务趋势** shows annual/direct-quarter or native-currency statements; **估值与同行** retains independent model and peer gates; **研究记录** retains saved authoring and HTML export; **数据来源** holds exact filings and raw proof. Switching sections reuses the same session observation, including a failed attempt, without retrying. The combined update allows a successful price result to remain readable if financial retrieval fails. Online candidates remain separate from same-symbol saved research.
+The five sections share one company scope: **Overview** shows direct fields and dated prices; **Financial Trends** shows annual/direct-quarter or native-currency statements; **Valuation & Peers** retains independent model and peer gates; **Research Notes** supports issuer-scoped authoring and SEC replay; **Data Sources** holds exact filings and source evidence. Switching sections reuses the same session observation, including a failed attempt, without retrying. The combined update allows a successful price result to remain readable if financial retrieval fails. Online candidates remain separate from same-symbol saved research.
 
-Open Discover, enter a company name or ticker, and press **Search SEC now**. Choose an unambiguous candidate, then press **更新财报与价格** in Company Workbench (or **只更新财报** under **分别更新**). No per-company CSV preparation is required. The explicit financial action also runs without a canonical or staged fundamentals file; source-rights configuration remains required.
+Open Discover, enter a company name or ticker, and press **Search company**. Choose an unambiguous candidate, then press **Refresh financials and prices** in Company Workbench (or **Financials only** under **Refresh options**). No per-company CSV preparation is required. The explicit financial action also runs without a canonical or staged fundamentals file; source-rights configuration remains required.
+
+## Notes and follow-ups without a local company report
+
+An unambiguous online company can open **Research Notes** before loading financials or prices. The existing composer supports thesis, evidence, catalyst and outcome records with exact preview and explicit confirmation. Financial readiness and source-review approval do not follow from saving a note.
+
+Online notes use private profile/ticker/CIK-scoped storage under ignored `outputs/local/company-research-notes/`. Files are created by an explicit save, not by page reads or preview. Different issuers sharing a ticker do not share drafts, confirmation or history. Existing saved-workspace journals remain separately scoped and no longer require a price-dependent report to render. Saved-model Decision Lab, Forward View and HTML briefs retain their own inputs and are opened explicitly.
+
+Monitor has a separate **User-authored follow-ups** section for these saved online notes. It can reopen an exact saved issuer using `notes_cik` after a session restart, without requesting provider data. This is an offline note identity, not proof of current listing status. The bounded Monitor list exposes unavailable entries separately; an exact valid saved-note route remains accessible when the list exceeds its display limit.
+
+**Saved SEC evidence** remains independently available for eligible direct US-GAAP/USD annual observations. Saving and replaying normalized fields retains source receipts, dates, identity and permissions. Selecting an online issuer restricts capture, import and replay to that CIK. Generic Monitor comparison is broader than the separately qualified NEM/AMD/DUK reasoned exact-pair disposition workflow; no new company is promoted into that workflow by saving notes.
+
+The full application runs locally and fetches data online. GitHub Pages is a static demonstration, not a hosted version of the full workspace. [Release evidence](ONLINE_COMPANY_WORKFLOW_RELEASE.md)
 
 ## Available review
 
@@ -37,7 +49,7 @@ A separate IFRS view retains one reporting currency and exact standard concepts 
 
 ## Exact primary-filing inspection
 
-Open **数据来源 → Exact SEC filing evidence** in Company Workbench, choose **Latest quarter** or **Latest annual**, then press **Check latest SEC filing**. The source selector rechecks the symbol/CIK association and selects the newest matching report and publication from current SEC submissions. The accession may identify a filing agent; the archive directory remains bound to the issuer CIK. A malformed or tied latest amendment is withheld rather than replaced by an older filing. Automatic selection currently supports10-Q and annual10-K/20-F/40-F forms with Inline XBRL, not arbitrary6-K releases.
+Open **Data Sources → Exact SEC filing evidence** in Company Workbench, choose **Latest quarter** or **Latest annual**, then press **Check latest SEC filing**. The source selector rechecks the symbol/CIK association and selects the newest matching report and publication from current SEC submissions. The accession may identify a filing agent; the archive directory remains bound to the issuer CIK. A malformed or tied latest amendment is withheld rather than replaced by an older filing. Automatic selection currently supports10-Q and annual10-K/20-F/40-F forms with Inline XBRL, not arbitrary6-K releases.
 
 The separate archive adapter validates the exact primary-document URL, source dates/digest, DEI issuer/form/period, context entity CIK and absence of dimensions/scenarios. Combined utility filings cannot silently contribute subsidiary numbers. Supported namespace URIs, currency measures and numeric transformations/scale/sign/decimals are retained. Invalid/nil/conflicting facts and unsupported/custom concepts remain withheld. IFRS customer-contract revenue retains its definition; a unique non-USD currency is preferred to convenience USD translations. Capital purchases retain their outflow definition without manufacturing FCF or netting other investing items. Quarter and cumulative periods are separate; six-month cash flow never becomes a quarter by subtraction.
 
@@ -72,7 +84,7 @@ IBN Latest annual also supports its non-XBRL20-F consolidated Indian-GAAP statem
 
 ## Clear valuation and research paths
 
-Company Workbench displays **Valuation and peers** inside **估值与同行** for saved and online-only companies. It explains the company multiple, peer median, premium or discount and metric-specific compatible-peer count. A higher multiple is not proof of overvaluation. At least three distinct reviewed peer companies, source-backed metric definitions, aligned financial periods, currency and price dates, permitted fields and current quantitative evidence are required. Legacy aggregate medians do not establish these conditions; the current real-company comparison remains withheld where the required evidence is absent. The native illustrative example uses synthetic companies only and cannot change company data or readiness. See [Reading Peer Valuation](READING_PEER_VALUATION.md).
+Company Workbench displays **Valuation and peers** inside **Valuation & Peers** for saved and online-only companies. It explains the company multiple, peer median, premium or discount and metric-specific compatible-peer count. A higher multiple is not proof of overvaluation. At least three distinct reviewed peer companies, source-backed metric definitions, aligned financial periods, currency and price dates, permitted fields and current quantitative evidence are required. Legacy aggregate medians do not establish these conditions; the current real-company comparison remains withheld where the required evidence is absent. The native illustrative example uses synthetic companies only and cannot change company data or readiness. See [Reading Peer Valuation](READING_PEER_VALUATION.md).
 
 The selected listing/issuer check now projects a separate research path. A fund, warrant, bank SIC, blank-check SIC, operating-entity observation and unknown profile retain their different meaning; none establishes current legal security type, U.S. domicile, activity or analysis eligibility.
 

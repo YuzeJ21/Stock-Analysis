@@ -65,8 +65,9 @@ def test_company_workbench_shows_qcom_reasons_and_keeps_raw_proof_advanced(monke
 
 def test_monitor_study_comparison_is_separate_from_follow_up_queue(monkeypatch, tmp_path):
     # Exercise the real profile-scoped handoff against isolated empty storage.
-    from src import sec_research_review_ui
+    from src import sec_research_review_ui, company_research_notes
     monkeypatch.setattr(sec_research_review_ui, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(company_research_notes, "PROJECT_ROOT", tmp_path)
     rendered: list[str] = []
 
     class Expander:

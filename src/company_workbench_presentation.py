@@ -22,6 +22,7 @@ WORKBENCH_STYLE = '''<style>
 .stApp:has(.st-key-company-workbench-layout) .research-workflow-navigation{background:#f4f7f3!important;margin-bottom:1.8rem!important}
 .st-key-company-workbench-layout{min-width:0}
 .st-key-company-workbench-layout p,.st-key-company-workbench-layout label{color:#496056}
+.st-key-company-workbench-layout [data-testid="stCaptionContainer"]{opacity:1!important}
 .st-key-company-workbench-layout h1,.st-key-company-workbench-layout h2,.st-key-company-workbench-layout h3{color:#152b24!important;letter-spacing:-.035em!important}
 .st-key-company-workbench-layout [data-testid="stVerticalBlock"]{gap:.85rem}
 .st-key-company-workbench-layout .company-integrated-header{padding:0!important}
@@ -77,6 +78,8 @@ WORKBENCH_STYLE = '''<style>
 @media(max-width:767px){
  .stApp:has(.st-key-company-workbench-layout) [data-testid="stMainBlockContainer"]{padding:0 1rem 2rem!important}
  .stApp:has(.st-key-company-workbench-layout) .research-workflow-navigation{margin-bottom:.8rem!important}
+ .st-key-company-workbench-layout>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"]{flex-direction:column!important}
+ .st-key-company-workbench-layout>[data-testid="stLayoutWrapper"]>[data-testid="stHorizontalBlock"]>[data-testid="stColumn"]{width:100%!important;flex:1 1 auto!important;min-width:0!important}
  .st-key-company-workbench-layout [data-testid="stHorizontalBlock"]{row-gap:.75rem!important}
  .st-key-company-section-navigation{width:100%;max-width:100%;min-width:0;overflow:clip;padding:3px;box-sizing:border-box}
  .st-key-company-section-navigation [data-testid="stRadio"]{width:100%;max-width:100%;min-width:0}

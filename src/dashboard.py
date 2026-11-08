@@ -7647,6 +7647,7 @@ def render_research_workflow_navigation(
             active_page=selected_page, ticker=ticker,
             monitor_handoff=monitor_handoff, online_workbench=online_workbench,
             monitor_origin=monitor_origin,
+            **({"notes_cik":st.query_params.get("notes_cik")} if st.query_params.get("notes_cik") else {}),
         ),
         unsafe_allow_html=True,
     )
@@ -37871,6 +37872,16 @@ def load_dashboard_bounded_field_study(context: ProfileContext) -> BoundedFieldS
     )
 
 
+def _legacy_company_note_paths(context):
+    """Legacy journals are optional; never substitute a directory for an absent scope."""
+    data_dir = getattr(context, "data_dir", None)
+    if data_dir is None:
+        return None
+    directory = Path(data_dir)
+    return AuthoringPaths(journal=directory/'research_thesis_journal.csv',
+        catalysts=directory/'catalyst_evidence.csv',outcomes=directory/'research_outcome_reviews.csv')
+
+
 def render_research_monitor(
     state: dict[str, object],
     context: ProfileContext,
@@ -37949,6 +37960,9 @@ def render_research_monitor(
         )
     from src.sec_research_review_ui import render_review_monitor
     render_review_monitor(st, profile_key=context.profile_key, monitor_origin=monitor_origin)
+    from src.company_research_notes_ui import render_company_notes_monitor
+    render_company_notes_monitor(st,profile_key=context.profile_key,monitor_origin=monitor_origin,
+        legacy_paths=_legacy_company_note_paths(context))
     if queue.has_saved_follow_up:
         st.markdown("<h2 class='research-task-section-title'>Follow-up Queue</h2>", unsafe_allow_html=True)
     discipline_frame = pd.DataFrame(research_discipline_rows(discipline))
@@ -38222,19 +38236,20 @@ def _render_company_saved_section(
             render_signal_cards(valuation_regime_cards(valuation_regime), show_commands=False, variant="queue")
             render_signal_cards(stock_report_quant_interpretation_cards(report_payload), show_commands=False, variant="queue")
         return
-    if journal_state is not None:
-        summary=research_thesis_journal_summary(journal_state)
-    else:
-        summary={"status":"unavailable","title":"Research journal unavailable",
-                 "answer":"The selected-profile journal could not be verified.","evidence":"No record claim is shown.",
-                 "boundary":journal_error,"confidence":"","primary_action":"Review journal source"}
-    if summary["status"] == "not_started":
-        st.caption("No research thesis has been recorded.")
-    else:
-        st.markdown(research_thesis_journal_html(summary),unsafe_allow_html=True)
-    render_research_record_authoring(st_api=st,profile_key=context.profile_key,ticker=ticker,
-        paths=AuthoringPaths(journal=DATA_DIR/"research_thesis_journal.csv",
-                            catalysts=DATA_DIR/"catalyst_evidence.csv",outcomes=DATA_DIR/"research_outcome_reviews.csv"))
+    if section != "notes_tools":
+        if journal_state is not None:
+            summary=research_thesis_journal_summary(journal_state)
+        else:
+            summary={"status":"unavailable","title":"Research journal unavailable",
+                     "answer":"The selected-profile journal could not be verified.","evidence":"No record claim is shown.",
+                     "boundary":journal_error,"confidence":"","primary_action":"Review journal source"}
+        if summary["status"] == "not_started":
+            st.caption("No research thesis has been recorded.")
+        else:
+            st.markdown(research_thesis_journal_html(summary),unsafe_allow_html=True)
+        render_research_record_authoring(st_api=st,profile_key=context.profile_key,ticker=ticker,
+            paths=AuthoringPaths(journal=DATA_DIR/"research_thesis_journal.csv",
+                                catalysts=DATA_DIR/"catalyst_evidence.csv",outcomes=DATA_DIR/"research_outcome_reviews.csv"))
     with st.expander("Research Decision Lab & History", expanded=False):
         st.caption("Research records and financial readiness are assessed separately. Adding a record does not clear model or source restrictions.")
         render_signal_cards(decision_lab_cards(decision_lab_state),show_commands=False,variant="queue")
@@ -38307,9 +38322,20 @@ def render_company_workbench(
     }
     has_registered_company = bool(ticker and ticker in registered_tickers)
     online_requested = str(st.query_params.get("online") or "") == "1"
+    from src.company_research_notes import CompanyNotesScope,saved_company_notes_scope,legacy_notes_available
+    legacy_note_paths=_legacy_company_note_paths(context)
+    note_profile=getattr(context,'profile_key',None)
+    has_legacy_notes=bool(legacy_note_paths is not None and not has_registered_company and not online_requested
+        and legacy_notes_available(ticker,note_profile,legacy_note_paths))
+    requested_notes_cik=st.query_params.get("notes_cik")
+    offline_notes=(saved_company_notes_scope(ticker,note_profile,sec_cik=requested_notes_cik)
+                   if not online_requested and (requested_notes_cik or not (has_registered_company or has_legacy_notes)) else None)
+    invalid_saved_notes=bool(requested_notes_cik and (online_requested or offline_notes is None))
+    if offline_notes is not None and not requested_notes_cik:
+        st.query_params['notes_cik']=offline_notes.sec_cik
     from src.sec_research_review_ui import saved_review_route_available
     saved_receipt_only = bool(not has_registered_company and not online_requested
-        and saved_review_route_available(ticker,getattr(context,"profile_key",None)))
+        and (offline_notes or saved_review_route_available(ticker,getattr(context,"profile_key",None))))
     session_state = getattr(st, "session_state", {})
     online_candidate = (
         online_company_candidate_for_route(
@@ -38332,10 +38358,12 @@ def render_company_workbench(
             )
             session_state[ONLINE_COMPANY_SESSION_KEY] = online_result
             online_candidate = online_company_candidate_for_route(ticker, session_state)
-    if online_candidate is None and (online_requested or not (has_registered_company or saved_receipt_only)):
+    if invalid_saved_notes or online_candidate is None and (online_requested or not (has_registered_company or saved_receipt_only or has_legacy_notes)):
         render_research_workspace_header("Company Workbench",context,ticker=ticker,
             primary_action="Choose an explicit company in Discover",compact=True,include_boundary=False)
         title = (
+            f"Saved issuer notes are unavailable for {ticker}"
+            if invalid_saved_notes else
             f"Online SEC identity is unavailable for {ticker}"
             if ticker and online_requested
             else f"No registered saved company matches {ticker}"
@@ -38346,6 +38374,8 @@ def render_company_workbench(
             empty_state_html(
                 title=title,
                 absence=(
+                    "The selected saved note identity could not be verified in this research profile. No other issuer or saved ticker was substituted."
+                    if invalid_saved_notes else
                     "The online SEC association could not be verified for this ticker. "
                     "No saved-company or financial claim has been substituted."
                     if online_requested
@@ -38372,7 +38402,7 @@ def render_company_workbench(
             unsafe_allow_html=True,
         )
         return
-    expected_cik=online_candidate["cik"] if online_candidate else None
+    expected_cik=online_candidate["cik"] if online_candidate else offline_notes.sec_cik if offline_notes else None
     def saved_section(section):
         if section == "financials":
             _render_company_saved_business_trend(load_dashboard_quarterly_trend(ticker))
@@ -38380,6 +38410,26 @@ def render_company_workbench(
         render_single_stock_report(provider,False,public_mode=True,profile_context=context,
             research_mode=True,research_review_items=state.get("queue") or (),
             observation_recency=observation_recency,workbench_section=section)
+    def notes(bundle):
+        from src.company_research_notes_ui import render_company_notes
+        note_scope=CompanyNotesScope(context.profile_key,ticker,expected_cik) if expected_cik else None
+        if note_scope is not None:
+            render_company_notes(st,profile_key=context.profile_key,ticker=ticker,scope=note_scope)
+        elif (has_registered_company or has_legacy_notes) and legacy_note_paths is not None:
+            render_company_notes(st,profile_key=context.profile_key,ticker=ticker,
+                legacy_paths=legacy_note_paths)
+        else:
+            st.info('Choose an unambiguous company in Discover to start issuer-scoped notes. Existing SEC evidence can still be replayed below.')
+        if has_registered_company and online_candidate is None and offline_notes is None:
+            with st.expander('Model-based research tools',expanded=False):
+                st.caption('Decision Lab, Forward View, catalysts and the HTML Research Brief require separately qualified saved model inputs. Notes and SEC evidence do not require a local price or financial CSV.')
+                key=f'company-note-model-tools:{context.profile_key}:{ticker}'
+                if st.button('Open saved analysis tools',key=key+':open'):st.session_state[key]=True
+                if st.session_state.get(key):saved_section('notes_tools')
+        else:
+            st.caption('Model-based scenarios, Decision Lab, Forward View and the full Research Brief remain unavailable until their model inputs are separately qualified. Company notes and SEC evidence remain usable.')
+            if has_registered_company:
+                st.markdown(f'[Open separately scoped saved research tools](?mode=research&page=company-workbench&ticker={ticker}&section=notes)',unsafe_allow_html=False)
     def sources(bundle):
         view=bundle["financial"]
         if online_candidate:
@@ -38411,7 +38461,8 @@ def render_company_workbench(
         render_research_change_route_summary("Single-Stock Report",state,ticker=ticker)
     render_integrated_company(st,ticker,profile_scope=context.profile_key,
         saved_available=has_registered_company,online_candidate=online_candidate,
-        render_saved=saved_section,render_sources=sources,
+        render_saved=saved_section,render_sources=sources,render_notes=notes,
+        **({'saved_notes_cik':offline_notes.sec_cik} if offline_notes else {}),
         **({'saved_receipt_only':True} if saved_receipt_only else {}))
 
 
@@ -38566,7 +38617,17 @@ def main() -> None:
         requested_return = str(st.query_params.get("return_ticker") or "").strip().upper()
         session_state = getattr(st, "session_state", {})
         monitor_origin = research_monitor_origin(session_state, profile_key, requested_return)
-        if research_monitor_requires_online(session_state, st.query_params, requested_return):
+        saved_return_cik=st.query_params.get('return_notes_cik')
+        if saved_return_cik:
+            from src.company_research_notes import saved_company_notes_scope
+            checked_notes=saved_company_notes_scope(requested_return,profile_key,sec_cik=saved_return_cik)
+            if checked_notes is not None and st.query_params.get('return_online') is None:
+                monitor_return_ticker=requested_return
+                if monitor_origin is None or monitor_origin.notes_cik!=checked_notes.sec_cik:
+                    monitor_origin=MonitorOrigin(profile_key,requested_return,'notes',None,notes_cik=checked_notes.sec_cik)
+                    session_state['research_monitor_origin']=monitor_origin
+            else:monitor_origin=None
+        elif research_monitor_requires_online(session_state, st.query_params, requested_return):
             if (st.query_params.get("return_online") == "1" and monitor_origin is not None
                     and monitor_origin.online_cik is not None):
                 monitor_return_ticker = monitor_origin.ticker
@@ -38581,12 +38642,14 @@ def main() -> None:
             monitor_return_ticker = validated_research_return_ticker(requested_return, registered_tickers)
             if requested_return and not monitor_return_ticker:
                 from src.sec_research_review_ui import saved_review_route_available
-                if saved_review_route_available(requested_return, profile_key):
+                from src.company_research_notes import legacy_notes_available
+                legacy_paths=_legacy_company_note_paths(profile_context)
+                if saved_review_route_available(requested_return, profile_key) or legacy_notes_available(requested_return,profile_key,legacy_paths):
                     monitor_return_ticker = requested_return
                 else:
                     monitor_origin = None
         if not monitor_return_ticker:
-            for return_key in ("return_ticker", "return_online"):
+            for return_key in ("return_ticker", "return_online", "return_notes_cik"):
                 if return_key in st.query_params:
                     del st.query_params[return_key]
     bootstrap_placeholder = (

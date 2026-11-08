@@ -41,6 +41,49 @@ def _app():
 def text(at):return '\n'.join(m.value for m in at.markdown)
 
 
+def _independent_notes_app():
+    import streamlit as st
+    from src.company_workbench_ui import render_integrated_company
+    def saved(section):
+        raise AssertionError('A local report must not gate the research journal')
+    def notes(bundle):
+        assert bundle['financial']['status'] == 'not_requested'
+        st.markdown('Independent issuer notes are available')
+    render_integrated_company(st,'FICT',profile_scope='synthetic',saved_available=True,
+        online_candidate={'cik':'0000001234','title':'Synthetic online company'},
+        render_saved=saved,render_sources=lambda bundle:None,render_notes=notes)
+
+
+def test_online_notes_and_sec_controls_do_not_require_local_report_or_fetch(monkeypatch):
+    calls = _sources(monkeypatch)
+    at = AppTest.from_function(_independent_notes_app)
+    at.query_params['section'] = 'notes'
+    at.run()
+    assert not at.exception
+    assert 'Independent issuer notes are available' in text(at)
+    assert any(b.label == 'Save current SEC evidence' for b in at.button)
+    assert calls == {'financial':0,'prices':0}
+
+
+def _offline_issuer_app():
+    import streamlit as st
+    from src.company_workbench_ui import render_integrated_company
+    def saved(section):
+        raise AssertionError('An offline issuer note scope must not adopt ticker-only saved models')
+    render_integrated_company(st,'FICT',profile_scope='synthetic',saved_available=True,
+        saved_notes_cik='0000005678',render_saved=saved,render_sources=lambda bundle:None,
+        render_notes=lambda bundle:None)
+
+
+@pytest.mark.parametrize('section',['financials','valuation'])
+def test_offline_saved_issuer_cannot_fall_back_to_legacy_ticker_model(monkeypatch,section):
+    calls=_sources(monkeypatch)
+    app=AppTest.from_function(_offline_issuer_app)
+    app.query_params['section']=section
+    app.run()
+    assert not app.exception and calls == {'financial':0,'prices':0}
+
+
 def _company_brief(at):
     return next(m.value for m in at.markdown if 'aria-label="Company Brief"' in m.value)
 
@@ -340,9 +383,13 @@ def test_real_workbench_route_is_lazy_and_reuses_saved_tools_when_requested(monk
     at.radio[0].set_value('notes').run()
     assert not at.exception
     assert calls==['AMD']
+    assert any(e.label=='Add a reviewed research record' for e in at.expander)
+    assert not any(e.label=='Research Decision Lab & History' for e in at.expander)
+    next(b for b in at.button if b.label=='Open saved analysis tools').click().run()
+    assert not at.exception and calls==['AMD']
     assert any(e.label=='Research Decision Lab & History' for e in at.expander)
     assert any(e.label=='Forward View & Catalysts (saved evidence)' for e in at.expander)
-    assert any(e.label=='Add a reviewed research record' for e in at.expander)
+    assert len([e for e in at.expander if e.label=='Add a reviewed research record'])==1
     assert any(e.label=='HTML Research Brief' for e in at.expander)
 
 
@@ -421,6 +468,7 @@ def test_saved_scenario_assumptions_survive_section_roundtrip_without_cross_comp
     at.run();at.radio[0].set_value('valuation').run()
     next(s for s in at.slider if s.label=='WACC').set_value(.12).run()
     at.radio[0].set_value('notes').run()
+    next(b for b in at.button if b.label=='Open saved analysis tools').click().run()
     at.run()  # A second notes rerun must retain the scenario used by the exported snapshot.
     assert prepared[-1].parameters.wacc==pytest.approx(.12)
     assert snapshots[-1].scenario_lab_result is prepared[-1].result

@@ -2,6 +2,15 @@
 
 This document is the historical completion log for Stock Research Command Center. The active delivery sequence lives in [ROADMAP.md](../ROADMAP.md); exact implementation history remains available through Git commits and tests.
 
+## 2026-11-07 — Online company research continuity
+
+- Company notes and eligible SEC evidence no longer require a local price-dependent report. Online notes are scoped to the selected profile, ticker and CIK; existing ticker-scoped journals remain separate and accessible without company/model rows.
+- Monitor lists user-authored follow-ups separately from saved SEC comparisons and preserves issuer-specific return context. Saved notes and receipts can reopen offline after a session restart. Drafts survive section and Monitor detours; confirmation remains explicit.
+- The existing annual SEC capture/import/replay method retains its field, identity, period and rights checks. Selected-CIK guards exclude other-issuer receipts without deleting them; NEM/AMD/DUK remain the independently qualified reasoned disposition scope.
+- Intermediate-width navigation now stacks with the mobile rail, while retaining desktop navigation and phone cards. [Release evidence](ONLINE_COMPANY_WORKFLOW_RELEASE.md)
+
+The CSV-first foundation described below is historical saved-model infrastructure. The current company workflow retrieves financials and prices online and does not require preparing per-company CSV inputs.
+
 ## 2026-11-06 — Company workflow and bounded SEC pair dispositions
 
 - The local default route presents Research Desk -> Discover -> Company Workbench -> Monitor. Saved Business Trend, valuation scenarios, peer read-through, forward view, catalysts, Decision Lab history and the offline HTML brief remain under named Workbench disclosures. The English GitHub Pages demo mirrors their questions with fictional data, while its separate AMD page is a dated read-only SEC filing case.

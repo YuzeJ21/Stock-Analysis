@@ -26,7 +26,7 @@ def assert_rendered_english(surface):
 def run_browser_fixture(root):
     """Run the dashboard with qualified synthetic observations and disposable receipt storage."""
     from src import company_workbench_ui, dashboard, online_company_identity, online_company_prices
-    from src import sec_annual_history, sec_research_review_ui
+    from src import company_research_notes, sec_annual_history, sec_research_review_ui
     from src.online_company_prices import fetch_online_company_prices
     from tests.test_company_workbench_sections import financial_view
     from tests.test_multi_company_sec_review import issuer_view
@@ -99,6 +99,7 @@ def run_browser_fixture(root):
     # The app subprocess owns this receipt store for its lifetime. A page reload
     # can overlap the teardown of the previous Streamlit session.
     sec_research_review_ui.PROJECT_ROOT = root
+    company_research_notes.PROJECT_ROOT = root
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(socket.socket, "connect", local_connect)
         patch.setattr(dashboard, "search_sec_company_candidates", search)
@@ -584,12 +585,18 @@ def test_online_research_round_trip_keeps_section_and_evidence(
             selected = page.get_by_role("radio", name=section_label, exact=True)
             page.locator("label").filter(has=selected).click()
             navigation = page.get_by_role("navigation", name="Personal research workflow")
+            def open_saved_sec_evidence():
+                summary=page.locator('summary').filter(has=page.get_by_text('Saved SEC evidence',exact=True))
+                playwright.expect(summary).to_be_visible()
+                if summary.locator('..').get_attribute('open') is None:
+                    summary.click()
             if monitor_handoff == "navigation":
                 page.get_by_role("button", name="Refresh peer valuation", exact=True).click()
                 evidence = page.get_by_role("region", name="Online peer valuation", exact=True)
                 playwright.expect(evidence).to_contain_text("Annual P/E is 20.0% above the industry reference median")
                 handoff = navigation.get_by_role("link", name="Monitor", exact=True)
             else:
+                open_saved_sec_evidence()
                 page.get_by_role("button", name="Save current SEC evidence", exact=True).click()
                 evidence = page.locator(".st-key-sec-review-panel")
                 playwright.expect(evidence.get_by_role("heading", name="Replay saved evidence")).to_be_visible()
@@ -642,6 +649,7 @@ def test_online_research_round_trip_keeps_section_and_evidence(
             playwright.expect(selected).to_be_checked()
             assert brief.inner_text() == original_brief
             if monitor_handoff == "receipt":
+                open_saved_sec_evidence()
                 playwright.expect(download).to_be_enabled()
             assert tuple(line for line in evidence.inner_text().splitlines() if line) == original_evidence
             assert {path: path.read_bytes() for path in tmp_path.rglob("*.json")} == original_receipts
@@ -652,6 +660,7 @@ def test_online_research_round_trip_keeps_section_and_evidence(
                 notes_return.click()
                 playwright.expect(brief.get_by_role("heading", name="FICT Company Brief")).to_be_visible()
                 playwright.expect(selected).to_be_checked()
+                open_saved_sec_evidence()
                 playwright.expect(download).to_be_enabled()
                 assert tuple(line for line in evidence.inner_text().splitlines() if line) == original_evidence
             expected_route = {"page": ["company-workbench"], "ticker": ["FICT"],

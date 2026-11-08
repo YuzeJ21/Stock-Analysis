@@ -1,5 +1,6 @@
 import csv
 from contextlib import contextmanager
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -26,6 +27,22 @@ from src.research_thesis_journal import (
 
 
 AUTHORING_APP = Path(__file__).resolve().parent / "fixtures/research_record_authoring_app.py"
+SCOPED_AUTHORING_APP = """
+import os
+from pathlib import Path
+import streamlit as st
+from src.research_record_authoring import AuthoringPaths
+from src.research_record_authoring_ui import render_research_record_authoring
+
+scope = st.selectbox("Company identity", ("0000001234", "0000005678"), key="fixture-cik")
+root = Path(os.environ["RESEARCH_AUTHORING_FIXTURE_DIR"]).resolve()
+if not root.is_dir() or "pytest-" not in str(root):
+    raise RuntimeError("The authoring fixture requires a pytest temporary directory.")
+paths = AuthoringPaths(*(root / scope / name for name in ("journal.csv", "catalysts.csv", "outcomes.csv")))
+render_research_record_authoring(
+    st_api=st, profile_key="demo", ticker="SYN1", paths=paths, identity_scope=scope,
+)
+"""
 
 
 def _paths(tmp_path: Path) -> AuthoringPaths:
@@ -45,8 +62,10 @@ def _app(tmp_path: Path, monkeypatch) -> AppTest:
     return AppTest.from_file(AUTHORING_APP).run(timeout=20)
 
 
-def _field_key(kind: str, name: str) -> str:
-    return authoring_session_key("demo", "SYN1", f"field:{kind}:{name}")
+def _field_key(kind: str, name: str, *, identity_scope: str | None = None) -> str:
+    return authoring_session_key(
+        "demo", "SYN1", f"field:{kind}:{name}", identity_scope=identity_scope
+    )
 
 
 def _state_message_bodies(app: AppTest) -> list[str]:
@@ -65,13 +84,18 @@ def _binding_bodies(app: AppTest) -> list[str]:
     ]
 
 
-def _enter_valid_thesis(app: AppTest) -> AppTest:
-    app.text_input(key=_field_key("thesis", "thesis_id")).set_value("thesis-new")
-    app.text_area(key=_field_key("thesis", "summary")).set_value("Reviewed synthetic thesis.")
-    app.text_input(key=_field_key("thesis", "effective_at")).set_value("2026-07-22T10:00:00Z")
-    app.text_input(key=_field_key("thesis", "reviewer")).set_value("fixture-reviewer")
-    app.text_input(key=_field_key("thesis", "confidence")).set_value("0.60")
-    return app.text_input(key=_field_key("thesis", "review_due_date")).set_value("2026-08-22").run()
+def _enter_valid_thesis(app: AppTest, *, identity_scope: str | None = None) -> AppTest:
+    for name, value in {
+        "thesis_id": "thesis-new",
+        "summary": "Reviewed synthetic thesis.",
+        "effective_at": "2026-07-22T10:00:00Z",
+        "reviewer": "fixture-reviewer",
+        "confidence": "0.60",
+        "review_due_date": "2026-08-22",
+    }.items():
+        widget = app.text_area if name == "summary" else app.text_input
+        widget(key=_field_key("thesis", name, identity_scope=identity_scope)).set_value(value)
+    return app.run()
 
 
 def _enter_valid_non_thesis_record(app: AppTest, kind: str) -> AppTest:
@@ -131,6 +155,82 @@ def test_session_key_is_profile_ticker_and_kind_scoped():
     assert authoring_session_key("demo", "nvda", "preview") == "research-authoring:demo:NVDA:preview"
 
 
+def test_session_key_isolates_cik_without_changing_the_default_namespace():
+    assert authoring_session_key("demo", "nvda", "preview", identity_scope=None) == "research-authoring:demo:NVDA:preview"
+    assert authoring_session_key("demo", "nvda", "preview", identity_scope="0000001234") == "research-authoring:demo:NVDA:cik:0000001234:preview"
+    assert authoring_session_key("demo", "nvda", "preview", identity_scope="0000005678") == "research-authoring:demo:NVDA:cik:0000005678:preview"
+
+
+@pytest.mark.parametrize("identity_scope", ("", "0", "0000000000", "1234", "00000001234", " 0000001234", "0000001234 ", "0000:01234", "００００００１２３４", 1234, True))
+def test_session_key_rejects_invalid_identity_namespaces(identity_scope):
+    with pytest.raises(ValueError, match="nonzero 10-digit CIK"):
+        authoring_session_key("demo", "SYN1", "preview", identity_scope=identity_scope)
+
+
+def test_switching_cik_cannot_reuse_draft_preview_or_confirmation(tmp_path, monkeypatch):
+    monkeypatch.setenv("RESEARCH_AUTHORING_FIXTURE_DIR", str(tmp_path))
+    first = "0000001234"
+    second = "0000005678"
+    first_prefix = "research-authoring:demo:SYN1:cik:0000001234:"
+    second_prefix = "research-authoring:demo:SYN1:cik:0000005678:"
+    app = AppTest.from_string(SCOPED_AUTHORING_APP).run(timeout=20)
+    assert not app.exception
+    app = _enter_valid_thesis(app, identity_scope=first)
+    app.button(key=first_prefix + "validate").click().run()
+    app.checkbox(key=first_prefix + "confirmed").check().run()
+
+    app.selectbox(key="fixture-cik").set_value(second).run()
+
+    assert not app.exception
+    assert app.text_area(key=_field_key("thesis", "summary", identity_scope=second)).value == ""
+    assert not any(item.label == "Confirm and save" for item in app.button)
+    assert not _state_message_bodies(app)
+    assert first_prefix + "preview" in app.session_state
+    assert second_prefix + "preview" not in app.session_state
+    app = _enter_valid_thesis(app, identity_scope=second)
+    assert not any(item.label == "Confirm and save" for item in app.button)
+
+    app.button(key=second_prefix + "validate").click().run()
+
+    assert not app.exception
+    assert app.checkbox(key=second_prefix + "confirmed").value is False
+    assert "role='status'" in _state_message_bodies(app)[0]
+    assert "research-state-demo-syn1-cik-0000005678-thesis-" in _state_message_bodies(app)[0]
+    assert not any(tmp_path.iterdir())
+    app.checkbox(key=second_prefix + "confirmed").check()
+    app.button(key=second_prefix + "save").click().run()
+
+    saved = load_journal_entries(tmp_path / second / "journal.csv")
+    assert len(saved) == 1
+    assert saved[0].profile_key == "demo"
+    assert saved[0].ticker == "SYN1"
+    assert not (tmp_path / first).exists()
+    assert "Record saved" in _state_message_bodies(app)[0]
+    assert "research-state-demo-syn1-cik-0000005678-thesis-" in _state_message_bodies(app)[0]
+    assert second_prefix + "pending-reload-receipt" not in app.session_state
+    assert second_prefix + "state:save" in app.session_state
+    assert second_prefix + "reset-confirmation" not in app.session_state
+
+
+def test_validation_error_ids_and_transition_state_are_cik_scoped(tmp_path, monkeypatch):
+    monkeypatch.setenv("RESEARCH_AUTHORING_FIXTURE_DIR", str(tmp_path))
+    app = AppTest.from_string(SCOPED_AUTHORING_APP).run(timeout=20)
+    app.button(key="research-authoring:demo:SYN1:cik:0000001234:validate").click().run()
+
+    assert not app.exception
+    assert '"errorId": "research-authoring-demo-syn1-thesis-thesis-id-error-cik-0000001234"' in _binding_bodies(app)[0]
+    assert "research-state-demo-syn1-cik-0000001234-thesis-" in _state_message_bodies(app)[0]
+    assert "research-authoring:demo:SYN1:cik:0000001234:state:thesis" in app.session_state
+    app.selectbox(key="fixture-cik").set_value("0000005678").run()
+    app.button(key="research-authoring:demo:SYN1:cik:0000005678:validate").click().run()
+
+    assert not app.exception
+    assert '"errorId": "research-authoring-demo-syn1-thesis-thesis-id-error-cik-0000005678"' in _binding_bodies(app)[0]
+    assert "role='alert'" in _state_message_bodies(app)[0]
+    assert "research-state-demo-syn1-cik-0000005678-thesis-" in _state_message_bodies(app)[0]
+    assert not any(tmp_path.iterdir())
+
+
 def test_fixture_renders_locked_scope_and_no_confirmation_before_preview(tmp_path, monkeypatch):
     app = _app(tmp_path, monkeypatch)
 
@@ -166,6 +266,102 @@ def test_existing_active_thesis_is_presented_as_a_locked_revision_lineage(tmp_pa
     assert supersedes.options == [active.entry_id]
     assert supersedes.value == active.entry_id
     assert "revision of the active thesis" in "\n".join(item.value for item in app.caption)
+
+
+@pytest.mark.parametrize("identity_scope", (None, "0000001234"), ids=("legacy", "cik-scoped"))
+def test_external_initial_thesis_refreshes_locked_lineage_and_preserves_dirty_summary(
+    tmp_path, monkeypatch, identity_scope
+):
+    monkeypatch.setenv("RESEARCH_AUTHORING_FIXTURE_DIR", str(tmp_path))
+    app = (
+        _app(tmp_path, monkeypatch) if identity_scope is None
+        else AppTest.from_string(SCOPED_AUTHORING_APP).run(timeout=20)
+    )
+    directory = tmp_path if identity_scope is None else tmp_path / identity_scope
+    paths = _paths(directory)
+    key = lambda suffix: authoring_session_key("demo", "SYN1", suffix, identity_scope=identity_scope)
+    app.text_area(key=key("field:thesis:summary")).set_value("Unfinished local summary.").run()
+    app.button(key=key("validate")).click().run()
+    assert "Validation rejected" in _state_message_bodies(app)[0]
+    active = _thesis_entry()
+    append_journal_entry(paths.journal, active)
+    before = paths.journal.read_bytes()
+
+    app.run()
+
+    assert not app.exception
+    thesis_id = app.text_input(key=key("field:thesis:thesis_id"))
+    assert thesis_id.disabled is True
+    assert thesis_id.value == "thesis-syn1"
+    assert app.selectbox(key=key("field:thesis:supersedes_entry_id")).value == "entry-existing"
+    assert app.text_area(key=key("field:thesis:summary")).value == "Unfinished local summary."
+    assert key("preview") not in app.session_state
+    assert not app.checkbox
+    for name, value in {
+        "effective_at": "2026-07-22T10:00:00Z", "reviewer": "fixture-reviewer",
+        "confidence": "0.60", "review_due_date": "2026-08-22",
+    }.items():
+        app.text_input(key=key("field:thesis:" + name)).set_value(value)
+    app.run()
+    app.button(key=key("validate")).click().run()
+
+    assert not app.exception
+    assert "Preview ready" in _state_message_bodies(app)[0]
+    assert app.checkbox(key=key("confirmed")).value is False
+    preview = app.session_state[key("preview")]
+    assert dict(preview.persisted_fields)["thesis_id"] == "thesis-syn1"
+    assert dict(preview.persisted_fields)["supersedes_entry_id"] == "entry-existing"
+    assert paths.journal.read_bytes() == before
+    assert not paths.catalysts.exists() and not paths.outcomes.exists()
+
+
+@pytest.mark.parametrize("identity_scope", (None, "0000001234"), ids=("legacy", "cik-scoped"))
+def test_external_revision_invalidates_preview_confirmation_and_preserves_editable_fields(
+    tmp_path, monkeypatch, identity_scope
+):
+    monkeypatch.setenv("RESEARCH_AUTHORING_FIXTURE_DIR", str(tmp_path))
+    directory = tmp_path if identity_scope is None else tmp_path / identity_scope
+    paths = _paths(directory)
+    active = _thesis_entry()
+    append_journal_entry(paths.journal, active)
+    app = (
+        _app(tmp_path, monkeypatch) if identity_scope is None
+        else AppTest.from_string(SCOPED_AUTHORING_APP).run(timeout=20)
+    )
+    key = lambda suffix: authoring_session_key("demo", "SYN1", suffix, identity_scope=identity_scope)
+    for name, value in {
+        "summary": "Local revision remains unfinished.", "effective_at": "2026-07-22T10:00:00Z",
+        "reviewer": "fixture-reviewer", "confidence": "0.60", "review_due_date": "2026-08-22",
+    }.items():
+        widget = app.text_area if name == "summary" else app.text_input
+        widget(key=key("field:thesis:" + name)).set_value(value)
+    app.run()
+    app.button(key=key("validate")).click().run()
+    app.checkbox(key=key("confirmed")).check().run()
+    append_journal_entry(paths.journal, replace(
+        active, entry_id="entry-external-revision", recorded_at="2026-07-21T12:00:00Z",
+        effective_at="2026-07-21T11:00:00Z", summary="Another tab saved this revision.",
+        supersedes_entry_id=active.entry_id,
+    ))
+    before = paths.journal.read_bytes()
+
+    app.run()
+
+    assert not app.exception
+    assert app.text_input(key=key("field:thesis:thesis_id")).value == "thesis-syn1"
+    assert app.selectbox(key=key("field:thesis:supersedes_entry_id")).value == "entry-external-revision"
+    assert app.text_area(key=key("field:thesis:summary")).value == "Local revision remains unfinished."
+    assert app.text_input(key=key("field:thesis:review_due_date")).value == "2026-08-22"
+    assert key("preview") not in app.session_state
+    assert key("confirmed") not in app.session_state
+    assert not any(button.label == "Confirm and save" for button in app.button)
+    app.button(key=key("validate")).click().run()
+
+    assert not app.exception
+    assert "Preview ready" in _state_message_bodies(app)[0]
+    assert app.checkbox(key=key("confirmed")).value is False
+    assert dict(app.session_state[key("preview")].persisted_fields)["supersedes_entry_id"] == "entry-external-revision"
+    assert paths.journal.read_bytes() == before
 
 
 def test_empty_scoped_thesis_options_fail_closed_with_a_readable_message(tmp_path, monkeypatch):
@@ -632,6 +828,48 @@ class _ReceiptUI:
 
     def html(self, rendered: str) -> None:
         self.rendered_html.append(rendered)
+
+
+def test_pending_receipt_is_not_consumed_or_announced_for_another_cik(tmp_path):
+    paths = _paths(tmp_path)
+    append_journal_entry(paths.journal, _thesis_entry())
+    first_receipt_key = "research-authoring:demo:SYN1:cik:0000001234:pending-reload-receipt"
+    receipt = _ReceiptUI(None)
+    receipt.session_state = {
+        first_receipt_key: {"record_kind": "thesis", "record_id": "entry-existing"},
+    }
+
+    research_record_authoring_ui._show_reloaded_save_receipt(
+        receipt, profile_key="demo", ticker="SYN1", paths=paths,
+        identity_scope="0000005678",
+    )
+
+    assert first_receipt_key in receipt.session_state
+    assert not receipt.rendered_html
+    research_record_authoring_ui._show_reloaded_save_receipt(
+        receipt, profile_key="demo", ticker="SYN1", paths=paths,
+        identity_scope="0000001234",
+    )
+
+    assert first_receipt_key not in receipt.session_state
+    assert len(receipt.rendered_html) == 1
+    assert "Record saved" in receipt.rendered_html[0]
+    assert "research-state-demo-syn1-cik-0000001234-thesis-" in receipt.rendered_html[0]
+    assert "research-authoring:demo:SYN1:cik:0000001234:state:save" in receipt.session_state
+    research_record_authoring_ui._show_reloaded_save_receipt(
+        receipt, profile_key="demo", ticker="SYN1", paths=paths,
+        identity_scope="0000001234",
+    )
+    assert len(receipt.rendered_html) == 1
+
+
+def test_invalid_identity_scope_is_rejected_before_rendering_or_loading_receipts(tmp_path):
+    with pytest.raises(ValueError, match="nonzero 10-digit CIK"):
+        research_record_authoring_ui.render_research_record_authoring(
+            st_api=object(), profile_key="demo", ticker="SYN1", paths=_paths(tmp_path),
+            identity_scope="0000000000",
+        )
+    assert not any(tmp_path.iterdir())
 
 
 def _receipt_record(kind: str):

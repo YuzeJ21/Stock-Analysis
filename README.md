@@ -46,7 +46,7 @@ The full local workspace follows **Research Desk → Discover → Company Workbe
 | **Research Desk** | Search for a company online, resume saved SEC research, or open Monitor. |
 | **Discover** | Switch between online company search and saved companies. Open optional coverage studies when needed. |
 | **Company Workbench** | Review one company through five connected sections, with financial, price, and source context. |
-| **Monitor** | Use the Follow-up Queue to revisit saved questions and evidence changes, then return to the company or its exact saved comparison. |
+| **Monitor** | Reopen saved notes in User-authored follow-ups or compare saved SEC evidence, then return to the company or its exact saved comparison. |
 
 Company search accepts a name or ticker, including companies absent from local CSVs. The company rail keeps the five sections together beside a focused analysis area, with a stacked layout on phones. Use **Refresh financials and prices**, its separate refresh options, or **Refresh peer valuation** explicitly; changing sections reuses loaded observations. Source and observation dates stay visible across the company review.
 
@@ -57,10 +57,18 @@ Company search accepts a name or ticker, including companies absent from local C
 | **Overview** | One company heading, dated price and financial context, independently qualified annual diluted EPS, a peer valuation result or gap, and a compact financial chart and table. |
 | **Financial Trends** | Annual and directly reported quarterly history with metric selection, charts, compact tables, period evidence, growth, margins, cash generation, and separately qualified saved Business Trend. Missing periods remain gaps; cumulative cash flow is labelled separately. |
 | **Valuation & Peers** | Source-bound annual diluted P/E with eligible and excluded industry references, plus separately qualified saved Scenario Lab and sensitivities, Peer Read-Through, Valuation Methods, and Historical Valuation Regime. |
-| **Research Notes** | For a qualified saved company/profile, research questions, Forward View, Catalysts, Research Decision Lab and outcome history, an append-only thesis journal, and the offline HTML Research Brief. Saved authoring uses an exact preview and explicit confirmation. |
+| **Research Notes** | Author and reopen company notes without preparing financial or price CSVs. Online notes are separated by profile, ticker and SEC CIK, with exact preview and explicit confirmation. Forward View, Catalysts, Research Decision Lab, outcome history and the offline HTML Research Brief remain available through separately qualified saved-model tools. |
 | **Data Sources** | Filing links, concepts, units, periods, publication and observation dates, source-rights context, and Data Health or Proof History when deeper verification is needed. |
 
 Saved tools remain scoped to their selected company and research profile. Online observations do not automatically qualify a saved model, and section changes preserve editable scenario and research-record fields without carrying save confirmation forward.
+
+### Online notes, evidence and Monitor
+
+Search in Discover, open the company, then use **Research Notes**. Notes do not require a saved valuation report or local company price rows. Private user records are created only after preview and confirmation; they can be reopened from Monitor after a browser reload. Existing saved-workspace journals remain separate from CIK-scoped online notes.
+
+Use **Saved SEC evidence** to save eligible annual observations, replay them and compare two saved inputs. Identical facts retain **No change**; different identities, periods, definitions or permissions retain gaps. Monitor lists saved SEC review items and user-authored follow-ups separately. A saved note identifies its research scope; it does not establish a current listing or financial coverage.
+
+The application retrieves data online while running locally. GitHub Pages hosts the demonstrations, not the full Streamlit workspace. [Online research workflow](docs/ONLINE_COMPANY_RESEARCH.md) · [Workflow release evidence](docs/ONLINE_COMPANY_WORKFLOW_RELEASE.md)
 
 ### Saved SEC evidence review
 

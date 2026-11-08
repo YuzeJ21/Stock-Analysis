@@ -27,11 +27,11 @@ from src.company_workbench_presentation import (
 )
 
 
-def retain_saved_tool_inputs(state,profile_scope,ticker):
+def retain_saved_tool_inputs(state,profile_scope,ticker,*,identity_scope=None):
     """Keep scoped editable inputs across lazy panes, never action or consent state."""
-    keys=list(scenario_lab_widget_keys(profile_scope,ticker).values())
-    keys.append(authoring_session_key(profile_scope,ticker,'kind'))
-    keys.extend(authoring_session_key(profile_scope,ticker,f'field:{kind}:{name}')
+    keys=list(scenario_lab_widget_keys(profile_scope,ticker).values()) if identity_scope is None else []
+    keys.append(authoring_session_key(profile_scope,ticker,'kind',identity_scope=identity_scope))
+    keys.extend(authoring_session_key(profile_scope,ticker,f'field:{kind}:{name}',identity_scope=identity_scope)
                 for kind,fields in FIELD_CONTRACTS.items() for name in fields)
     for key in keys:
         if key in state:state[key]=state[key]
@@ -65,13 +65,13 @@ def _separate_saved_link(ticker):
 
 
 def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
-                              online_candidate=None, render_saved, render_sources,saved_receipt_only=False):
+                              online_candidate=None, render_saved, render_sources,saved_receipt_only=False,
+                              render_notes=None,saved_notes_cik=None):
     """Render one company section, keeping online and saved identities distinct."""
     candidate=online_candidate if isinstance(online_candidate,Mapping) else None
-    expected_cik=candidate.get('cik') if candidate else None
-    scope='online:'+str(expected_cik) if candidate else 'receipts' if saved_receipt_only else 'saved'
-    if saved_available and candidate is None:
-        retain_saved_tool_inputs(st_api.session_state,profile_scope,ticker)
+    expected_cik=candidate.get('cik') if candidate else saved_notes_cik
+    scope='online:'+str(expected_cik) if candidate else 'notes:'+saved_notes_cik if saved_notes_cik else 'receipts' if saved_receipt_only else 'saved'
+    retain_saved_tool_inputs(st_api.session_state,profile_scope,ticker,identity_scope=expected_cik if candidate or saved_notes_cik else None)
     st_api.html(WORKBENCH_STYLE)
     with st_api.container(key='company-workbench-layout'):
         rail,content=st_api.columns([1,4],gap='large')
@@ -93,12 +93,12 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
                 candidate=candidate,expected_cik=expected_cik,selected=section_key(selected),
                 update_all=update_all,update_financial=update_financial,update_prices=update_prices,
                 saved_available=saved_available,saved_receipt_only=saved_receipt_only,
-                render_saved=render_saved,render_sources=render_sources)
+                render_saved=render_saved,render_sources=render_sources,render_notes=render_notes)
 
 
 def _render_company_content(st_api,ticker,*,profile_scope,scope,candidate,expected_cik,selected,
                             update_all,update_financial,update_prices,saved_available,
-                            saved_receipt_only,render_saved,render_sources):
+                            saved_receipt_only,render_saved,render_sources,render_notes=None):
     """The main column stays focused on the selected company's analysis."""
     header=st_api.empty()
     bundle=load_workbench_observations(ticker,st_api.session_state,
@@ -174,11 +174,17 @@ def _render_company_content(st_api,ticker,*,profile_scope,scope,candidate,expect
                     st_api.markdown(online_company_analysis_html(build_online_company_analysis(financial)),unsafe_allow_html=True)
                 with st_api.expander('Full period evidence',expanded=False):
                     st_api.markdown(annual_history_html(financial,compact=True)+quarterly_history_html(financial,compact=True),unsafe_allow_html=True)
-            if saved_available and candidate is None:
+            if saved_available and scope=='saved':
                 render_saved(selected)
         elif selected in ('valuation','notes'):
             if selected=='notes':
                 from src.sec_research_review_ui import render_company_review
+                if render_notes is not None:
+                    render_notes(bundle)
+                    with st_api.expander('Saved SEC evidence',expanded=bool(st_api.query_params.get('sec_pair') or saved_receipt_only)):
+                        kwargs={'expected_cik':expected_cik} if expected_cik else {}
+                        render_company_review(st_api,ticker,financial,profile_key=profile_scope,**kwargs)
+                    return bundle
                 if saved_available and candidate is None and not saved_receipt_only and not st_api.query_params.get('sec_pair'):
                     render_saved(selected)
                     with st_api.expander('Saved SEC evidence',expanded=False):
@@ -192,7 +198,7 @@ def _render_company_content(st_api,ticker,*,profile_scope,scope,candidate,expect
                     st_api.caption('Refresh to compare reported annual diluted P/E with qualifying industry references.')
                 with st_api.expander('Listing source continuity', expanded=False):
                     st_api.caption('A complete listing observation from this session can be reused for up to 24 hours with its original dates. Financials and prices are checked independently.')
-            if saved_available and candidate is None:
+            if saved_available and scope=='saved':
                 render_saved(selected)
             elif selected=='valuation':
                 if peer_view['status']=='not_requested':

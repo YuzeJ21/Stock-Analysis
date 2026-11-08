@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import json
 from dataclasses import asdict, dataclass
+from io import StringIO
 from pathlib import Path
 from types import MappingProxyType
 from typing import Mapping
@@ -41,6 +42,7 @@ class AuthoringPaths:
     journal: Path
     catalysts: Path
     outcomes: Path
+    max_bytes: int | None = None
 
     def all(self) -> tuple[Path, Path, Path]:
         return (self.journal, self.catalysts, self.outcomes)
@@ -134,6 +136,33 @@ def _record_id(record: JournalEntry | CatalystEvent | ResearchOutcome) -> str:
     return record.outcome_id
 
 
+def _check_write_limit(
+    destination: Path,
+    max_bytes: int | None,
+    *,
+    record: JournalEntry | CatalystEvent | ResearchOutcome | None = None,
+) -> None:
+    if max_bytes is None:
+        return
+    if type(max_bytes) is not int or max_bytes < 0:
+        raise ValueError("Saved note byte limit must be a nonnegative integer")
+    existing_size = destination.stat().st_size if destination.exists() else 0
+    if existing_size > max_bytes:
+        raise ValueError("Saved note byte limit exceeded")
+    if record is None:
+        return
+    values = asdict(record)
+    if any(len(str(value)) > csv.field_size_limit() for value in values.values()):
+        raise ValueError("Saved note field size limit exceeded")
+    output = StringIO(newline="")
+    writer = csv.DictWriter(output, fieldnames=tuple(values))
+    if not existing_size:
+        writer.writeheader()
+    writer.writerow(values)
+    if existing_size + len(output.getvalue().encode("utf-8")) > max_bytes:
+        raise ValueError("Saved note byte limit exceeded")
+
+
 def _scoped_theses(paths: AuthoringPaths, draft: AuthoringDraft) -> tuple[JournalEntry, ...]:
     return tuple(
         row
@@ -211,6 +240,7 @@ def preview_authoring_record(
     draft_digest = authoring_draft_digest(draft)
     ledger_fingerprint = ""
     try:
+        _check_write_limit(destination, paths.max_bytes)
         ledger_fingerprint = _ledger_fingerprint(destination)
         record = _build_record(draft, previewed_at=previewed_at, generated_id=generated_id, paths=paths)
         if isinstance(record, JournalEntry):
@@ -223,6 +253,7 @@ def preview_authoring_record(
             outcome_preview = preview_outcome(record, existing=load_outcomes(paths.outcomes))
             if outcome_preview.state == "rejected":
                 raise ValueError(outcome_preview.reason)
+        _check_write_limit(destination, paths.max_bytes, record=record)
     except (OSError, UnicodeError, csv.Error, ValueError) as exc:
         return AuthoringPreview(
             "rejected",
@@ -239,16 +270,17 @@ def preview_authoring_record(
             None,
         )
     persisted = tuple((key, str(value)) for key, value in asdict(record).items())
-    receipt = _stable_digest(
-        {
-            "draft": draft_digest,
-            "ledger": ledger_fingerprint,
-            "record": persisted,
-            "previewed_at": previewed_at,
-            "destination_label": destination.name,
-            "destination": str(resolve_ledger_path(destination)),
-        }
-    )
+    receipt_payload = {
+        "draft": draft_digest,
+        "ledger": ledger_fingerprint,
+        "record": persisted,
+        "previewed_at": previewed_at,
+        "destination_label": destination.name,
+        "destination": str(resolve_ledger_path(destination)),
+    }
+    if paths.max_bytes is not None:
+        receipt_payload["max_bytes"] = paths.max_bytes
+    receipt = _stable_digest(receipt_payload)
     return AuthoringPreview(
         "reviewable",
         "",

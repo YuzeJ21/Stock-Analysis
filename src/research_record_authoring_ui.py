@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import csv
+import re
+from dataclasses import replace
 from datetime import UTC, datetime
-from typing import Any
+from functools import partial
+from typing import Any, Callable
 from uuid import uuid4
 
 from src.accessibility_bridge import (
@@ -110,10 +113,32 @@ def authoring_field_contract(record_kind: str) -> tuple[str, ...]:
         raise ValueError(f"Unsupported record kind: {record_kind!r}") from exc
 
 
-def authoring_session_key(profile_key: str, ticker: str, suffix: str) -> str:
+def _authoring_scope(
+    profile_key: str, ticker: str, *, identity_scope: str | None = None
+) -> str:
+    scope = f"{profile_key}:{ticker.upper()}"
+    if identity_scope is None:
+        return scope
+    if (
+        not isinstance(identity_scope, str)
+        or re.fullmatch(r"[0-9]{10}", identity_scope) is None
+        or identity_scope == "0000000000"
+    ):
+        raise ValueError("identity_scope must be a nonzero 10-digit CIK")
+    return f"{scope}:cik:{identity_scope}"
+
+
+def authoring_session_key(
+    profile_key: str,
+    ticker: str,
+    suffix: str,
+    *,
+    identity_scope: str | None = None,
+) -> str:
     """Namespace transient widgets by their locked Company Workbench scope."""
 
-    return f"research-authoring:{profile_key}:{ticker.upper()}:{suffix}"
+    scope = _authoring_scope(profile_key, ticker, identity_scope=identity_scope)
+    return f"research-authoring:{scope}:{suffix}"
 
 
 def _generated_id(kind: str) -> str:
@@ -148,6 +173,34 @@ def _field_label(name: str) -> str:
     return name.replace("_", " ").title()
 
 
+def _sync_locked_thesis_lineage(
+    st_api: Any,
+    *,
+    active_thesis: JournalEntry | None,
+    session_key: Callable[[str], str],
+) -> None:
+    """Refresh immutable ledger identities without replacing editable draft fields."""
+
+    lineage = (
+        (active_thesis.thesis_id, active_thesis.entry_id)
+        if active_thesis is not None else None
+    )
+    lineage_key = session_key("locked-thesis-lineage")
+    if lineage_key in st_api.session_state and st_api.session_state[lineage_key] != lineage:
+        st_api.session_state.pop(session_key("preview"), None)
+        st_api.session_state.pop(session_key("confirmed"), None)
+    st_api.session_state[lineage_key] = lineage
+    locked_fields = {
+        "supersedes_entry_id": active_thesis.entry_id if active_thesis is not None else "",
+    }
+    if active_thesis is not None:
+        locked_fields["thesis_id"] = active_thesis.thesis_id
+    for name, value in locked_fields.items():
+        key = session_key(f"field:thesis:{name}")
+        if st_api.session_state.get(key) != value:
+            st_api.session_state[key] = value
+
+
 def _render_field(
     st_api: Any,
     *,
@@ -158,13 +211,15 @@ def _render_field(
     thesis_options: tuple[tuple[str, str], ...],
     active_thesis: JournalEntry | None,
     current_fields: dict[str, str],
+    identity_scope: str | None = None,
 ) -> str:
-    key = authoring_session_key(profile_key, ticker, f"field:{kind}:{name}")
+    key = authoring_session_key(
+        profile_key, ticker, f"field:{kind}:{name}", identity_scope=identity_scope
+    )
     label = _field_label(name)
     if name == "thesis_id" and kind == "thesis" and active_thesis is not None:
         return st_api.text_input(
             label,
-            value=active_thesis.thesis_id,
             disabled=True,
             key=key,
         )
@@ -224,12 +279,21 @@ def _render_authoring_state_message(
 
 
 def _show_reloaded_save_receipt(
-    st_api: Any, *, profile_key: str, ticker: str, paths: AuthoringPaths
+    st_api: Any,
+    *,
+    profile_key: str,
+    ticker: str,
+    paths: AuthoringPaths,
+    identity_scope: str | None = None,
 ) -> None:
     """Show one save receipt only after its persisted record is read back."""
 
     symbol = ticker.upper()
-    receipt_key = authoring_session_key(profile_key, symbol, "pending-reload-receipt")
+    scope = _authoring_scope(profile_key, symbol, identity_scope=identity_scope)
+    session_key = partial(
+        authoring_session_key, profile_key, symbol, identity_scope=identity_scope
+    )
+    receipt_key = session_key("pending-reload-receipt")
     receipt = st_api.session_state.get(receipt_key)
     if receipt is None:
         return
@@ -237,7 +301,7 @@ def _show_reloaded_save_receipt(
     if not isinstance(receipt, dict):
         message = research_state_message(
             "save_reload_unverified",
-            scope=f"{profile_key}:{symbol}:save",
+            scope=f"{scope}:save",
             title="Save verification incomplete",
             detail=(
                 "Saved record could not be reloaded; review the ledger. "
@@ -248,7 +312,7 @@ def _show_reloaded_save_receipt(
         _render_authoring_state_message(
             st_api,
             message,
-            session_key=authoring_session_key(profile_key, symbol, "state:save"),
+            session_key=session_key("state:save"),
         )
         return
     record_kind = str(receipt.get("record_kind") or "").strip().lower()
@@ -282,7 +346,7 @@ def _show_reloaded_save_receipt(
     if record_reloaded:
         message = research_state_message(
             "save_reloaded",
-            scope=f"{profile_key}:{symbol}:{record_kind}",
+            scope=f"{scope}:{record_kind}",
             title="Record saved",
             detail=(
                 f"Saved {record_id}. Corrections require a new append-only record; "
@@ -293,7 +357,7 @@ def _show_reloaded_save_receipt(
     else:
         message = research_state_message(
             "save_reload_unverified",
-            scope=f"{profile_key}:{symbol}:{record_kind or 'save'}",
+            scope=f"{scope}:{record_kind or 'save'}",
             title="Save verification incomplete",
             detail=(
                 "Saved record could not be reloaded; review the ledger. "
@@ -304,21 +368,31 @@ def _show_reloaded_save_receipt(
     _render_authoring_state_message(
         st_api,
         message,
-        session_key=authoring_session_key(profile_key, symbol, "state:save"),
+        session_key=session_key("state:save"),
     )
 
 
 def render_research_record_authoring(
-    *, st_api: Any, profile_key: str, ticker: str, paths: AuthoringPaths
+    *,
+    st_api: Any,
+    profile_key: str,
+    ticker: str,
+    paths: AuthoringPaths,
+    identity_scope: str | None = None,
 ) -> None:
     """Render a locked-scope, preview-first authoring composer without direct writes."""
 
     symbol = ticker.upper()
+    scope = _authoring_scope(profile_key, symbol, identity_scope=identity_scope)
+    session_key = partial(
+        authoring_session_key, profile_key, symbol, identity_scope=identity_scope
+    )
     _show_reloaded_save_receipt(
         st_api,
         profile_key=profile_key,
         ticker=symbol,
         paths=paths,
+        identity_scope=identity_scope,
     )
     with st_api.expander("Add a reviewed research record", expanded=False):
         st_api.markdown(
@@ -328,7 +402,7 @@ def render_research_record_authoring(
             "Record type",
             tuple(FIELD_CONTRACTS),
             format_func=str.title,
-            key=authoring_session_key(profile_key, symbol, "kind"),
+            key=session_key("kind"),
         )
         thesis_options: tuple[tuple[str, str], ...] = ()
         active_thesis: JournalEntry | None = None
@@ -356,6 +430,10 @@ def render_research_record_authoring(
                 f"Lineage {active_thesis.thesis_id} and active entry "
                 f"{active_thesis.entry_id} are locked."
             )
+        if kind == "thesis":
+            _sync_locked_thesis_lineage(
+                st_api, active_thesis=active_thesis, session_key=session_key,
+            )
 
         fields: dict[str, str] = {}
         for name in authoring_field_contract(kind):
@@ -368,18 +446,19 @@ def render_research_record_authoring(
                 thesis_options=thesis_options,
                 active_thesis=active_thesis,
                 current_fields=fields,
+                identity_scope=identity_scope,
             )
         draft = build_authoring_draft(
             kind, profile_key=profile_key, ticker=symbol, fields=fields
         )
-        preview_key = authoring_session_key(profile_key, symbol, "preview")
-        confirmation_key = authoring_session_key(profile_key, symbol, "confirmed")
-        reset_key = authoring_session_key(profile_key, symbol, "reset-confirmation")
+        preview_key = session_key("preview")
+        confirmation_key = session_key("confirmed")
+        reset_key = session_key("reset-confirmation")
         if st_api.session_state.pop(reset_key, False):
             st_api.session_state.pop(confirmation_key, None)
         validation_attempted = st_api.button(
             "Validate and preview",
-            key=authoring_session_key(profile_key, symbol, "validate"),
+            key=session_key("validate"),
             use_container_width=True,
         )
         if validation_attempted:
@@ -406,6 +485,10 @@ def render_research_record_authoring(
                 ticker=symbol,
                 kind=kind,
             )
+            if field_error is not None and identity_scope is not None:
+                field_error = replace(
+                    field_error, error_id=f"{field_error.error_id}-cik-{identity_scope}"
+                )
         render_authoring_error_binding(field_error)
         if preview is None:
             st_api.caption(
@@ -416,7 +499,7 @@ def render_research_record_authoring(
             current_digest = authoring_draft_digest(draft)
             message = research_state_message(
                 "draft_changed",
-                scope=f"{profile_key}:{symbol}:{kind}",
+                scope=f"{scope}:{kind}",
                 title="Draft changed",
                 detail="Validate and preview this edited draft again before saving.",
                 identity=f"{preview.receipt or preview.draft_digest}:{current_digest}",
@@ -424,15 +507,13 @@ def render_research_record_authoring(
             _render_authoring_state_message(
                 st_api,
                 message,
-                session_key=authoring_session_key(
-                    profile_key, symbol, f"state:{kind}"
-                ),
+                session_key=session_key(f"state:{kind}"),
             )
             return
         if preview.state == "rejected":
             message = research_state_message(
                 "validation_rejected",
-                scope=f"{profile_key}:{symbol}:{kind}",
+                scope=f"{scope}:{kind}",
                 title="Validation rejected",
                 detail=preview.reason,
                 identity=f"{preview.draft_digest}:{preview.reason}",
@@ -440,15 +521,13 @@ def render_research_record_authoring(
             _render_authoring_state_message(
                 st_api,
                 message,
-                session_key=authoring_session_key(
-                    profile_key, symbol, f"state:{kind}"
-                ),
+                session_key=session_key(f"state:{kind}"),
             )
             return
 
         message = research_state_message(
             "preview_ready",
-            scope=f"{profile_key}:{symbol}:{kind}",
+            scope=f"{scope}:{kind}",
             title="Preview ready",
             detail="This exact record is ready for review and is not saved.",
             identity=preview.receipt,
@@ -456,7 +535,7 @@ def render_research_record_authoring(
         _render_authoring_state_message(
             st_api,
             message,
-            session_key=authoring_session_key(profile_key, symbol, f"state:{kind}"),
+            session_key=session_key(f"state:{kind}"),
         )
         _render_preview(st_api, preview)
         confirmed = st_api.checkbox(
@@ -465,7 +544,7 @@ def render_research_record_authoring(
         )
         if st_api.button(
             "Confirm and save",
-            key=authoring_session_key(profile_key, symbol, "save"),
+            key=session_key("save"),
             use_container_width=True,
         ):
             result = confirm_authoring_preview(
@@ -481,7 +560,7 @@ def render_research_record_authoring(
                 del st_api.session_state[preview_key]
                 st_api.session_state[reset_key] = True
                 st_api.session_state[
-                    authoring_session_key(profile_key, symbol, "pending-reload-receipt")
+                    session_key("pending-reload-receipt")
                 ] = {"record_kind": result.record_kind, "record_id": result.record_id}
                 st_api.rerun()
             else:

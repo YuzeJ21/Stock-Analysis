@@ -82,8 +82,8 @@ WORKSPACE_ROUTE_QUERY_KEYS = {
     (PUBLIC_DEMO_MODE, PROOF_HISTORY_PATH_TITLE): ("ticker",),
     (RESEARCH_MODE, "Research Desk"): (),
     (RESEARCH_MODE, "Discover"): (),
-    (RESEARCH_MODE, "Company Workbench"): ("ticker", "open", "cash_preview", "online", "section", "sec_pair"),
-    (RESEARCH_MODE, "Monitor"): ("return_ticker", "return_online", "sec_pair", "sec_ticker"),
+    (RESEARCH_MODE, "Company Workbench"): ("ticker", "open", "cash_preview", "online", "section", "sec_pair", "notes_cik"),
+    (RESEARCH_MODE, "Monitor"): ("return_ticker", "return_online", "sec_pair", "sec_ticker", "return_notes_cik"),
     (RESEARCH_MODE, "Data Health"): DATA_HEALTH_QUERY_KEYS,
     (RESEARCH_MODE, PROOF_HISTORY_PATH_TITLE): ("ticker",),
 }
@@ -230,6 +230,7 @@ def canonical_workspace_query(
         pinned_ticker = canonical.get("sec_ticker", "NEM")
         if pinned_ticker not in SUPPORTED_DISPOSITION_COMPANIES or canonical.get("return_ticker") != pinned_ticker:
             canonical.pop("return_ticker", None)
+            canonical.pop("return_notes_cik", None)
         canonical.pop("return_online", None)
     return canonical
 
