@@ -74,7 +74,8 @@ def run_browser_fixture(root):
         return {"status": "unavailable", "reason": "sec_profile_unavailable"}
 
     def peer_valuation(ticker, state, *, refresh_requested, expected_cik):
-        if ticker in {"AMD", "DUK", "NEM", "NVDA"} and expected_cik is None and not refresh_requested:
+        saved_ciks = {"AMD": "0000002488", "DUK": "0001326160", "NEM": "0001164727", "NVDA": None}
+        if ticker in saved_ciks and expected_cik in {None, saved_ciks[ticker]} and not refresh_requested:
             return {"status": "not_requested"}
         assert (ticker, expected_cik) == ("FICT", "0000001234")
         if refresh_requested:
