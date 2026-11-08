@@ -1806,8 +1806,9 @@ def test_current_handoff_routes_to_local_reliability_work_not_exhausted_price_qu
 def test_completed_index_labels_local_prerequisites_without_claiming_external_exit():
     roadmap = _read("ROADMAP.md")
 
-    assert "### P1 local prerequisite: Hosted operating contracts" in roadmap
-    assert "### P1 local prerequisite: Independent beta protocol" in roadmap
+    assert "### P1 local prerequisites: Hosted operating contracts and independent beta protocol" in roadmap
+    assert "actual hosted verification remains externally blocked under Priority 6" in roadmap
+    assert "actual sessions remain externally blocked under Priority 8" in roadmap
     assert "### P1: Controlled Hosted Preview Verification" not in roadmap
     assert "### P1: Controlled Pilot Review" not in roadmap
 

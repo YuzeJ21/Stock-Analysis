@@ -97,7 +97,7 @@ def _after_tax_sources(profile, *, annual_qualified, user_agent, source_fetcher,
 
 def fetch_mrvl_earnings_review(
     facts_receipt, *, ticker, expected_cik, user_agent,
-    source_fetcher=None, observed_at=None,
+    source_fetcher=None, observed_at=None, profile_receipt=None,
 ):
     """Reuse Companyfacts; at most two profiles, two annual and two earnings documents.
 
@@ -136,7 +136,7 @@ def fetch_mrvl_earnings_review(
     for name in ('MRVL', 'AVGO'):
         policy = POLICIES[name]
         profile_url = f"https://data.sec.gov/submissions/CIK{policy['sec_cik']}.json"
-        receipt = fetch_sec_json_receipt(
+        receipt = profile_receipt if name == 'MRVL' and profile_receipt is not None else fetch_sec_json_receipt(
             profile_url, user_agent=user_agent, fetcher=source_fetcher, observed_at=observed_at,
         )
         packet['profiles'][name] = normalize_review_profile(receipt)

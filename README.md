@@ -48,16 +48,16 @@ The full local workspace follows **Research Desk → Discover → Company Workbe
 | **Company Workbench** | Review one company through five connected sections, with financial, price, and source context. |
 | **Monitor** | Revisit saved questions and evidence changes: User-authored follow-ups for notes, saved SEC comparisons, and the Follow-up Queue for legacy process items. Return to the company or exact pair. |
 
-Company search accepts a name or ticker, including companies absent from local CSVs. The company rail keeps the five sections together beside a focused analysis area, with a stacked layout on phones. Use **Refresh financials and prices**, its separate refresh options, or **Refresh peer valuation** explicitly; changing sections reuses loaded observations. Source and observation dates stay visible across the company review.
+Company search accepts a name or ticker, including companies absent from local CSVs. Press **Research company** to collect online SEC financials, check the latest annual and quarterly filings, load dated prices and attempt the existing peer comparison. The company rail keeps five sections beside a focused analysis area, with a stacked layout on phones. Separate refresh options remain available; changing sections reuses loaded observations without new requests. **No coding session or prepared company CSVs are required for the supported online workflow.**
 
 ## What You Can Do
 
 | Company section | Included tools |
 | --- | --- |
 | **Overview** | One company heading, dated price and financial context, independently qualified annual diluted EPS, a peer valuation result or gap, and a compact financial chart and table. |
-| **Financial Trends** | Annual and directly reported quarterly history with metric selection, charts, compact tables, period evidence, growth, margins, cash generation, and separately qualified saved Business Trend. Missing periods remain gaps; cumulative cash flow is labelled separately. |
-| **Valuation & Peers** | Source-bound annual diluted P/E with eligible and excluded industry references, plus separately qualified saved Scenario Lab and sensitivities, Peer Read-Through, Valuation Methods, and Historical Valuation Regime. |
-| **Research Notes** | Author an append-only thesis journal and reopen company notes without preparing financial or price CSVs. Online notes are separated by profile, ticker and SEC CIK, with exact preview and explicit confirmation. Forward View, Catalysts, Research Decision Lab, outcome history and the offline HTML Research Brief remain available through separately qualified saved-model tools. |
+| **Financial Trends** | Annual/direct-quarter history, metric charts, period tables and online Business Trend: compatible revenue growth, operating margins and descriptive cash generation. Annual earnings components retain exact filing definitions and individual gaps. Cumulative cash flow stays separate. |
+| **Valuation & Peers** | Source-bound annual diluted P/E with accepted/excluded industry references, observed peer read-through, and online Scenario Lab using reported annual revenue plus explicit growth, FCFF-margin and discount-rate assumptions. Missing capital structure leaves enterprise value only. Separately qualified saved Scenario Lab and sensitivities, Peer Read-Through, Valuation Methods and Historical Valuation Regime remain available. |
+| **Research Notes** | Author an issuer-scoped append-only thesis journal, evidence, catalysts and outcomes, then use Forward View and Research Decision Lab to identify the next research action. Save/replay online research, compare changes and reopen it from Monitor. Notes require exact preview and explicit confirmation. Saved-model tools, outcome history and the offline HTML Research Brief remain separately qualified. No prepared financial CSV is needed. |
 | **Data Sources** | Filing links, concepts, units, periods, publication and observation dates, source-rights context, and Data Health or Proof History when deeper verification is needed. |
 
 Saved tools remain scoped to their selected company and research profile. Online observations do not automatically qualify a saved model, and section changes preserve editable scenario and research-record fields without carrying save confirmation forward.
@@ -67,6 +67,8 @@ Saved tools remain scoped to their selected company and research profile. Online
 Search in Discover, open the company, then use **Research Notes**. Notes do not require a saved valuation report or local company price rows. Private user records are created only after preview and confirmation; they can be reopened from Monitor after a browser reload. Existing saved-workspace journals remain separate from CIK-scoped online notes.
 
 Use **Saved SEC evidence** to save eligible annual observations, replay them and compare two saved inputs. Identical facts retain **No change**; different identities, periods, definitions or permissions retain gaps. Monitor lists saved SEC review items and user-authored follow-ups separately. A saved note identifies its research scope; it does not establish a current listing or financial coverage.
+
+The separate **Saved online research** controls retain the broader normalized context: trends, filing versions, peer exclusions, scenario assumptions and notes. Repeated identical inputs stay unchanged; source metadata, filing/fact changes and user edits are compared separately. Monitor reopens the exact historical company snapshot. A new SEC filing whose structured facts have not arrived is shown as pending, and an affected scenario or peer verdict remains withheld. Supported later filings flow through the same generic rules without a new ticker-specific code change.
 
 The application retrieves data online while running locally. GitHub Pages hosts the demonstrations, not the full Streamlit workspace. [Online research workflow](docs/ONLINE_COMPANY_RESEARCH.md) · [Workflow release evidence](docs/ONLINE_COMPANY_WORKFLOW_RELEASE.md)
 
@@ -96,6 +98,8 @@ make dashboard
 ```
 
 Open [http://localhost:8501/](http://localhost:8501/) for the Personal Research workspace. Use an identifying SEC user agent for online retrieval. Financial and price refreshes require network access.
+
+After starting the app, use its browser interface directly; no ongoing coding session is needed. If `SEC_USER_AGENT` is not set, **SEC access** in company search accepts session-only request identification. The public Pages links above remain static demonstrations, not a hosted self-service research server. Unsupported custom/non-XBRL definitions, tax reconciliations, consensus and current share-class capital structure retain visible gaps. [Self-service method and boundaries](docs/SELF_SERVICE_COMPANY_RESEARCH.md)
 
 The repository's saved data, ignored local research files, and synthetic demo profile have separate contexts. Check the selected profile before comparing observations. [Data Profiles](docs/DATA_PROFILES.md) · [Online Company Research](docs/ONLINE_COMPANY_RESEARCH.md)
 
@@ -132,8 +136,8 @@ The supported workflow is research-only. Investment advice, broker account actio
 
 | Stage | Current focus |
 | --- | --- |
-| **Available today** | A local research beta with the five-section company workspace, online MRVL annual earnings quality and peer context, an English synthetic public demo, a separate dated AMD filing case, and exact-pair annual SEC review for NEM, AMD, and DUK. |
-| **Next** | Review one eligible industry reference's exact annual earnings definitions and issuer adjustments before proposing another valuation measure. Extend issuer and period support from measured gaps while preserving price, identity, financial-period and rights requirements. |
+| **Available today** | A local research beta with self-service online filing checks, trends, hypothetical scenarios, issuer notes and private snapshot/Monitor replay. Existing saved tools, the bounded MRVL review, English public demo, dated AMD filing case and annual review for NEM, AMD, and DUK remain available. |
+| **Next** | Measure the generic filing-and-tool workflow across the semiconductor, bank, utility and foreign-issuer sample, then address the largest verified gap. Preserve price, identity, period, definition and rights requirements. |
 | **Later gates** | Hosted full-workspace operation, authentication and private workspaces, operated data rights, provider reliability, independent user evidence, and commercial validation. |
 
 The [Roadmap](ROADMAP.md) is the active priority list. [Completed Milestones](docs/COMPLETED_MILESTONES.md) records shipped work and the evidence required to revisit parked features. Use `make next-stage` for the current local decision ladder.

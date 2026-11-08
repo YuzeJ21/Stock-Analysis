@@ -131,10 +131,10 @@ def test_shared_fetch_keeps_quarterly_evidence_when_annual_anchor_is_unsupported
     assert result['status']=='unavailable'
     assert result['quarterly_history']['periods'][1]['fields']['revenue']['value']==120
     assert result['companyfacts_identity']['sec_cik']=='0000001234'
-    assert len(calls)==2
+    assert len(calls)==3
     cached=get_company_sec_annual_preview('FICT',session,refresh_requested=False,user_agent='Research contact')
     assert cached['quarterly_history']['periods'][1]['cumulative_fields']['cash_from_operations']['value']==45
-    assert len(calls)==2
+    assert len(calls)==3
 
 
 def test_malformed_optional_anchor_and_unbounded_cik_are_withheld_without_crashing():

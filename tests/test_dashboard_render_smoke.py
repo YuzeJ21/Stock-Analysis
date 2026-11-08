@@ -420,7 +420,7 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
     )
     for marker in (
         "Company Brief",
-        "Overview", "Financial Trends", "Valuation & Peers", "Research Notes", "Data Sources", "Refresh financials and prices",
+        "Overview", "Financial Trends", "Valuation & Peers", "Research Notes", "Data Sources", "Research company",
     ):
         assert marker in workbench_route.required_markers
     evidence_contracts = {
@@ -467,7 +467,7 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
     )
     workbench = next(result for result in results if result.name == "Company Workbench")
     workbench_blocks = "\n".join(workbench.rendered_blocks)
-    assert "Refresh financials and prices" in workbench_blocks
+    assert "Research company" in workbench_blocks
     assert "Open evidence and analysis modules" not in workbench_blocks
     for gated_heading in (
         "## Research Decision Lab",
@@ -499,7 +499,7 @@ def test_company_workbench_opens_secondary_modules_only_after_explicit_action():
     app.run()
     assert not app.exception
     assert [button.label for button in app.button if button.key != "research-nav-monitor"]==[
-        "Refresh financials and prices","Financials only","Prices only",
+        "Research company","Financials only","Prices only",
     ]
     assert not any(e.label=="HTML Research Brief" for e in app.expander)
     _workbench_section(app,"valuation")
@@ -1661,7 +1661,7 @@ def test_normal_company_workbench_route_never_loads_cash_preview():
         required_markers=(
             "Company Workbench",
             "Company Brief",
-            "Refresh financials and prices",
+            "Research company",
             "Research-only",
         ),
     )

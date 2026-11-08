@@ -130,7 +130,7 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
         ),
         required_markers=(
             "Company Workbench", "Company Brief", "Overview", "Financial Trends", "Valuation & Peers",
-            "Research Notes", "Data Sources", "Refresh financials and prices", "Online observations and saved models have separate eligibility", "Research-only",
+            "Research Notes", "Data Sources", "Research company", "Online observations and saved models have separate eligibility", "Research-only",
         ),
     ),
     DashboardRenderRoute(

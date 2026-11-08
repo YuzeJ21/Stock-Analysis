@@ -8,6 +8,11 @@ from urllib.parse import urlsplit
 from src.online_peer_valuation import FISCAL_WINDOW_DAYS, MIN_PEERS
 
 REASONS = {
+    'latest_annual_filing_not_corroborated':'The latest annual SEC filing has not been matched to the current structured financial facts. Refresh financials and peer evidence.',
+    'peer_subject_annual_period_differs_from_current_financials':'The peer comparison uses a different annual period from the current company evidence. Refresh peer evidence.',
+    'peer_subject_filing_version_differs_from_current_financials':'The peer EPS uses a different annual filing version from the current company evidence. Refresh peer evidence.',
+    'peer_subject_price_date_differs_from_current_prices':'The peer comparison does not match the current dated closing-price observation. Refresh prices and peer evidence.',
+    'peer_subject_price_differs_from_current_prices':'The peer comparison uses a different closing price for the same date. Refresh prices and peer evidence; the earlier verdict remains withheld.',
     'reported_annual_pe_industry_reference_only':'Qualified reported annual P/E industry references are available. This shows a multiple difference only.',
     'annual_filing_missing':'No annual Form 10-K or 20-F supported by this method was found.',
     'latest_annual_eps_missing_including_amendment':'The latest annual or amended filing has no matching diluted EPS. The gap remains open.',

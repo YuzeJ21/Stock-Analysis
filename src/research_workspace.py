@@ -1529,6 +1529,8 @@ class MonitorOrigin:
     online_cik: str | None
     section_widget_key: str | None = None
     notes_cik: str | None = None
+    research_cik: str | None = None
+    research_snapshot: str | None = None
 
     def workbench_query(self) -> dict[str, str]:
         query = {
@@ -1538,6 +1540,8 @@ class MonitorOrigin:
             query["online"] = "1"
         if self.notes_cik is not None:
             query["notes_cik"] = self.notes_cik
+        if self.research_snapshot is not None:
+            query.update(research_cik=self.research_cik,research_snapshot=self.research_snapshot)
         query["section"] = self.section
         return query
 
@@ -1556,16 +1560,27 @@ def open_research_monitor(st, ticker: str, profile_key: str) -> None:
     from src.company_research_notes import saved_company_notes_scope
     notes_cik = params.get("notes_cik") if not online else None
     note_scope = saved_company_notes_scope(ticker, profile_key, sec_cik=notes_cik) if notes_cik else None
+    replay = None
+    if params.get('research_snapshot'):
+        from src.online_research_context_store import load_research_context
+        try:
+            replay=load_research_context(params['research_snapshot'],profile_key=profile_key,
+                ticker=ticker,sec_cik=params.get('research_cik'))
+        except (OSError,ValueError,TypeError,UnicodeError):
+            st.session_state.pop(_MONITOR_ORIGIN_KEY,None)
+            params.from_dict({'mode':'research','page':'monitor'})
+            return
     query = {"mode": "research", "page": "monitor"}
     if online and candidate is None or notes_cik and note_scope is None:
         st.session_state.pop(_MONITOR_ORIGIN_KEY, None)
     else:
         from src.company_workbench_ui import retain_saved_tool_inputs
         retain_saved_tool_inputs(st.session_state,profile_key,ticker,
-            identity_scope=candidate['cik'] if candidate else note_scope.sec_cik if note_scope else None)
+            identity_scope=candidate['cik'] if candidate else note_scope.sec_cik if note_scope else replay['sec_cik'] if replay else None)
         section = section_key(params.get("section"))
         scopes = (("online:" + candidate["cik"],) if candidate else
-                  ("notes:" + note_scope.sec_cik,) if note_scope else ("saved", "receipts"))
+                  ("notes:" + note_scope.sec_cik,) if note_scope else
+                  ('notes:'+replay['sec_cik'],) if replay else ("saved", "receipts"))
         widget_keys = [f"company-section:{profile_key}:{ticker}:{scope}" for scope in scopes]
         widget_keys = [key for key in widget_keys if key in st.session_state]
         if len(widget_keys) > 1:
@@ -1575,12 +1590,16 @@ def open_research_monitor(st, ticker: str, profile_key: str) -> None:
             candidate["cik"] if candidate else None,
             widget_keys[0] if len(widget_keys) == 1 else None,
             note_scope.sec_cik if note_scope else None,
+            replay['sec_cik'] if replay else None,
+            replay['snapshot_id'] if replay else None,
         )
         query["return_ticker"] = ticker
         if online:
             query["return_online"] = "1"
         if note_scope:
             query["return_notes_cik"] = note_scope.sec_cik
+        if replay:
+            query.update(return_research_cik=replay['sec_cik'],return_research_snapshot=replay['snapshot_id'])
     if not online and params.get("section") == "notes":
         query.update(_monitor_pair_query(ticker, params.get("sec_pair")))
     params.from_dict(query)
@@ -1599,6 +1618,12 @@ def research_monitor_origin(state, profile_key: str, ticker: str) -> MonitorOrig
         from src.company_research_notes import saved_company_notes_scope
         if saved_company_notes_scope(ticker, profile_key, sec_cik=origin.notes_cik) is None:
             return None
+    if origin.research_snapshot is not None:
+        from src.online_research_context_store import load_research_context
+        try:
+            load_research_context(origin.research_snapshot,profile_key=profile_key,
+                ticker=ticker,sec_cik=origin.research_cik)
+        except (OSError,ValueError,TypeError,UnicodeError):return None
     return origin
 
 
@@ -1618,11 +1643,14 @@ def return_to_research_workbench(st, origin: MonitorOrigin) -> None:
         or str(params.get("return_ticker") or "").strip().upper() != origin.ticker
         or (params.get("return_online") == "1") != (origin.online_cik is not None)
         or params.get("return_notes_cik") != origin.notes_cik
+        or params.get('return_research_cik') != origin.research_cik
+        or params.get('return_research_snapshot') != origin.research_snapshot
         or research_monitor_origin(st.session_state, origin.profile_key, origin.ticker) != origin
     ):
         return
     scopes = (("online:" + origin.online_cik,) if origin.online_cik is not None else
-              ("notes:" + origin.notes_cik,) if origin.notes_cik else ("saved", "receipts"))
+              ("notes:" + origin.notes_cik,) if origin.notes_cik else
+              ('notes:'+origin.research_cik,) if origin.research_cik else ("saved", "receipts"))
     if origin.section_widget_key in {
         f"company-section:{origin.profile_key}:{origin.ticker}:{scope}" for scope in scopes
     }:

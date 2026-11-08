@@ -73,7 +73,7 @@ def run_browser_fixture(root):
         assert cik == "0000001234"
         return {"status": "unavailable", "reason": "sec_profile_unavailable"}
 
-    def peer_valuation(ticker, state, *, refresh_requested, expected_cik):
+    def peer_valuation(ticker, state, *, refresh_requested, expected_cik,user_agent=None):
         saved_ciks = {"AMD": "0000002488", "DUK": "0001326160", "NEM": "0001164727", "NVDA": None}
         if ticker in saved_ciks and expected_cik in {None, saved_ciks[ticker]} and not refresh_requested:
             return {"status": "not_requested"}
@@ -322,7 +322,7 @@ def test_workbench_sections_and_source_failures_remain_english_without_refetch(
             page_errors = []
             page.on("pageerror", lambda error: page_errors.append(str(error)))
             page.goto(f"{research_browser_server}/?mode=research&page=company-workbench&ticker=FICT&online=1")
-            refresh = page.get_by_role("button", name="Refresh financials and prices", exact=True)
+            refresh = page.get_by_role("button", name="Research company", exact=True)
             playwright.expect(refresh).to_be_visible()
             playwright.expect(page.get_by_role("region", name="Company research summary")).to_have_count(0)
             playwright.expect(page.get_by_text("Refresh financials and prices to load company observations.", exact=True)).to_have_count(1)
@@ -332,7 +332,7 @@ def test_workbench_sections_and_source_failures_remain_english_without_refetch(
             page.get_by_text("Price history", exact=True).click()
             playwright.expect(page.get_by_role("region", name="Daily price history")).to_contain_text("USD 11")
             original_calls = (tmp_path / "provider-calls.txt").read_text().splitlines()
-            assert original_calls == ["search", "financial", "prices", "company-profile"]
+            assert original_calls == ["search", "financial", "prices", "company-profile", "peer-valuation"]
             for title in ("Overview", "Financial Trends", "Valuation & Peers", "Research Notes", "Data Sources"):
                 radio = page.get_by_role("radio", name=title, exact=True)
                 page.locator("label").filter(has=radio).click()
@@ -576,7 +576,7 @@ def test_online_research_round_trip_keeps_section_and_evidence(
             page.goto(f"{research_browser_server}/?mode=research&page=company-workbench&ticker=FICT&online=1")
             brief = page.get_by_role("region", name="Company Brief", exact=True)
             playwright.expect(brief.get_by_role("heading", name="FICT Company Brief")).to_be_visible()
-            page.get_by_role("button", name="Refresh financials and prices", exact=True).click()
+            page.get_by_role("button", name="Research company", exact=True).click()
             page.get_by_text("Price history", exact=True).click()
             prices = page.get_by_role("region", name="Daily price history", exact=True)
             playwright.expect(prices).to_contain_text("USD 11")
@@ -592,7 +592,7 @@ def test_online_research_round_trip_keeps_section_and_evidence(
                 if summary.locator('..').get_attribute('open') is None:
                     summary.click()
             if monitor_handoff == "navigation":
-                page.get_by_role("button", name="Refresh peer valuation", exact=True).click()
+                # Research company already requested the peer observation.
                 evidence = page.get_by_role("region", name="Online peer valuation", exact=True)
                 playwright.expect(evidence).to_contain_text("Annual P/E is 20.0% above the industry reference median")
                 handoff = navigation.get_by_role("link", name="Monitor", exact=True)
@@ -613,9 +613,7 @@ def test_online_research_round_trip_keeps_section_and_evidence(
                 assert original_receipts
             provider_calls = tmp_path / "provider-calls.txt"
             before = provider_calls.read_text().splitlines()
-            expected_calls = ["search", "financial", "prices", "company-profile"]
-            if monitor_handoff == "navigation":
-                expected_calls.append("peer-valuation")
+            expected_calls = ["search", "financial", "prices", "company-profile", "peer-valuation"]
             assert before == expected_calls
             assert len(documents) == len(streams) == 1
 

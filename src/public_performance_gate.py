@@ -155,7 +155,7 @@ RESEARCH_ROUTE_SPECS: tuple[PublicRouteSpec, ...] = (
             "Valuation & Peers",
             "Research Notes",
             "Data Sources",
-            "Refresh financials and prices",
+            "Research company",
             "Refresh financials and prices to load company observations.",
             "Evidence scope",
             "Identity and model scope",

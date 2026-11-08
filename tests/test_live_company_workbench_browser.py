@@ -134,7 +134,7 @@ def test_live_company_workbench_desktop_then_phone(live_workbench, ticker):
             page.goto(route, wait_until="domcontentloaded", timeout=60_000)
             brief = page.get_by_role("region", name="Company Brief", exact=True)
             playwright.expect(brief.get_by_role("heading", name=f"{ticker} Company Brief", exact=True)).to_be_visible()
-            page.get_by_role("button", name="Refresh financials and prices", exact=True).click()
+            page.get_by_role("button", name="Research company", exact=True).click()
             playwright.expect(brief.locator(".company-answer")).to_have_count(4, timeout=240_000)
             playwright.expect(page.locator(".company-analysis-grid, .company-analysis-gap").first).to_be_visible(timeout=240_000)
             _select_section(page, playwright.expect, "valuation")

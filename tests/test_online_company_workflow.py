@@ -67,6 +67,31 @@ def test_unavailable_saved_note_identity_cannot_fall_back_to_another_scope(tmp_p
     assert not any(b.label == 'Validate and preview' for b in app.button)
 
 
+def test_snapshot_only_company_keeps_identity_through_sections_and_monitor(tmp_path,monkeypatch):
+    from src import online_research_context_store,online_research_tools_ui
+    from tests.test_online_research_context_store import context
+    from src.online_research_context_store import save_research_context
+    monkeypatch.setattr(online_research_context_store,'PROJECT_ROOT',tmp_path)
+    monkeypatch.setattr(online_research_tools_ui,'PROJECT_ROOT',tmp_path)
+    saved=save_research_context(context(profile_key='demo'),profile_key='demo',ticker='FICT',
+        sec_cik='0000001234',project_root=tmp_path)
+    app=_app(tmp_path,monkeypatch)
+    app.query_params.clear()
+    app.query_params.update(mode='research',page='company-workbench',ticker='FICT',section='notes',
+        research_cik='0000001234',research_snapshot=saved['snapshot_id'])
+    app.run(timeout=30)
+    assert not app.exception
+    app.radio[0].set_value('valuation').run()
+    next(field for field in app.number_input if field.label=='Revenue growth assumption (%)').set_value(22.).run()
+    assert not app.exception
+    assert app.query_params['research_snapshot']==[saved['snapshot_id']]
+    app.button(key='research-nav-monitor').click().run(timeout=30)
+    app.button(key='monitor-return-to-workbench').click().run(timeout=30)
+    assert not app.exception
+    assert app.query_params['research_snapshot']==[saved['snapshot_id']]
+    assert next(field for field in app.number_input if field.label=='Revenue growth assumption (%)').value==22.
+
+
 def _legacy_journal_app():
     import os
     from pathlib import Path

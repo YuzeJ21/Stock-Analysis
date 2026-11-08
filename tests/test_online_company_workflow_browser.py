@@ -14,9 +14,8 @@ from tests.test_research_monitor_roundtrip_browser import (
 
 
 _MODEL_GAP = (
-    "Model-based scenarios, Decision Lab, Forward View and the full Research Brief remain "
-    "unavailable until their model inputs are separately qualified. Company notes and SEC "
-    "evidence remain usable."
+    "Online tools below use the selected company’s observations and explicit assumptions. "
+    "Saved model eligibility and the full saved Research Brief retain their separate review requirements."
 )
 
 
@@ -209,7 +208,7 @@ def test_online_company_authors_notes_saves_real_sec_baseline_and_returns_withou
         assert journal.read_bytes() == note_bytes
         assert not (tmp_path / "data").exists()
 
-        refresh = page.get_by_role("button", name="Refresh financials and prices", exact=True)
+        refresh = page.get_by_role("button", name="Research company", exact=True)
         _surface(page, width, refresh)
         refresh.click()
         expect(page.get_by_label("Loaded company observations", exact=True)).to_be_visible()
@@ -247,7 +246,7 @@ def test_online_company_authors_notes_saves_real_sec_baseline_and_returns_withou
         assert calls_before_monitor.count("financial") == 1
         assert calls_before_monitor.count("prices") == 1
         assert calls_before_monitor.count("company-profile") == 1
-        assert set(calls_before_monitor) == {"search", "financial", "prices", "company-profile"}
+        assert set(calls_before_monitor) == {"search", "financial", "prices", "company-profile", "peer-valuation"}
         original_brief = brief.inner_text()
 
         handoff = panel.get_by_role("link", name="View review items in Monitor", exact=True)

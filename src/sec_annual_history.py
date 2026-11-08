@@ -142,6 +142,15 @@ def fetch_sec_online_research_view(ticker: str, *, user_agent: str, ticker_map_r
         payload=receipt['payload']; raw_cik=payload.get('cik')
         if type(raw_cik) not in {int,str} or not re.fullmatch(r'\d{1,10}',str(raw_cik)) or str(int(raw_cik)).zfill(10)!=cik:
             return {**view,'companyfacts_identity':{'status':'withheld','reason':'companyfacts_identity_mismatch'}}
+    profile_receipt = None
+    if cik:
+        from src.online_company_identity import _mode_reason
+        mode_reason = _mode_reason('research')
+        profile_receipt = {'status':'unavailable','reason':mode_reason} if mode_reason else fetch_sec_json_receipt(
+            f'https://data.sec.gov/submissions/CIK{cik}.json', user_agent=user_agent,
+            fetcher=source_fetcher, observed_at=observed_at,
+        )
+    if receipt and cik:
         identity={k:receipt[k] for k in ('source_url','observed_at','source_last_modified','payload_sha256')}
         mapping=captured['map_receipt']
         identity.update(status='source_matched',ticker=ticker,sec_cik=cik,
@@ -154,6 +163,7 @@ def fetch_sec_online_research_view(ticker: str, *, user_agent: str, ticker_map_r
                 view['mrvl_earnings_review'] = fetch_mrvl_earnings_review(
                     receipt, ticker=ticker, expected_cik=cik, user_agent=user_agent,
                     source_fetcher=source_fetcher, observed_at=observed_at,
+                    profile_receipt=profile_receipt,
                 )
             except (OSError, RuntimeError, ValueError, TypeError, TimeoutError, AttributeError, RecursionError):
                 view['mrvl_earnings_review'] = {'status': 'unavailable', 'reason': 'mrvl_review_unavailable'}
@@ -171,4 +181,15 @@ def fetch_sec_online_research_view(ticker: str, *, user_agent: str, ticker_map_r
             previous=view['reported_period_anchors'].get(kind)
             if marker and (not previous or marker['period_end']>previous['period_end']):
                 view['reported_period_anchors'][kind]=marker
+    if cik:
+        from src.online_filing_context import (
+            build_filing_inventory, corroborate_online_financials, build_online_earnings_components,
+        )
+        view['filing_inventory'] = build_filing_inventory(
+            profile_receipt, ticker=ticker, expected_cik=cik, as_of=observed_at,
+        )
+        view['filing_coverage'] = corroborate_online_financials(view, view['filing_inventory'], as_of=observed_at)
+        view['earnings_components'] = build_online_earnings_components(
+            receipt or {}, view['filing_inventory'], ticker=ticker, expected_cik=cik, as_of=observed_at,
+        )
     return view

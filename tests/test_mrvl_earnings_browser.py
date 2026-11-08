@@ -117,7 +117,7 @@ def test_mrvl_annual_explanation_sources_monitor_and_failed_retry_keep_their_bou
             page.goto(mrvl_browser_server+'/?mode=research&page=company-workbench&ticker=MRVL&online=1&section=valuation')
             expect(page.get_by_role('heading',name='MRVL Company Brief',exact=True)).to_be_visible()
             assert _calls(tmp_path) == []
-            refresh = page.get_by_role('button',name='Refresh financials and prices',exact=True)
+            refresh = page.get_by_role('button',name='Research company',exact=True)
             assert refresh.bounding_box()['height'] >= 44
             refresh.click()
             review = page.get_by_role('region',name='MRVL earnings and peer context',exact=True)

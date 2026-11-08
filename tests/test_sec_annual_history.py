@@ -126,11 +126,11 @@ def test_explicit_action_reuses_one_facts_response_and_rerenders_reuse_history(m
     session = {}
     view = get_company_sec_annual_preview("FICT", session, refresh_requested=True, user_agent="Research contact")
     assert len(view["annual_history"]["periods"]) == 3
-    assert len(calls) == 2
+    assert len(calls) == 3
 
     cached = get_company_sec_annual_preview("FICT", session, refresh_requested=False, user_agent="Research contact")
     assert cached["annual_history"] == view["annual_history"]
-    assert len(calls) == 2
+    assert len(calls) == 3
 
 
 def test_reporting_hole_is_not_adjacent_even_if_both_durations_are_annual():
@@ -252,8 +252,9 @@ def test_financial_identity_and_mode_guards_prevent_mrvl_source_requests(monkeyp
         body = payload if 'companyfacts/' in url else {'0': {'ticker': ticker, 'cik_str': cik}}
         return json.dumps(body).encode(), {}, url
     view = fetch_sec_online_research_view(ticker, user_agent='Research contact', source_fetcher=fetch, observed_at=NOW)
-    assert len(calls) == 2
-    assert not any('/submissions/' in url or '/Archives/' in url for url in calls)
+    assert len(calls) == (3 if change == 'non_mrvl' else 2)
+    assert not any('/Archives/' in url for url in calls)
+    assert sum('/submissions/' in url for url in calls) == (1 if change == 'non_mrvl' else 0)
     if change in {'wrong_cik', 'non_mrvl'}:
         assert 'mrvl_earnings_review' not in view
     else:

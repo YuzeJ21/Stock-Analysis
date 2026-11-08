@@ -1,5 +1,11 @@
 # Online research next-stage goals
 
+## Completed foundation: self-service online tools and filing lifecycle
+
+The app now connects runtime company observations to Business Trend, standard annual earnings components, observed peer references, hypothetical Scenario Lab, Forward View, issuer notes and Decision Lab. Latest SEC annual/quarterly versions are checked independently of Companyfacts availability. Supported subsequent structured filings use the same generic rules; publication lag, unresolved amendments and unsupported definitions stay gaps. Private normalized context snapshots support unchanged-input comparison and exact Monitor replay without preparing company CSVs. Existing saved-model and four-field SEC review workflows keep their own scope. [Method](../SELF_SERVICE_COMPANY_RESEARCH.md) · [Release evidence](../SELF_SERVICE_RESEARCH_RELEASE.md)
+
+Current next goal: measure this generic path across the existing semiconductor, bank, utility and foreign-issuer sample; record success/failure counts with their denominators and latest filing versions; fix the largest verified source-definition gap; and improve saved-update prioritization using independently observed subsequent filings. Preserve unsupported DCF, share/ADS/currency, source-rights and consensus holds. Hosted operation requires a separately authorized delivery and source-rights decision.
+
 ## Completed foundation: shared acquisition continuity
 
 Act as senior engineer, architect and product manager for Stock Research Command Center. Verify live Git, roadmap, saved evidence and rights. Harden primitive SEC contexts and online listing acquisition. After one unavailable source attempt, permit only a complete, validated session classification whose original observations remain within24 hours and directory creation within seven days. Keep failure records, original dates and digests visible. Independently recheck selected identity, earnings, prices and peers. A failed financial refresh withdraws the previous verdict. Preserve canonical data and source rights. Use automated tests, independent code review and desktop/phone checks; finish with commits, a private evidence packet and authorized developer-branch sync.
@@ -26,7 +32,7 @@ MRVL's explicit financial refresh now supports a seven-component annual earnings
 
 ## Following stages and exit gates
 
-The online notes/evidence/Monitor continuity slice is implemented separately from model eligibility. See [its release evidence](../ONLINE_COMPANY_WORKFLOW_RELEASE.md). Existing journals and model tools remain available in their own scopes; saved notes are not current listing proof. The first named MRVL/AVGO context is implemented. MRVL's exact annual issuer aggregate after-tax reconciliation is now verified for inspection. The next executable step is one eligible industry reference's exact annual earnings definitions and adjustment choices, keeping issuer-adjusted, normalized, reported annual, quarterly and forecast definitions distinct. A new valuation method still needs its own identity, period, share-basis and rights checks.
+The online notes/evidence/Monitor continuity slice and the later shared-tool context are implemented separately from saved model eligibility. Existing journals and saved model tools remain available in their own scopes; saved notes are not current listing proof. The named MRVL/AVGO context and MRVL's exact annual issuer aggregate after-tax reconciliation remain bounded supplements. An eligible reference's exact earnings definitions and adjustment choices are a later comparability task, keeping issuer-adjusted, normalized, annual, quarterly and forecast definitions distinct. A new valuation method still needs its own identity, period, share-basis and rights checks.
 
 | Stage | Executable outcome | Gate before expanding |
 | --- | --- | --- |
