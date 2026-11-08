@@ -1,6 +1,6 @@
 # MRVL peer valuation and earnings review: release evidence
 
-Date: November 7, 2026 (Toronto). Baseline: `15b04442a0e4660d2091f786df5013f6b4a64105`. Verification and synchronization are in progress; this packet does not yet claim a completed release.
+Completed: November 8, 2026 (Toronto); implementation began November 7. Baseline: `15b04442a0e4660d2091f786df5013f6b4a64105`. Tested code commit: [`adefcdbdd54821401914749952312b9406da9c15`](https://github.com/YuzeJ21/Stock-Analysis/commit/adefcdbdd54821401914749952312b9406da9c15), synchronized to GitHub main and independently confirmed by the remote ref. The final README and verification ledger follow as a documentation-only commit; runtime code and tests are unchanged.
 
 ## Delivered scope
 
@@ -22,11 +22,26 @@ Current submissions must independently select these exact filings. A newer annua
 
 ## Verification record
 
-Focused final regression: **451 passed in 61.80s**. Desktop/phone browser, UI and Workbench layout regression: **16 passed in 28.00s**. The live 390 × 844 phone check exposed and verified a caption layout fix (315px wide, 72px high; no horizontal overflow). Live source navigation and Monitor return retained MRVL, Data Sources and loaded observations. The final frozen-source repository run and synchronization remain pending. Live observations and screenshots remain outside Git; no market-price or real financial-value fixture is published here.
+| Check | Exact result |
+| --- | --- |
+| Frozen-source full repository suite, protected-artifact guard | **9,330 passed, 3 skipped, 1 dependency warning in 2,531.33s (42:11)**; command and guard exit 0 |
+| Final documentation contracts | **97 passed** after the README next-stage correction; documentation review clean |
+| Focused source, integration, existing peer and documentation regression | **451 passed in 61.80s** |
+| Desktop/phone browser, UI and Workbench caption regression | **16 passed in 28.00s** |
+| Independent final code review | No actionable P1/P2 findings; **181 focused tests passed in 2.84s** |
+| Research route rendering | All six routes passed: Research Desk, Discover, Company Workbench, Monitor, Research Data Health, Research Proof History |
+| Fresh dashboard instance | Import and HTTP health checks passed on an isolated port; no environment-limited substitute |
+| Commercial-beta contracts | Exit 0; local readiness only; external account, operation and source-rights gates remain visible |
+| Public wording and staged hygiene | Passed; 63 public text files scanned; no new generated CSV/JSON or canonical data staged |
+| Unchanged-data comparison | All 78 tracked files under data/config/assets unchanged from baseline; data, outputs and docs/assets protected-artifact guard passed |
+
+The full command used Python 3.12 in the pinned environment, with bytecode writes disabled: `python -m src.no_write_artifact_guard --project-root . -- python -m pytest tests -q --tb=short --maxfail=5`. Its three skips were the historical real-pair check whose ignored private receipts are absent, and two opt-in live AMD/QCOM checks whose live origin was not configured. The MRVL desktop/phone cases ran and passed. The one warning is an existing python-dateutil UTC deprecation.
+
+Live MRVL checks used 1440 × 1000 desktop and 390 × 844 phone viewports. English content, one company heading, source disclosures, actual peer exclusions and no horizontal overflow were verified. Data Sources → Monitor → return retained MRVL, the selected section and loaded observations. The phone check exposed and verified a caption layout fix (315px wide, 72px high); its red/green browser regression is included above. Live observations and screenshots remain outside Git; no market-price or real financial-value fixture is published here.
 
 The implemented live SEC path has already returned all seven supported annual components and both named document proofs. Existing online valuation was separately exercised with actual same-day completed prices and explicit accepted/excluded references. These private source observations do not establish recurring earnings, valuation suitability, commercial source rights or all-company coverage.
 
-Independent automated review identified a narrative false-positive risk; affirmative visible source checks and negative/hidden-text regressions corrected it. An independent whole-branch review found no remaining actionable P1/P2 issue; its 181 focused tests passed in 2.84s. The final whole-repository run remains part of the release process.
+Independent automated review identified a narrative false-positive risk; affirmative visible source checks and negative/hidden-text regressions corrected it. An independent whole-branch review found no remaining actionable P1/P2 issue; its 181 focused tests passed in 2.84s. The frozen-source whole-repository run then passed as recorded above.
 
 ## Data and rights
 

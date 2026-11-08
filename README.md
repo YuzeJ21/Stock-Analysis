@@ -132,8 +132,8 @@ The supported workflow is research-only. Investment advice, broker account actio
 
 | Stage | Current focus |
 | --- | --- |
-| **Available today** | A local research beta with the five-section company workspace, an English synthetic public demo, a separate dated AMD filing case, and exact-pair annual SEC review for NEM, AMD, and DUK. |
-| **Next** | Review a specific peer relationship and explain its price/financial comparability; qualify another issuer or period when new source evidence is available. Expand exact-filing support from measured gaps. |
+| **Available today** | A local research beta with the five-section company workspace, online MRVL annual earnings quality and peer context, an English synthetic public demo, a separate dated AMD filing case, and exact-pair annual SEC review for NEM, AMD, and DUK. |
+| **Next** | Verify an exact-source after-tax earnings reconciliation before adding a normalized or forecast denominator. Extend issuer and period support from measured gaps while preserving price, identity, financial-period and rights requirements. |
 | **Later gates** | Hosted full-workspace operation, authentication and private workspaces, operated data rights, provider reliability, independent user evidence, and commercial validation. |
 
 The [Roadmap](ROADMAP.md) is the active priority list. [Completed Milestones](docs/COMPLETED_MILESTONES.md) records shipped work and the evidence required to revisit parked features. Use `make next-stage` for the current local decision ladder.

@@ -63,8 +63,8 @@
 
 - [x] Reconcile live MRVL facts and exact MRVL/AVGO annual documents with the implemented path.
 - [x] Obtain independent code review and resolve findings with regressions.
-- [ ] Freeze source and run appropriate repository, UI, wording, hygiene and unchanged-data checks.
-- [ ] Commit tested work, synchronize GitHub main without force/unrelated changes, and independently verify remote head.
+- [x] Freeze source and run appropriate repository, UI, wording, hygiene and unchanged-data checks.
+- [x] Commit tested work, synchronize GitHub main without force/unrelated changes, and independently verify remote head.
 
 ## Execution ledger
 
@@ -76,3 +76,7 @@
 - Focused final regression: 451 passed in 61.80s; browser/UI/Workbench layout regression: 16 passed in 28.00s.
 - Live phone caption regression reproduced and corrected; 315px caption width, 72px height at 390px viewport, no horizontal overflow.
 - Independent whole-branch review: no actionable P1/P2 findings; 181 focused checks passed in 2.84s.
+
+- Frozen code commit `adefcdbdd54821401914749952312b9406da9c15`: full protected-artifact suite **9,330 passed, 3 skipped, 1 warning in 2,531.33s**; guard exit 0. All 78 canonical/config/assets tracked files match baseline.
+- Six research routes, fresh dashboard HTTP health and commercial-beta checks passed. Three skips are absent historical private receipts and two opt-in AMD/QCOM live cases; MRVL browser cases ran.
+- Tested code synchronized to GitHub main with remote ref independently confirmed. Final README next-stage correction and verification ledger are documentation only; runtime code and tests remain identical to the tested commit.
