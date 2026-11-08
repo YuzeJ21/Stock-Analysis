@@ -44,7 +44,7 @@ Files: src/online_research_tools.py, src/sec_foreign_financials.py only for meas
 
 - [x] Recompute before/after results from identical saved source observations, then verify online collection with measured counts and exact source receipts kept private.
 - [x] Run affected regressions, real browser matrix, render/health/rights/wording/hygiene and unchanged-data checks. Independent review and bounded fix wave.
-- [ ] Update method, roadmap and release evidence; commit and fast-forward GitHub main; confirm exact remote content, clean checkout and remaining gates.
+- [x] Update method, roadmap and release evidence; commit and fast-forward GitHub main; confirm exact remote content, clean checkout and remaining gates.
 
 ## Execution ledger
 
@@ -52,5 +52,7 @@ Files: src/online_research_tools.py, src/sec_foreign_financials.py only for meas
 - Declared sample before acquisition: AMD,NVDA,QCOM,JPM,BAC,C,DUK,SO,NEE,TSM,SAP,IBN. Live baseline retrieved financials/prices for12; catalogs usable5/12, seven metadata failures; no peer request yet. Read-only baseline regression162 passed7.06s.
 - Ruling: proceed with the already-authorized existing platform and measured shared repairs; no design approval or human test handoff. Source-specific/model exclusions stay visible.
 
-- Final same-source catalog replay5/12→12/12; source bodies24/24 digest-unchanged. Currentannual9/12, directquarter5/12, datedclose12/12, trends11/12, scenarios5/12, exactreplay10/12. Fresh retained-source peer comparison1/12 (NVDA); all remaining reasons retained.
-- Final affected regression772 passed30.93s; desktop/phone2 passed93.77s; six research renders and isolated HTTPhealth passed. Independent reviews clean after bounded fixes. All89 protected files unchanged; private reduced evidence packet under outputs/local/releases/cross-industry-self-service-20261108.
+- Same-source catalog replay improved from 5/12 to 12/12; all 24 captured source bodies retain their original digests. Current annual facts: 9/12; direct quarters: 5/12; dated closes: 12/12; trends: 11/12; scenarios: 5/12; exact replay: 10/12. Fresh retained-source peer comparison: 1/12 (NVDA); all remaining reasons retained.
+- Final affected regression: 772 passed in 30.93 seconds; desktop/phone: 2 passed in 93.77 seconds. Six research renders and isolated HTTP health passed. Independent reviews are clean after bounded fixes. All 89 protected files remain unchanged; the private reduced evidence packet is under outputs/local/releases/cross-industry-self-service-20261108.
+
+- Implementation e9a72686767b0b0c53a53ad0be1e210428b88b0b fast-forwarded GitHub main. The Git remote and independent GitHub API matched; the README local/remote blob c34e2160f0539fae356e2887d783398cdd0beb29 matched. The original main checkout in the other worktree was untouched. This evidence-only follow-up records verification; CI is triggered by pull requests, so no resulting-main CI pass is claimed.

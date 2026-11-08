@@ -58,3 +58,11 @@ AMD's annual amendment, C/DUK/SO/NEE structured-quarter lag, TSM's latest annual
 Next inspect the exact source-supported reporting gap and peer packet retention path independently, retaining original receipts and every failed case. Do not purchase data, substitute prior periods, invent FX or ADS joins, or replace unsupported bank DCF with an operating-company model. The full application still runs locally; Pages remains static. Hosted operation, independent accessibility, usage validation and commercial permissions remain separate work.
 
 See [method and controls](CROSS_INDUSTRY_SELF_SERVICE.md) and [roadmap](../ROADMAP.md).
+
+## Tested code and GitHub synchronization
+
+Verified implementation commit: [`e9a72686767b0b0c53a53ad0be1e210428b88b0b`](https://github.com/YuzeJ21/Stock-Analysis/commit/e9a72686767b0b0c53a53ad0be1e210428b88b0b). GitHub main accepted the fast-forward from the stated baseline. The Git remote and independent GitHub branch read matched that full commit; remote README and release-document blob IDs matched the local files. This documentation-only follow-up records those checks without changing tested runtime code or protected assets.
+
+Public wording passed across 68 files; staged hygiene and whitespace passed with zero generated/canonical data staged. The checkout was clean after the implementation commit. The repository workflow is triggered by pull requests, so no resulting-main hosted CI pass is asserted for this authorized direct synchronization. A fresh app server on local port 8536 returned health `ok`.
+
+The ignored local review packet is `outputs/local/releases/cross-industry-self-service-20261108/`: reduced source-dated counts, original source digest index, unchanged-data manifest, final test logs, review reports and constructed desktop/phone screenshots. Full provider/raw source bodies are not packaged or published. Independent human testing was not requested or claimed.
