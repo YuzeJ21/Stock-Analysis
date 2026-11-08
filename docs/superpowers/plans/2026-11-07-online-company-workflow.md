@@ -72,9 +72,9 @@
 
 - [x] Exercise online search → notes preview/confirm → saved SEC replay/comparison → Monitor → exact return on desktop and phone.
 - [x] Check live MRVL without saving real research or provider data.
-- [ ] Run appropriate broad regressions, source/privacy/hygiene checks and canonical-byte comparison.
+- [x] Run appropriate broad regressions, source/privacy/hygiene checks and canonical-byte comparison.
 - [x] Obtain fresh independent code review, fix findings and rerun affected checks.
-- [ ] Commit tested code and accurate documentation; synchronize GitHub without force or unrelated changes and verify remote state.
+- [x] Commit tested code and accurate documentation; synchronize GitHub without force or unrelated changes and verify remote state.
 
 ## Execution record
 
@@ -85,4 +85,8 @@
 - Browser workflow and responsive verification: 10 passed; live MRVL desktop/phone retained the loaded observations on Monitor return. A 726px check stacks both outer columns without page overflow; model-gap caption opacity is 1. No real records were saved.
 - Independent final review found no remaining actionable P1/P2 findings. Missing legacy directories and profiles fail closed without choosing another scope.
 - Canonical-byte check: all 78 tracked data/config/assets files match the baseline.
-- Final integrated focused suite: 241 passed in 97.48s, including authoring, SEC identity, route contracts and desktop/phone browser tests. Broad repository verification remains pending.
+- Final integrated focused suite: 241 passed in 97.48s, including authoring, SEC identity, route contracts and desktop/phone browser tests. Broad verification is recorded in the release packet.
+
+- Final complete collection: 9,161 distinct passing cases and 3 explicit skips across retained and corrective verification groups; zero unresolved failures. Exact failed-run history and skip boundaries are in `docs/ONLINE_COMPANY_WORKFLOW_RELEASE.md`.
+- All 12 Monitor browser cases passed after the fixture retained exact saved issuer CIKs. No runtime source changed after `a883a6ba3608aa3d0f5bee12a82c034dfd9760c6`.
+- Verified source `6b82a9691ac9b496029463b4812ac142fa1ffb8d` was synchronized to GitHub main and fetched independently. This final evidence update changes documentation only.
