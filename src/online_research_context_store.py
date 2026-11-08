@@ -15,6 +15,8 @@ from pathlib import Path
 import re
 import stat
 
+from src.sec_cover_observations import COVER_FIELDS, validate_cover_scope
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_VERSION = 'online-research-snapshot-v1'
@@ -123,8 +125,29 @@ def _normalized(value):
     """Bound complexity before serializing, reject transport bodies at every level."""
     active = set()
     nodes = 0
+    cover_documents = set()
 
-    def visit(item, depth):
+    def cover_owner(path, owner):
+        if path in {('peer_read_through', 'subject'), ('peer_read_through', 'subject_source_context')}:
+            if (owner.get('ticker', value.get('ticker')), owner.get('sec_cik')) != (value.get('ticker'), value.get('sec_cik')):
+                raise ValueError('Normalized selected-security cover owner scope mismatch')
+            return value.get('ticker'), value.get('sec_cik')
+        if len(path) == 3 and path[:2] == ('peer_read_through', 'peers') and type(path[2]) is int:
+            return owner.get('ticker'), owner.get('sec_cik')
+        if (len(path) in {4, 5} and path[:2] == ('peer_read_through', 'excluded')
+                and type(path[2]) is int and path[3] == 'diagnostics'
+                and (len(path) == 4 or path[4] == 'independent_observation_not_in_benchmark')):
+            excluded = value['peer_read_through']['excluded'][path[2]]
+            diagnostics = excluded.get('diagnostics')
+            ticker, cik = owner.get('ticker'), owner.get('sec_cik')
+            if (not isinstance(diagnostics, dict) or excluded.get('ticker') != ticker
+                    or excluded.get('sec_cik', cik) != cik
+                    or (diagnostics.get('ticker'), diagnostics.get('sec_cik')) != (ticker, cik)):
+                raise ValueError('Normalized selected-security excluded cover owner scope mismatch')
+            return ticker, cik
+        raise ValueError('Normalized cover evidence is outside selected-security document scope')
+
+    def visit(item, depth, path=()):
         nonlocal nodes
         nodes += 1
         if depth > MAX_JSON_DEPTH or nodes > MAX_JSON_NODES:
@@ -151,14 +174,21 @@ def _normalized(value):
                 if not isinstance(key, str) or not key or len(key) > 200:
                     raise ValueError('Invalid normalized research context key')
                 name = key.lower()
+                if name in COVER_FIELDS and (key != name or path not in cover_documents):
+                    raise ValueError('Normalized cover fields require a validated selected-security document')
                 numeric_token = name == 'raw_text' and _eps_numeric_proof(item)
                 if (name in _RAW_KEYS or 'base64' in name or name.endswith('_body')
                         or name.endswith('_bytes') or name.startswith('raw_') and not name.endswith(('_sha256', '_digest')) and not numeric_token):
                     raise ValueError('Research context must contain normalized observations, not raw/archive fields')
-                visit(child, depth + 1)
+                if key == 'selected_security_scope' and isinstance(child, dict) and child.get('status') == 'supported_common':
+                    ticker, cik = cover_owner(path, item)
+                    validate_cover_scope(child, ticker=ticker, cik=cik)
+                    cover_documents.update(path + (key, 'documents', index) for index, document in enumerate(child['documents'])
+                        if 'cover_observations' in document)
+                visit(child, depth + 1, path + (key,))
         else:
-            for child in item:
-                visit(child, depth + 1)
+            for index, child in enumerate(item):
+                visit(child, depth + 1, path + (index,))
         active.remove(id(item))
 
     visit(value, 0)

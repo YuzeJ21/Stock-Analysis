@@ -45,4 +45,4 @@ These snapshots do not replace the existing four-field SEC receipt schema or the
 
 [Online source methods](ONLINE_COMPANY_RESEARCH.md) · [Capability study](CROSS_INDUSTRY_SELF_SERVICE.md) · [Peer method](ONLINE_PEER_VALUATION.md) · [Roadmap](../ROADMAP.md) · [Release evidence](SELF_SERVICE_RESEARCH_RELEASE.md)
 
-Complete bank peer-source retention is now lossless and bounded, with the original documents restored before unchanged identity/EPS/price checks. This does not qualify normalized snapshot acceptance or bank operating-company DCF. See [bank evidence and remaining gaps](BANK_PEER_EVIDENCE_RELEASE.md).
+Complete bank peer-source retention is now lossless and bounded, with the original documents restored before unchanged identity/EPS/price checks. JPM/BAC/C normalized cover evidence now saves/replays through the existing snapshot and Monitor workflow; bank operating-company DCF remains excluded. [Snapshot evidence](BANK_RESEARCH_SNAPSHOT_RELEASE.md). See [bank evidence and remaining gaps](BANK_PEER_EVIDENCE_RELEASE.md).

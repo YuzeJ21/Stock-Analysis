@@ -244,7 +244,7 @@ def _selected_security_html(scope):
     if scope.get('reason')=='successor_annual_basis_unverified':html+='<p>Security and reporting continuity evidence links the prior and current issuers, but the current issuer annual EPS denominator remains missing. EPS from the old CIK is not joined to the current denominator, and provider identity conflicts remain open.</p>'
     if scope.get('reason')=='depositary_security_requires_separate_method':html+='<p>The cover-page common-share title carries a non-trading restriction and does not itself identify the NYSE-traded ADS.</p>'
     symbols=scope.get('issuer_symbols',[])
-    html+='<p>Related issuer symbols: '+_text(', '.join(str(s) for s in symbols))+'. These symbols are not individually mapped to securities. Raw cover-page symbols remain separate observations below.</p>'
+    html+='<p>Related issuer symbols: '+_text(', '.join(str(s) for s in symbols))+'. These symbols are not individually mapped to securities. Literal cover-page symbols remain separate observations below.</p>'
     if scope.get('unassigned_issuer_symbols'):html+='<p>Related issuer symbols not individually mapped: '+_text(', '.join(scope['unassigned_issuer_symbols']))+'. Only the selected security was checked. Related symbols receive no inherited price or valuation eligibility.</p>'
     labels={'annual':'Annual filing','cover':'Verified 8-K cover','successor':'Successor issuer filing','quarter':'Quarterly filing','annual_companion':'Companion exhibit in the same annual filing','cover_companion':'Companion exhibit in the same 8-K'}
     for doc in scope.get('documents',[]):
@@ -257,8 +257,8 @@ def _selected_security_html(scope):
             html+='<p>'+ ' · '.join(_link(ref,label) for ref,label in zip(selected.get('fact_refs',[]),('Cover security title','Cover trading symbol','Cover exchange')))+'</p>'
             if selected.get('context_source_ref'):html+='<p>'+_link(selected['context_source_ref'],'Security context source')+'</p>'
             if selected.get('consistent_duplicate_refs'):html+='<p>Verified matching exchange disclosures: '+' · '.join(_link(ref,'Original fact') for ref in selected['consistent_duplicate_refs'])+'</p>'
-        observations=doc.get('raw_cover_observations',[])
-        if observations:html+='<ul>'+''.join('<li>'+_text(r.get('raw_symbol'))+' · '+_text(r.get('title'))+'</li>' for r in observations if isinstance(r,Mapping))+'</ul>'
+        observations=doc.get('cover_observations',doc.get('raw_cover_observations',[]))
+        if observations:html+='<ul>'+''.join('<li>'+_text(r.get('trading_symbol',r.get('raw_symbol')))+' · '+_text(r.get('title'))+' · '+_text(r.get('exchange'))+' · context '+_text(r.get('context_id'))+'</li>' for r in observations if isinstance(r,Mapping))+'</ul>'
         html+='<p>Raw response SHA-256 <code>'+_text(doc.get('payload_sha256'))+'</code><br>Verified filing-body SHA-256 <code>'+_text(doc.get('body_sha256'))+'</code></p>'
     for ref in scope.get('basis_refs',[]):html+='<p>'+_link(ref.get('source_ref'),'Common-share capital and earnings definition')+' · '+_text(ref.get('concept'))+'</p>'
     html+=_observations_html(scope)

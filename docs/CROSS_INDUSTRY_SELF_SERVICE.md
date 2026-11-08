@@ -67,7 +67,7 @@ The filing catalog accepts bounded large submissions catalogs and filters releva
 
 JPM, BAC and C collections can exceed the retained limit because they contain exact SEC documents. Large eligible packets now use bounded lossless storage, then restore every original value and original packet digest before the existing source/valuation checks. The retained-company and study limits stay unchanged. The selected-company source details show a separate retained-evidence proof; this is not valuation approval. Wrong-company or damaged restoration stays a precise peer gap, with independent financials and prices preserved. Both classification-pruning paths retain older packet references.
 
-The [bank release evidence](BANK_PEER_EVIDENCE_RELEASE.md) records exact source-byte comparisons, eligible/excluded references, resource bounds and the separate normalized research-snapshot gap. Ordinary navigation remains source-free.
+The [bank release evidence](BANK_PEER_EVIDENCE_RELEASE.md) records exact source-byte comparisons, eligible/excluded references, resource bounds and the prior normalized research-snapshot gap. That gap is now addressed by the [versioned bank snapshot format](BANK_RESEARCH_SNAPSHOT_RELEASE.md), with complete cover observations retained. Ordinary navigation remains source-free.
 
 ## Privacy, rights and next work
 
@@ -75,6 +75,6 @@ The study retains source packets in session memory and displays reduced capabili
 
 Personal inspection permissions are unchanged. Metadata, archive inspection and price observations do not inherit broader Companyfacts field rights. The study changes no canonical rows, saved-model readiness, source-rights decision or commercial eligibility. Annual P/E still requires the existing identity/share checks, same-day completed closes, compatible annual diluted EPS, the 35-day fiscal window and at least three qualifying references. No FX/ADS conversion, missing quarter, tax allocation, normalized earnings or reviewed economic-peer relationship is inferred.
 
-Next work is bounded: qualify the separate normalized bank proof/snapshot gap and remaining identity/access failures; inspect actual filed facts for C/DUK/SO/NEE gaps; qualify TSM native-currency durations and the separate IBN non-XBRL path; and improve exact replay within explicit size limits. A catalog or test count does not establish universal coverage, human validation, accessibility conformance, hosted reliability or commercial operation.
+Next work is bounded: qualify remaining identity/access failures and subsequent-filing changes; inspect actual filed facts for C/DUK/SO/NEE gaps; qualify TSM native-currency durations and the separate IBN non-XBRL path; and improve exact replay within explicit size limits. A catalog or test count does not establish universal coverage, human validation, accessibility conformance, hosted reliability or commercial operation.
 
 [Self-service workflow](SELF_SERVICE_COMPANY_RESEARCH.md) · [Online source methods](ONLINE_COMPANY_RESEARCH.md) · [Coverage methods](ONLINE_RESEARCH_COVERAGE.md) · [Roadmap](../ROADMAP.md)

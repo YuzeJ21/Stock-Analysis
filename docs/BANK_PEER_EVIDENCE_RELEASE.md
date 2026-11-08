@@ -2,6 +2,8 @@
 
 Date: November 8, 2026. Baseline: `1f7e149df3587f18a0a8c6d1ea2caf6fe0a507d5`. The existing isolated checkout was reused; unrelated checkouts, canonical data and source permissions were preserved.
 
+Follow-on: [Bank research snapshots](BANK_RESEARCH_SNAPSHOT_RELEASE.md) resolves the normalized cover-format save/replay gap. The results below describe this prior retention stage.
+
 ## What changed
 
 JPM, BAC and C no longer lose their complete peer-source collection at the retained-packet limit. When a collection is too large, a versioned lossless storage envelope retains every original source value, exact document body, source URL, date, permission and digest. The full original packet is restored and its original digest checked before the existing valuation rules run. Small and previously saved plain packets remain readable.

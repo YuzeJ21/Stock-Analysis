@@ -13,6 +13,7 @@ from src.annual_amendment_evidence import _original_eps
 from src.security_classification import classify_description
 from src.sec_security_document_set import companion_source,bind_document_set,MAX_SCOPE_BYTES
 from src.sec_security_observations import inspect_observations
+from src.sec_cover_observations import COVER_OBSERVATION_SCHEMA
 
 SCHEMA='sec-selected-security-v1'
 KEYS=('form','reportDate','filingDate','acceptanceDateTime','accessionNumber','primaryDocument','isInlineXBRL','isXBRL')
@@ -173,7 +174,7 @@ def _cover(raw,cik,meta,doc,url,*,parsed=None,source_refs=None):
     for context_id,values in groups.items():
         if set(values)!={'TradingSymbol','Security12bTitle','SecurityExchangeName'}:continue
         title,symbol,exchange=(values[k][0] for k in ('Security12bTitle','TradingSymbol','SecurityExchangeName'))
-        observations.append(dict(raw_symbol=symbol,title=title,exchange=exchange,context_id=context_id))
+        observations.append(dict(trading_symbol=symbol,title=title,exchange=exchange,context_id=context_id))
         if classify_description(title,False)['security_type']=='common_shares':common_symbols.add(symbol)
         if [values[k][1] for k in ('Security12bTitle','TradingSymbol','SecurityExchangeName')]==doc['cover_fact_ids']:
             members=list(contexts[context_id].iter('{http://xbrl.org/2006/xbrldi}explicitMember'))
@@ -228,7 +229,7 @@ def validate_selected_security_evidence(packet,*,ticker,cik,profile,issuer_symbo
             else:_require('companion' not in ref)
             if p['kind']=='supported_common':
                 root,ns,contexts,common,other=_cover(raw,cik,doc['metadata'],doc,url,parsed=parsed,source_refs=source_refs);_require(common['ticker']==ticker)
-                item.update(selected_common=common,raw_cover_observations=other)
+                item.update(selected_common=common,cover_observations=other,cover_observation_schema=COVER_OBSERVATION_SCHEMA)
                 if role=='annual':
                     eps=_original_eps(raw,cik,doc['metadata']['reportDate'],url,parsed=parsed,source_refs=source_refs)
                     ids={n.get('id'):n for n in root.iter() if n.get('id')}
