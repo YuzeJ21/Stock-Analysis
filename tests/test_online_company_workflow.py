@@ -16,10 +16,11 @@ def _dashboard_app():
 
 
 def _app(tmp_path, monkeypatch):
-    from src import company_research_notes
+    from src import company_research_notes, sec_research_review_ui
     # Widget callbacks run before the next script body; isolate the store for
     # their full lifetime, not only inside the script's patch context.
     monkeypatch.setattr(company_research_notes,'PROJECT_ROOT',tmp_path)
+    monkeypatch.setattr(sec_research_review_ui,'PROJECT_ROOT',tmp_path)
     monkeypatch.setenv('ONLINE_WORKFLOW_FIXTURE_DIR',str(tmp_path))
     monkeypatch.setenv('STOCK_RESEARCH_DATA_PROFILE','demo')
     app = AppTest.from_function(_dashboard_app)

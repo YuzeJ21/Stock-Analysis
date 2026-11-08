@@ -3475,6 +3475,7 @@ def _open_company_workbench_modules(
     section_radio=page.get_by_role('radio',name='Research Notes',exact=True)
     integrated=section_radio.count()==1
     module_label = "Research Decision Lab & History" if integrated else "Research Decision Lab"
+    entry_label = "Model-based research tools" if integrated else module_label
     button = (page.locator('.st-key-company-section-navigation label').filter(has=section_radio) if integrated else page.get_by_role(
         "button", name="Open evidence and analysis modules", exact=True))
     if button.count() != 1 or not button.first.is_visible():
@@ -3490,7 +3491,7 @@ def _open_company_workbench_modules(
     try:
         _wait_for_visible_text(
             page,
-            module_label,
+            entry_label,
             timeout_seconds=pointer_wait_seconds,
         )
     except TimeoutError:
@@ -3504,7 +3505,7 @@ def _open_company_workbench_modules(
         try:
             _wait_for_visible_text(
                 page,
-                module_label,
+                entry_label,
                 timeout_seconds=max(2.0, timeout_seconds - pointer_wait_seconds),
             )
         except TimeoutError:
@@ -3516,13 +3517,65 @@ def _open_company_workbench_modules(
                 "company_workbench_module_open",
                 False,
                 (
-                    f"module-open actions did not reveal {module_label}; "
+                    f"module-open actions did not reveal {entry_label}; "
                     f"activation_attempts={activation_attempts}; "
                     f"button_remaining={button.count()}; "
                     f"script_state={script_state!r}; "
                     f"body_has_company_brief={'Company Brief' in body_text}"
                 ),
             )
+    if integrated:
+        tools = page.locator("details").filter(
+            has=page.get_by_text(entry_label, exact=True)
+        )
+        summary = tools.locator(":scope > summary")
+        if tools.count() != 1 or summary.count() != 1 or not summary.first.is_visible():
+            return _assertion(
+                "company_workbench_module_open",
+                False,
+                "expected one visible saved-model tools disclosure",
+            )
+        if tools.first.get_attribute("open") is None:
+            summary.first.click()
+        button = tools.get_by_role("button", name="Open saved analysis tools", exact=True)
+        if button.count() != 1 or not button.first.is_visible():
+            return _assertion(
+                "company_workbench_module_open",
+                False,
+                f"expected one visible saved-model action, found {button.count()}",
+            )
+        button.first.scroll_into_view_if_needed()
+        button.first.click()
+        activation_attempts += 1
+        try:
+            _wait_for_visible_text(page, module_label, timeout_seconds=pointer_wait_seconds)
+        except TimeoutError:
+            if button.count() == 1 and button.first.is_visible():
+                activation_attempts += 1
+                button.first.focus()
+                button.first.press("Enter")
+            try:
+                _wait_for_visible_text(
+                    page,
+                    module_label,
+                    timeout_seconds=max(2.0, timeout_seconds - pointer_wait_seconds),
+                )
+            except TimeoutError:
+                body_text = page.locator("body").inner_text(timeout=2_000)
+                script_state = page.locator('[data-testid="stApp"]').get_attribute(
+                    "data-test-script-state"
+                )
+                return _assertion(
+                    "company_workbench_module_open",
+                    False,
+                    (
+                        f"module-open actions did not reveal {module_label}; "
+                        f"activation_attempts={activation_attempts}; "
+                        f"button_remaining={button.count()}; "
+                        f"script_state={script_state!r}; "
+                        f"body_has_company_brief={'Company Brief' in body_text}"
+                    ),
+                )
     _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
     decision_lab = (
         page.locator("summary").filter(has=page.get_by_text(module_label, exact=True))
@@ -3555,9 +3608,9 @@ def _open_company_workbench_html_brief(
 ) -> dict[str, object]:
     """Open the one native HTML Research Brief disclosure after module activation."""
 
-    details = page.locator("details").filter(
+    details = page.locator("summary").filter(
         has=page.get_by_text("HTML Research Brief", exact=True)
-    )
+    ).locator("..")
     if details.count() != 1:
         return _assertion(
             "company_workbench_html_brief_open",
@@ -4596,9 +4649,9 @@ def _company_workbench_one_pager_observation(
         device_pixel_ratio=float(observed["device_pixel_ratio"]),
         visual_viewport_scale=float(observed["visual_viewport_scale"]),
     )
-    details = page.locator("details").filter(
+    details = page.locator("summary").filter(
         has=page.get_by_text("HTML Research Brief", exact=True)
-    )
+    ).locator("..")
     download = details.first.get_by_role(
         "button",
         name="Download HTML Research Brief",

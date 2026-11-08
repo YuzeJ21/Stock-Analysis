@@ -508,6 +508,11 @@ def test_company_workbench_opens_secondary_modules_only_after_explicit_action():
     assert not any(e.label=="Add a reviewed research record" for e in app.expander)
     _workbench_section(app,"notes")
     assert not app.exception
+    assert not any(e.label=="HTML Research Brief" for e in app.expander)
+    assert [e.label for e in app.expander].count("Add a reviewed research record")==1
+    assert not any(e.label=="Research Decision Lab & History" for e in app.expander)
+    next(b for b in app.button if b.label=="Open saved analysis tools").click().run(timeout=120)
+    assert not app.exception
     assert [e.label for e in app.expander].count("HTML Research Brief")==1
     assert [e.label for e in app.expander].count("Add a reviewed research record")==1
     assert not any(m.value == "## Research Decision Lab" for m in app.markdown)
@@ -1228,6 +1233,7 @@ def _html_brief_app(*, mode: str = "research", ticker: str = "NVDA", open_report
     app.run(timeout=120)
     if mode == "research" and open_report:
         _workbench_section(app,"notes")
+        next(b for b in app.button if b.label=="Open saved analysis tools").click().run(timeout=120)
     return app
 
 
