@@ -49,3 +49,9 @@ Independent review reproduced a stale-structured comparison defect: a new archiv
 Remaining work: current Companyfacts lag, the nine unsupported direct-quarter fields, C's operating-income definition and NEE's cumulative capital-purchase definition remain explicit. Remaining foreign-issuer identity, duration, non-XBRL and research-context capacity gaps are separate next-stage work. A meaningful subsequent-filing comparison requires an independently observed new source, not altered test data.
 
 [Online workflow](ONLINE_COMPANY_RESEARCH.md) · [Self-service method](SELF_SERVICE_COMPANY_RESEARCH.md) · [Prior bank snapshots](BANK_RESEARCH_SNAPSHOT_RELEASE.md) · [Roadmap](../ROADMAP.md)
+
+## Tested commit and synchronization
+
+Verified implementation: [`5eba9e63713df9e51ef9aab475b159d4ff786bae`](https://github.com/YuzeJ21/Stock-Analysis/commit/5eba9e63713df9e51ef9aab475b159d4ff786bae). GitHub main accepted the fast-forward from the stated baseline. The remote Git ref and independent GitHub branch read matched the full commit; remote README and release-document blob IDs matched the local files. This documentation-only follow-up records those checks without changing tested runtime code, tests or protected inputs.
+
+The ignored local review packet is `outputs/local/releases/exact-quarterly-evidence-20261108/`: reduced source/date/digest results, unchanged-input manifest, exact private replay outcomes, regression/review logs, constructed browser screenshots and a held local PR draft. Full original sources and actual research contexts remain private temporary captures. No PR was opened and no user notes or evidence stores were written during verification. The owned local application is healthy on port 8536; unrelated worktrees were preserved.
