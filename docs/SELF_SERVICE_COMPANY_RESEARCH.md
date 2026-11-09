@@ -27,6 +27,8 @@ The shared filing catalog now handles large bank submissions catalogs by boundin
 
 When the latest filing and its structured facts align, normal supported annual/quarterly periods feed the same tools without new company-specific code. A filing can arrive before Companyfacts has updated. That state is **facts pending**. An unresolved amendment remains a version gap. Prior observations stay available as dated history, while current financial/scenario/peer claims affected by the gap are withheld. An older-period amendment is evaluated for that period rather than automatically blocking an unrelated newer period. Comparative facts in a later known filing remain comparative history.
 
+A current unresolved 10-Q also has a separate exact-primary-document path. Reused original identity receipts bind its issuer, latest accession and publication; every cached read revalidates literal numbers, contexts, units and permissions. Supported quarter facts join the same research workflow while Companyfacts pending evidence stays separate. Cumulative cash is retained with its full duration, never turned into a quarter. Snapshots preserve typed normalized proofs without filing bodies; replay remains historical. The C/DUK/SO/NEE verification supports seven standard quarterly fields and retains nine gaps. [Exact-quarter scope and results](EXACT_QUARTERLY_EVIDENCE_RELEASE.md)
+
 8-K and 6-K observations are research review triggers. Their event dates are not automatically financial quarter ends. Non-XBRL statements, issuer extensions, segment interpretation, source-specific tax bridges and unsupported units need separately verified definitions; detecting a new report does not manufacture those values.
 
 ## Calculation and source boundaries

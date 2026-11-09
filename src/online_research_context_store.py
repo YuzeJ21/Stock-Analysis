@@ -16,6 +16,7 @@ import re
 import stat
 
 from src.sec_cover_observations import COVER_FIELDS, validate_cover_scope
+from src.sec_reported_numeric import valid_reported_numeric
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -170,6 +171,14 @@ def _normalized(value):
             raise ValueError('Research context depth or cycle limit exceeded')
         active.add(id(item))
         if isinstance(item, dict):
+            if any(isinstance(key, str) and key.lower() in {'reported_text', 'reported_numeric_schema'} for key in item):
+                typed = (len(path) == 5 and path[:2] == ('business_trend', 'periods')
+                    and type(path[2]) is int and path[3] in {'fields', 'cumulative_fields'}
+                    and isinstance(path[4], str))
+                row = value['business_trend']['periods'][path[2]] if typed else None
+                if not typed or not valid_reported_numeric(item, context=value, row=row,
+                        field_name=path[4], cumulative=path[3] == 'cumulative_fields'):
+                    raise ValueError('Normalized reported numeric proof is invalid or outside its typed quarter field')
             for key, child in item.items():
                 if not isinstance(key, str) or not key or len(key) > 200:
                     raise ValueError('Invalid normalized research context key')

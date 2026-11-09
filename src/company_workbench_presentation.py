@@ -154,6 +154,14 @@ def financial_workspace_html(ticker, financial, *, period_kind='annual', metric=
     history = None
     if view.get('ticker')==ticker and not projection['identity_conflict']:
         history = (validated_annual_history(view) if view.get('status')=='inspection_only' else None) if period_kind=='annual' else validated_quarterly_history(view)
+        if period_kind=='quarterly':
+            from src.sec_online_quarter_evidence import validated_archive_quarter
+            from src.sec_online_quarter_view import merge_archive_quarter
+            archive=validated_archive_quarter(view)
+            if archive:
+                history=dict(history or {},unit=archive['unit'],
+                             periods=merge_archive_quarter(history['periods'] if history else [],archive),
+                             source_url=archive['source_url'],observed_at=archive['observed_at'],source_label='Exact SEC filing · separate archive scope')
     if not history:
         return '<div class="company-analysis-gap">Financial trend needs verification. Refresh the source or inspect Data Sources for the specific gap.</div>'
     rows = history['periods'][-limit:]
@@ -188,6 +196,9 @@ def financial_workspace_html(ticker, financial, *, period_kind='annual', metric=
         receipts.append('<li>'+escape(str(row.get('period_start') or 'Unresolved start')+' → '+row['period_end']+' · '+str(row.get('form') or '')+' · Filed '+str(row.get('filed') or 'Unavailable')+' · '+str(row.get('accession') or 'Unavailable')+reason)+'</li>')
         for key,field in _fields(row).items():
             receipts.append('<li>'+escape(financial_field_label(key,field)+' · '+field.get('concept','')+' · '+str(field.get('unit',history['unit'])))+'</li>')
+        source_field=next(iter(_fields(row).values()),{})
+        if source_field.get('source_ref'):
+            receipts.append('<li>'+_link(source_field['source_ref'],'This period’s source')+'</li>')
         for key,reason in row.get('withheld_fields',{}).items():
             receipts.append('<li>'+escape(row['period_end']+' · '+METRICS.get(key,key)+' gap: '+reason.replace('_',' '))+'</li>')
         if row.get('cumulative_fields'):
@@ -201,7 +212,7 @@ def financial_workspace_html(ticker, financial, *, period_kind='annual', metric=
         +_bars(rows,metric,title)+gaps+'</section>'
         '<section class="company-analysis-surface" aria-label="Reported '+period_kind+' financials"><h2>Reported financials</h2>'
         '<div class="company-table-scroll" tabindex="0" role="region" aria-label="Financial table"><table><caption>'+escape(unit)+' · period ends</caption><thead><tr><th scope="col">Period</th>'+headings+'</tr></thead><tbody>'+body+'</tbody></table></div>'
-        '<details><summary>Period evidence and gaps</summary><p>'+escape(definition)+'. '+_link(history['source_url'],'SEC Companyfacts')+' · Observed '+escape(history['observed_at'])+'. Latest reported observations, including revisions; not point-in-time history. Direct-field scope inspected; raw redistribution held.</p><ul>'+''.join(receipts)+'</ul></details>'
+        '<details><summary>Period evidence and gaps</summary><p>'+escape(definition)+'. '+_link(history['source_url'],history.get('source_label','SEC Companyfacts'))+' · Observed '+escape(history['observed_at'])+'. Latest reported observations, including revisions; not point-in-time history. Each period retains its own source; raw redistribution held.</p><ul>'+''.join(receipts)+'</ul></details>'
         +('<details><summary>Cumulative cash flow · not single-quarter</summary><ul>'+''.join(cumulative)+'</ul></details>' if cumulative else '')+'</section></div>')
 
 

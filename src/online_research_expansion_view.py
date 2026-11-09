@@ -10,7 +10,8 @@ from src.sec_quarterly_history import FIELDS, validated_quarterly_history
 from src.company_sec_online_preview import _iso_date, REVENUE_LABELS
 
 _STYLE=STYLE+'<style>.online-quarterly,.online-identity,.online-coverage{margin:16px 0;padding:16px;border:1px solid #d9e0dc;border-radius:8px;min-width:0;overflow-wrap:anywhere;box-sizing:border-box}.online-quarterly article,.online-coverage article{padding:12px;border:1px solid #d9e0dc;border-radius:8px;background:white;min-width:0;box-sizing:border-box}.online-quarter-grid,.online-coverage-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr));gap:12px}.online-quarterly dl div{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px}.online-quarterly dd{margin:0;font-weight:650}.cumulative-flow{border-top:1px dashed #b9c7c0;margin-top:12px;padding-top:8px}.online-quarterly small,.online-identity small,.online-coverage small{color:#52615c}</style>'
-_LABELS={'revenue':'Revenue','operating_income':'Operating income','cash_from_operations':'Operating cash flow','capital_expenditures':'Capital spending'}
+_LABELS={'revenue':'Revenue','operating_income':'Operating income','cash_from_operations':'Operating cash flow','capital_expenditures':'Capital spending',
+         'net_interest_income':'Net interest income','noninterest_income':'Noninterest income'}
 
 
 def _reason(value):
@@ -20,6 +21,8 @@ def _reason(value):
 def financial_field_label(name,field):
     if name=='revenue' and field:
         return REVENUE_LABELS.get(field.get('concept'),'Revenue')
+    if name=='capital_expenditures' and field and field.get('concept')=='PaymentsToAcquireProductiveAssets':
+        return 'Productive asset purchases'
     return _LABELS[name]+(' · continuing operations' if field and field.get('concept')=='NetCashProvidedByUsedInOperatingActivitiesContinuingOperations' else '')
 
 

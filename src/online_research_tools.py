@@ -167,7 +167,8 @@ def _cash_metric(period, fields):
     reason = 'matching_total_cfo_and_positive_ppe_spending_required'
     value = None
     if (_same_period(cfo, ppe) and cfo['unit'] == period['currency'] and ppe['value'] > 0
-        and 'ContinuingOperations' not in cfo['concept']):
+        and 'ContinuingOperations' not in cfo['concept']
+        and ppe.get('concept') in {'PaymentsToAcquirePropertyPlantAndEquipment', 'PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities'}):
         value, reason = cfo['value']-ppe['value'], None
     return _metric('cfo_less_ppe', 'Operating cash flow less PP&E spending', period, [cfo, ppe],
         value, reason, unit=period['currency'],
@@ -433,6 +434,13 @@ def build_online_research_context(financial, prices, peers=None, association=Non
             coverage = corroborate_online_financials(financial, inventory, as_of=now)
         except (TypeError, ValueError, KeyError, AttributeError, OverflowError):
             coverage = dict(status='withheld', current={}, periods={}, gaps=['Financial filing coverage could not be verified.'])
+    from src.sec_online_quarter_evidence import validated_archive_quarter
+    from src.sec_online_quarter_view import merge_archive_quarter
+    archive = validated_archive_quarter(financial, ticker=ticker, expected_cik=cik, inventory=inventory, as_of=now) if identity_valid else None
+    if archive:
+        rows = next((rows for kind, rows, _ in histories if kind == 'quarterly'), [])
+        histories = [history for history in histories if history[0] != 'quarterly']
+        histories.append(('quarterly', merge_archive_quarter(rows, archive), archive['unit']))
     trend = _trend(histories, coverage)
     base = dict(status='withheld', reason='validated_current_annual_revenue_required', revenue=None,
         currency=None, period_start=None, period_end=None, source_refs=[])
@@ -462,6 +470,8 @@ def build_online_research_context(financial, prices, peers=None, association=Non
         cik=cik, inventory=inventory, identity=identity if identity_valid else {}, now=now)
     link = validated_price_filing_association(association)
     receipts = _receipt_rows(financial, prices, inventory, peer)
+    if archive:
+        receipts.extend(dict(row, source='exact_quarter_receipt', rights_status=archive['rights_status']) for row in archive['source_receipts'])
     semantic_inputs = dict(ticker=ticker, sec_cik=cik, financial_identity_valid=identity_valid,
         financial_status=financial.get('status'), financial_reason=financial.get('reason'),
         filing_inventory=inventory, filing_coverage=coverage, earnings_components=earnings,
@@ -502,7 +512,7 @@ def build_online_research_context(financial, prices, peers=None, association=Non
     if peer.get('status') != 'research_comparison':
         gaps.append(peer.get('reason') or 'Observed industry references are unavailable.')
     observation_times = []
-    for source in (identity if identity_valid else {}, annual or {}, quarterly or {}, foreign or {}, inventory, price):
+    for source in (identity if identity_valid else {}, annual or {}, quarterly or {}, foreign or {}, archive or {}, inventory, price):
         stamp = source.get('observed_at')
         if _fresh(stamp, now):
             observation_times.append(_utc_timestamp(stamp))

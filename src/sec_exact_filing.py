@@ -7,16 +7,23 @@ import hashlib
 import json
 import re
 import time
+import zlib
 from urllib.error import HTTPError
 from urllib.request import Request
 
 from src.company_sec_online_preview import _iso_date, _utc_timestamp, ANNUAL_FORMS
 from src.online_company_identity import _mode_reason
-from src.online_sec_receipt import fetch_sec_json_receipt, MAX_RETAINED_SEC_JSON_BYTES, open_exact_source as urlopen
+from src.online_sec_receipt import (fetch_sec_json_receipt, MAX_RETAINED_SEC_JSON_BYTES,
+    MAX_OPTIONAL_RETAINED_SEC_JSON_BYTES, open_exact_source as urlopen)
 from src.sec_association_receipt import _json_object
 from src.providers.sec_company_discovery import _modified_at
 
 MAX_FILING_BYTES = 32 * 1024 * 1024
+MAX_BANK_SCOPE_RAW_BYTES = MAX_OPTIONAL_RETAINED_SEC_JSON_BYTES
+MAX_BANK_SCOPE_COMPRESSED_BYTES = MAX_BANK_SCOPE_RAW_BYTES + 64 * 1024
+MAX_SUBMISSIONS_ROWS = 100_000
+MAX_FINANCIAL_FILINGS = 2_000
+BANK_SCOPE_SCHEMA = 'sec-bank-scope-v2'
 SOURCE_ID = 'sec_archive_inline'
 RIGHTS = 'unregistered_sec_archive_personal_inspection_only'
 SCHEMA = 'sec-exact-filing-v1'
@@ -42,20 +49,55 @@ def _reference_valid(ref, url=None):
         and isinstance(ref.get('payload_sha256'),str) and re.fullmatch(r'[0-9a-f]{64}',ref['payload_sha256']) is not None)
 
 
+def _bank_scope_raw(scope):
+    legacy={'sec_cik','sic','source_receipt','submissions_raw_base64'}
+    compressed={'schema_version','sec_cik','sic','source_receipt','submissions_zlib_base64','submissions_raw_bytes'}
+    if set(scope)==legacy:
+        encoded=scope.get('submissions_raw_base64')
+        if not isinstance(encoded,str) or not 0<len(encoded)<=4*((MAX_RETAINED_SEC_JSON_BYTES+2)//3):return None
+        raw=base64.b64decode(encoded,validate=True)
+        return raw if 0<len(raw)<=MAX_RETAINED_SEC_JSON_BYTES else None
+    if set(scope)!=compressed or scope.get('schema_version')!=BANK_SCOPE_SCHEMA:return None
+    expanded=scope.get('submissions_raw_bytes');encoded=scope.get('submissions_zlib_base64')
+    if (type(expanded) is not int or not 0<expanded<=MAX_BANK_SCOPE_RAW_BYTES or not isinstance(encoded,str)
+        or not 0<len(encoded)<=4*((MAX_BANK_SCOPE_COMPRESSED_BYTES+2)//3)):return None
+    packed=base64.b64decode(encoded,validate=True)
+    if not 0<len(packed)<=MAX_BANK_SCOPE_COMPRESSED_BYTES:return None
+    decoder=zlib.decompressobj()
+    raw=decoder.decompress(packed,expanded+1)
+    # The byte count and EOF bind one complete stream; flush must not expand an
+    # unchecked tail, and concatenated or appended content is never accepted.
+    if len(raw)!=expanded or not decoder.eof or decoder.unused_data or decoder.unconsumed_tail:return None
+    return raw
+
+
 def valid_bank_scope(scope,cik,refs):
-    if not isinstance(scope,Mapping) or set(scope)!={'sec_cik','sic','source_receipt','submissions_raw_base64'}:return False
+    if not isinstance(scope,Mapping):return False
     if scope.get('sec_cik')!=cik or not isinstance(scope.get('sic'),str) or scope['sic'] not in BANK_SICS or not isinstance(refs,list):return False
     url=f'https://data.sec.gov/submissions/CIK{cik}.json'
     matches=[r for r in refs if isinstance(r,Mapping) and r.get('source_url')==url]
-    if len(matches)!=1 or not _reference_valid(matches[0],url) or scope['source_receipt']!=matches[0]:return False
-    encoded=scope.get('submissions_raw_base64')
-    if not isinstance(encoded,str) or not 0<len(encoded)<=4*((MAX_RETAINED_SEC_JSON_BYTES+2)//3):return False
+    if len(matches)!=1 or not _reference_valid(matches[0],url) or scope.get('source_receipt')!=matches[0]:return False
     try:
-        raw=base64.b64decode(encoded,validate=True)
-        if not 0<len(raw)<=MAX_RETAINED_SEC_JSON_BYTES or hashlib.sha256(raw).hexdigest()!=matches[0]['payload_sha256']:return False
+        raw=_bank_scope_raw(scope)
+        if raw is None or hashlib.sha256(raw).hexdigest()!=matches[0]['payload_sha256']:return False
         body=_json_object(raw,'invalid_bank_classification_json')
         return isinstance(body,Mapping) and _cik(body.get('cik')) and str(int(body['cik'])).zfill(10)==cik and str(body.get('sic'))==scope['sic']
-    except (ValueError,TypeError,binascii.Error,RecursionError):return False
+    except (ValueError,TypeError,binascii.Error,zlib.error,RecursionError):return False
+
+
+def _bank_scope(cik,sic,ref,encoded):
+    if not isinstance(encoded,str) or not 0<len(encoded)<=4*((MAX_BANK_SCOPE_RAW_BYTES+2)//3):return None
+    try:
+        raw=base64.b64decode(encoded,validate=True)
+        if not 0<len(raw)<=MAX_BANK_SCOPE_RAW_BYTES:return None
+        scope=dict(sec_cik=cik,sic=sic,source_receipt=ref)
+        if len(raw)<=MAX_RETAINED_SEC_JSON_BYTES:
+            scope['submissions_raw_base64']=encoded
+        else:
+            scope.update(schema_version=BANK_SCOPE_SCHEMA,submissions_raw_bytes=len(raw),
+                submissions_zlib_base64=base64.b64encode(zlib.compress(raw,9)).decode('ascii'))
+        return scope if valid_bank_scope(scope,cik,[ref]) else None
+    except (ValueError,TypeError,binascii.Error,zlib.error,RecursionError):return None
 
 
 def select_sec_filing(ticker,cik,submissions_receipt,*,period_kind,allow_non_inline=False):
@@ -71,8 +113,9 @@ def select_sec_filing(ticker,cik,submissions_receipt,*,period_kind,allow_non_inl
     columns=('accessionNumber','reportDate','filingDate','acceptanceDateTime','form','primaryDocument','isInlineXBRL','isXBRL')
     if not isinstance(recent,Mapping) or any(not isinstance(recent.get(k),list) for k in columns): return held
     length=len(recent['form'])
-    if not 1<=length<=2000 or any(len(recent[k])!=length for k in columns): return {**held,'reason':'filing_metadata_schema_invalid'}
+    if not 1<=length<=MAX_SUBMISSIONS_ROWS or any(len(recent[k])!=length for k in columns): return {**held,'reason':'filing_metadata_schema_invalid'}
     records=[{k:recent[k][i] for k in columns} for i in range(length) if isinstance(recent['form'][i],str) and recent['form'][i] in FORMS[period_kind]]
+    if len(records)>MAX_FINANCIAL_FILINGS:return {**held,'reason':'filing_metadata_schema_invalid'}
     if not records: return {**held,'reason':'supported_filing_form_unavailable'}
     observed=_utc_timestamp(submissions_receipt['observed_at'])
     # A malformed recent amendment must not silently restore an older filing.
@@ -100,8 +143,8 @@ def select_sec_filing(ticker,cik,submissions_receipt,*,period_kind,allow_non_inl
     adapter={'adapter':'ibn_html_bank'} if r['isInlineXBRL']==0 else {}
     bank={}
     if r['isInlineXBRL']==1 and str(body.get('sic')) in BANK_SICS:
-        scope=dict(sec_cik=cik,sic=str(body['sic']),source_receipt=ref,submissions_raw_base64=submissions_receipt.get('payload_raw_base64'))
-        if not valid_bank_scope(scope,cik,[ref]):return {**held,'reason':'bank_classification_source_evidence_unavailable'}
+        scope=_bank_scope(cik,str(body['sic']),ref,submissions_receipt.get('payload_raw_base64'))
+        if scope is None:return {**held,'reason':'bank_classification_source_evidence_unavailable'}
         bank={'bank_scope':scope}
     return dict(status='selected',ticker=ticker,sec_cik=cik,period_kind=period_kind,period_end=end,form=r['form'],
         filed=filed,accepted_at=r['acceptanceDateTime'],accession=accession,primary_document=document,source_url=url,source_receipts=[ref],**adapter,**bank)
@@ -115,14 +158,17 @@ def _fetch_html(url,user_agent):
         time.sleep(0.2)
 
 
-def fetch_sec_filing_preview(ticker,*,period_kind,user_agent,fetcher=None,observed_at=None,expected_cik=None,workspace_mode='research'):
+def fetch_sec_filing_preview(ticker,*,period_kind,user_agent,fetcher=None,observed_at=None,expected_cik=None,
+                             workspace_mode='research',ticker_map_receipt=None,submissions_receipt=None):
     reason=_mode_reason(workspace_mode)
     held=dict(status='withheld',ticker=ticker,period_kind=period_kind,reason=reason or 'sec_filing_unavailable')
     if (reason or period_kind not in FORMS or not isinstance(ticker,str) or not re.fullmatch(r'[A-Z0-9][A-Z0-9.-]{0,19}',ticker)
         or not isinstance(user_agent,str) or not user_agent.strip() or any(c in user_agent for c in '\r\n')): return held
     if observed_at is not None and (not isinstance(observed_at,datetime) or observed_at.utcoffset() is None): return held
-    mapping=fetch_sec_json_receipt(MAP_URL,user_agent=user_agent,fetcher=fetcher,observed_at=observed_at)
-    if mapping['status']!='ready' or not isinstance(mapping.get('payload'),Mapping): return {**held,'reason':mapping.get('reason','sec_map_unavailable')}
+    mapping=(fetch_sec_json_receipt(MAP_URL,user_agent=user_agent,fetcher=fetcher,observed_at=observed_at)
+        if ticker_map_receipt is None else ticker_map_receipt)
+    if (not isinstance(mapping,Mapping) or mapping.get('status')!='ready' or not isinstance(mapping.get('payload'),Mapping)
+        or not _reference_valid(mapping,MAP_URL)):return {**held,'reason':'sec_map_unavailable'}
     aliases={ticker,ticker.replace('.','-'),ticker.replace('-','.')}; ciks=set()
     for r in mapping['payload'].values():
         if isinstance(r,Mapping) and r.get('ticker') in aliases:
@@ -131,9 +177,14 @@ def fetch_sec_filing_preview(ticker,*,period_kind,user_agent,fetcher=None,observ
     if len(ciks)!=1: return {**held,'reason':'ambiguous_or_missing_sec_association'}
     cik=next(iter(ciks))
     if expected_cik is not None and expected_cik!=cik: return {**held,'reason':'selected_company_identity_mismatch'}
-    submissions=fetch_sec_json_receipt(f'https://data.sec.gov/submissions/CIK{cik}.json',user_agent=user_agent,fetcher=fetcher,observed_at=observed_at,retain_raw=True)
+    submissions=(fetch_sec_json_receipt(f'https://data.sec.gov/submissions/CIK{cik}.json',user_agent=user_agent,
+        fetcher=fetcher,observed_at=observed_at,retain_raw=True,max_retained_raw_bytes=MAX_BANK_SCOPE_RAW_BYTES)
+        if submissions_receipt is None else submissions_receipt)
     selection=select_sec_filing(ticker,cik,submissions,period_kind=period_kind,allow_non_inline=True)
     if selection['status']!='selected': return selection
+    now=(observed_at or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    mapped=_utc_timestamp(mapping['observed_at']);submitted=_utc_timestamp(submissions['observed_at'])
+    if not mapped<=submitted<=now or now-mapped>timedelta(hours=24):return {**held,'reason':'unverified_source_observation_order'}
     selection['source_receipts'].insert(0,{k:mapping[k] for k in ('source_url','observed_at','payload_sha256')})
     try:
         raw,headers,final_url=(fetcher or _fetch_html)(selection['source_url'],user_agent)

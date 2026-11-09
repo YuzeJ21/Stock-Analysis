@@ -12,6 +12,7 @@ from src.sec_association_receipt import _json_object
 
 MAX_SEC_RESPONSE_BYTES = 16 * 1024 * 1024
 MAX_RETAINED_SEC_JSON_BYTES = 2 * 1024 * 1024
+MAX_OPTIONAL_RETAINED_SEC_JSON_BYTES = 4 * 1024 * 1024
 _URL = re.compile(r'https://(?:www\.sec\.gov/files/company_tickers(?:_exchange)?\.json|data\.sec\.gov/(?:api/xbrl/companyfacts/CIK\d{10}\.json|submissions/CIK\d{10}(?:-submissions-\d{3})?\.json))\Z')
 
 
@@ -37,9 +38,12 @@ def _fetch_raw(url, user_agent):
         time.sleep(0.2)
 
 
-def fetch_sec_json_receipt(url, *, user_agent, fetcher=None, observed_at=None, retain_raw=False):
+def fetch_sec_json_receipt(url, *, user_agent, fetcher=None, observed_at=None, retain_raw=False,
+                           max_retained_raw_bytes=MAX_RETAINED_SEC_JSON_BYTES):
     held={'status':'unavailable','source_url':url if isinstance(url,str) and _URL.fullmatch(url) else None}
-    if type(retain_raw) is not bool:return {**held,'reason':'invalid_retention_request'}
+    if (type(retain_raw) is not bool or type(max_retained_raw_bytes) is not int
+        or not 0<max_retained_raw_bytes<=MAX_OPTIONAL_RETAINED_SEC_JSON_BYTES):
+        return {**held,'reason':'invalid_retention_request'}
     if not isinstance(url,str) or not _URL.fullmatch(url): return {**held,'reason':'unsupported_sec_url'}
     if not isinstance(user_agent,str) or not user_agent.strip() or any(c in user_agent for c in '\r\n'):
         return {**held,'reason':'sec_user_agent_required'}
@@ -57,5 +61,5 @@ def fetch_sec_json_receipt(url, *, user_agent, fetcher=None, observed_at=None, r
     result={'status':'ready','payload':payload,'source_url':url,
             'observed_at':observed.strftime('%Y-%m-%dT%H:%M:%SZ'),
             'source_last_modified':modified,'payload_sha256':hashlib.sha256(raw).hexdigest()}
-    if retain_raw and len(raw)<=MAX_RETAINED_SEC_JSON_BYTES:result['payload_raw_base64']=base64.b64encode(raw).decode('ascii')
+    if retain_raw and len(raw)<=max_retained_raw_bytes:result['payload_raw_base64']=base64.b64encode(raw).decode('ascii')
     return result

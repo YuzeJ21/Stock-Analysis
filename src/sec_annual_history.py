@@ -146,9 +146,11 @@ def fetch_sec_online_research_view(ticker: str, *, user_agent: str, ticker_map_r
     if cik:
         from src.online_company_identity import _mode_reason
         mode_reason = _mode_reason('research')
+        from src.sec_exact_filing import MAX_BANK_SCOPE_RAW_BYTES
         profile_receipt = {'status':'unavailable','reason':mode_reason} if mode_reason else fetch_sec_json_receipt(
             f'https://data.sec.gov/submissions/CIK{cik}.json', user_agent=user_agent,
-            fetcher=source_fetcher, observed_at=observed_at,
+            fetcher=source_fetcher, observed_at=observed_at, retain_raw=True,
+            max_retained_raw_bytes=MAX_BANK_SCOPE_RAW_BYTES,
         )
     if receipt and cik:
         identity={k:receipt[k] for k in ('source_url','observed_at','source_last_modified','payload_sha256')}
@@ -189,6 +191,12 @@ def fetch_sec_online_research_view(ticker: str, *, user_agent: str, ticker_map_r
         )
         view['filing_inventory'] = build_filing_inventory(
             profile_receipt, ticker=ticker, expected_cik=cik, as_of=observed_at,
+        )
+        view['filing_coverage'] = corroborate_online_financials(view, view['filing_inventory'], as_of=observed_at)
+        from src.sec_online_quarter_evidence import fetch_archive_quarter
+        view['archive_quarterly'] = fetch_archive_quarter(
+            view, user_agent=user_agent, ticker_map_receipt=captured.get('map_receipt'),
+            submissions_receipt=profile_receipt, source_fetcher=source_fetcher, observed_at=observed_at,
         )
         view['filing_coverage'] = corroborate_online_financials(view, view['filing_inventory'], as_of=observed_at)
         view['earnings_components'] = build_online_earnings_components(

@@ -38117,8 +38117,9 @@ def render_company_sec_annual_check(ticker: str, expected_cik: str | None = None
             from src.company_sec_online_preview import SESSION_KEY
             st.session_state[SESSION_KEY]={"ticker":ticker,"view":view}
         analysis = build_online_company_analysis(view)
+        from src.sec_online_quarter_view import archive_quarter_html
         preview_target.markdown(
-            (foreign_financials_html(view) if validated_foreign_financials(view) else
+            archive_quarter_html(view) + (foreign_financials_html(view) if validated_foreign_financials(view) else
              online_company_analysis_html(analysis) + foreign_financials_html(view) + quarterly_history_html(view) + annual_history_html(view) + company_sec_annual_preview_html(view)),
             unsafe_allow_html=True,
         )
@@ -38459,6 +38460,8 @@ def render_company_workbench(
                 st.markdown(f'[Open separately scoped saved research tools](?mode=research&page=company-workbench&ticker={ticker}&section=notes)',unsafe_allow_html=False)
     def sources(bundle):
         view=bundle["financial"]
+        from src.sec_online_quarter_view import archive_quarter_html
+        st.markdown(archive_quarter_html(view),unsafe_allow_html=True)
         if online_candidate:
             st.markdown("<p class='company-scope-note'>SEC CIK "+html.escape(expected_cik)+
                 " · observed "+html.escape(online_candidate["observed_at"])+

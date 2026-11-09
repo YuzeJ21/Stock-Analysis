@@ -47,6 +47,12 @@ def workbench_projection(ticker, financial_view, prices, expected_cik=None):
         return result
     annual=validated_annual_history(view) if view.get('status')=='inspection_only' else None
     quarter=validated_quarterly_history(view)
+    from src.sec_online_quarter_evidence import validated_archive_quarter
+    from src.sec_online_quarter_view import merge_archive_quarter
+    archive=validated_archive_quarter(view)
+    if archive:
+        quarter=dict(unit=archive['unit'],source_url=archive['source_url'],observed_at=archive['observed_at'],
+                     periods=merge_archive_quarter(quarter['periods'] if quarter else [],archive))
     foreign=validated_foreign_financials(view)
     candidates=[]
     def inspect_latest(kind,rows,history):

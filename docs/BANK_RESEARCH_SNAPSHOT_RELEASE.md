@@ -42,7 +42,7 @@ Replay is explicitly historical. It performs no source requests, does not substi
 
 The tested commit and exact GitHub synchronization are recorded below after completion. No full repository-suite or resulting-main hosted CI pass is claimed. Constructed browser evidence and captured-source replay are separate from independent human validation, market-wide coverage, redistribution rights and hosted-service operation.
 
-Next inspect the filed quarterly evidence behind C/DUK/SO/NEE gaps, then remaining identity/foreign-issuer exclusions and meaningful subsequent-filing changes. TSM's separate normalized-context size hold, IBN's financial support gap, source permissions and unsupported valuation methods remain separate. No purchases, credentials, canonical rows or source-rights decisions were changed.
+Follow-on work now connects separately qualified C/DUK/SO/NEE exact-quarter filing facts to online trends, snapshots and Monitor; see the [exact-quarter release](EXACT_QUARTERLY_EVIDENCE_RELEASE.md) for its own dates and remaining gaps. TSM's separate normalized-context size hold, IBN's financial support gap, source permissions and unsupported valuation methods remain separate. No purchases, credentials, canonical rows or source-rights decisions were changed in this bank-snapshot stage.
 
 [Self-service method](SELF_SERVICE_COMPANY_RESEARCH.md) · [Bank peer retention](BANK_PEER_EVIDENCE_RELEASE.md) · [Roadmap](../ROADMAP.md)
 

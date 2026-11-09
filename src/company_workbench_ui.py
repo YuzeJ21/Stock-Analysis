@@ -181,6 +181,8 @@ def _render_company_content(st_api,ticker,*,profile_scope,scope,candidate,expect
             if financial.get('status')=='not_requested':
                 st_api.info('Refresh financials and prices to load reported periods.')
             else:
+                from src.sec_online_quarter_view import archive_quarter_html
+                st_api.markdown(archive_quarter_html(financial),unsafe_allow_html=True)
                 foreign=validated_foreign_financials(financial)
                 if foreign:
                     st_api.markdown(foreign_financials_html(financial),unsafe_allow_html=True)

@@ -442,6 +442,20 @@ def corroborate_online_financials(financial, inventory, *, as_of=None):
         if result['current'][kind]['status'] != 'corroborated' and (kind != 'interim' or histories[kind]):
             result['gaps'].append(kind + ':' + result['current'][kind]['reason'])
     expected = ['annual', 'quarterly'] + (['interim'] if histories['interim'] else [])
+    # Archive observations have their own permission/source scope. Keep the
+    # structured-quarter hold visible instead of forging Companyfacts history.
+    from src.sec_online_quarter_evidence import validated_archive_quarter
+    archive = validated_archive_quarter(financial, inventory=verified, as_of=as_of)
+    if archive:
+        result['structured_quarterly'] = deepcopy(result['current']['quarterly'])
+        row = next((r for r in archive['periods'] if r['kind'] == 'quarterly'), None)
+        if row and row['status'] == 'available' and result['current']['quarterly']['status'] != 'corroborated':
+            state = _coverage_state('corroborated', 'exact_archive_quarter_and_filing', verified['latest']['quarterly'])
+            state.update(source_id=archive['source_id'], rights_status=archive['rights_status'])
+            result['current']['quarterly'] = state
+            result['periods']['quarterly'][row['period_end']] = deepcopy(state)
+            result['gaps'] = [gap for gap in result['gaps'] if not gap.startswith('quarterly:')]
+        result['gaps'].append('Companyfacts quarter: ' + result['structured_quarterly']['reason'])
     states = [result['current'][kind]['status'] for kind in expected]
     result['status'] = 'corroborated' if all(s == 'corroborated' for s in states) else 'partial' if any(s == 'corroborated' for s in states) else 'withheld'
     return result

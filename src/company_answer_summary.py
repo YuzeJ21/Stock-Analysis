@@ -95,6 +95,11 @@ def _comparable_revenue(financial, period, kind, unit='USD'):
     if kind != 'quarterly':
         return None
     history = validated_quarterly_history(financial)
+    from src.sec_online_quarter_evidence import validated_archive_quarter
+    from src.sec_online_quarter_view import merge_archive_quarter
+    archive = validated_archive_quarter(financial)
+    if archive:
+        history = dict(unit=archive['unit'], periods=merge_archive_quarter(history['periods'] if history else [], archive))
     if not history or history['unit'] != unit:
         return None
     periods = history['periods']
@@ -113,6 +118,9 @@ def _comparable_revenue(financial, period, kind, unit='USD'):
     if len(matches) != 1:
         return None
     prior = matches[0]
+    if any(current['fields']['revenue'].get(key) != prior['fields']['revenue'].get(key)
+           for key in ('taxonomy', 'concept', 'unit')):
+        return None
     latest_value, prior_value = current['fields']['revenue']['value'], prior['fields']['revenue']['value']
     direction = 'increased' if latest_value > prior_value else 'decreased' if latest_value < prior_value else 'unchanged'
     return 'vs prior-year quarter', direction, prior['period_end'], prior_value
@@ -144,7 +152,10 @@ def _financial_answer(projection, financial):
     filed = projection.get('filed') or fact.get('filed')
     if _iso_date(filed):
         evidence.append(f'Filed {filed}')
-    links = [('SEC financial facts', fact['source_ref'])] if fact.get('source_ref') else []
+    exact = fact.get('reported_numeric_schema') == 'sec-reported-numeric-v1'
+    links = [('Exact SEC filing fact' if exact else 'SEC financial facts', fact['source_ref'])] if fact.get('source_ref') else []
+    if exact:
+        evidence.append('Exact archive source · Personal inspection only; commercial rights and saved-model readiness remain unapproved.')
     cik = financial.get('sec_cik')
     if isinstance(cik, str) and re.fullmatch(r'\d{10}', cik) and isinstance(accession, str) and re.fullmatch(r'\d{10}-\d{2}-\d{6}', accession):
         links.append(('SEC filing index', f'https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace("-", "")}/{accession}-index.htm'))
