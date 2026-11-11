@@ -30,10 +30,38 @@ def test_first_answers_use_verified_close_and_comparable_revenue_direction():
     assert 'Yahoo' in result['price']['links'][0][0]
     assert result['financial']['value'] == 'Revenue USD 150'
     assert 'Revenue increased vs prior fiscal year' in result['financial']['context']
+    assert result['financial']['headline'] == 'Revenue up 25.0%'
     assert '2025-12-31' in result['financial']['context']
     assert any(line.startswith('Filed ') for line in result['financial']['evidence'])
     assert any(label == 'SEC filing index' and url.endswith('-index.htm') for label, url in result['financial']['links'])
     assert 'not checked' in result['valuation']['value']
+
+
+def test_exact_annual_headline_can_use_compatible_operating_income_and_keep_revenue_gap():
+    from src.company_answer_summary import _financial_answer
+
+    ref = 'https://www.sec.gov/Archives/edgar/data/1234/000000123426000001/fict.htm'
+    prior = 'https://data.sec.gov/api/xbrl/companyfacts/CIK0000001234.json'
+    projection = dict(period_start='2025-01-01', period_end='2025-12-31', period_kind='annual',
+        facts={'revenue': dict(unit='TWD', value=2_000_000_000, taxonomy='ifrs-full',
+                               concept='RevenueFromContractsWithCustomers',
+                               reported_numeric_schema='sec-reported-numeric-v1', source_ref=ref),
+               'operating_income': dict(unit='TWD', value=500_000_000)},
+        comparative=dict(field='operating_income', value=400_000_000, current_value=500_000_000,
+                         period_end='2024-12-31', source_ref=prior))
+    answer = _financial_answer(projection, {'sec_cik': '0000001234'})
+    assert answer['headline'] == 'Operating income up 25.0%'
+    assert 'Revenue TWD 2.00B' in answer['headline_context']
+    assert 'Revenue comparison needs verification' == answer['gap']
+    assert ('Prior operating income source', prior) in answer['links']
+    assert ('Exact SEC filing fact', ref) in answer['links']
+    assert any('Comparison period ended 2024-12-31' in line and '400,000,000' in line
+               for line in answer['evidence'])
+
+    projection.pop('comparative')
+    held = _financial_answer(projection, {'sec_cik': '0000001234'})
+    assert 'headline' not in held
+    assert held['gap'] == 'Comparable financial change needs verification'
 
 
 def test_first_answers_never_use_another_tickers_prices_or_an_identity_conflict():
@@ -73,6 +101,7 @@ def test_comparison_with_too_few_or_mixed_price_dates_stays_withheld():
     two = _answers(peer=_peer(2, status='withheld'))['valuation']
     assert 'Peer comparison unavailable' in two['value']
     assert '4 candidates checked' in two['context'] and '2 eligible references' in two['context']
+    assert 'at least 3' in two['context'].lower()
     assert '20.0×' not in str(two)
     peer = _peer(3)
     peer['peers'][0]['price_source_ref'] = 'https://query1.finance.yahoo.com/v8/finance/chart/F0'

@@ -77,6 +77,29 @@ def test_foreign_customer_contract_revenue_retains_native_currency_and_definitio
     assert p['periods'][0]['fields']['revenue']['value']==1234000000
 
 
+def test_registry_five_date_and_decimal_preserve_annual_filing_evidence():
+    from src.sec_exact_filing import validated_filing_preview
+
+    registry = 'http://www.xbrl.org/inlineXBRL/transformation/2022-02-16'
+    xml = _xml(annual=True).replace(
+        'http://www.xbrl.org/inlineXBRL/transformation/2020-02-12', registry,
+    ).replace(
+        'id="dei-end">2025-12-31', 'id="dei-end" format="ixt:date-monthname-day-year-en">December 31, 2025',
+    )
+    packet = _extract(xml, kind='annual')
+    valid = validated_filing_preview(packet, 'FICT', 'annual')
+    assert valid is not None
+    assert valid['period_end'] == '2025-12-31'
+    assert valid['unit'] == 'TWD'
+    annual = valid['periods'][0]
+    assert annual['fields']['revenue']['value'] == 1234000000
+    assert annual['fields']['operating_income']['value'] == -12300
+    assert annual['withheld_fields'] == {}
+
+    impostor = xml.replace(registry, 'https://example.invalid/inlineXBRL/transformation/2022-02-16')
+    assert _extract(impostor, kind='annual')['reason'] == 'filing_dei_identity_or_period_mismatch'
+
+
 @pytest.mark.parametrize('problem',['wrong_cik','dimension','scenario','false_taxonomy','false_currency_namespace'])
 def test_wrong_entity_dimension_or_namespace_never_produces_company_amounts(problem):
     xml=_xml()

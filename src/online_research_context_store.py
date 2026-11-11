@@ -201,7 +201,7 @@ def _normalized(value):
                 row = value['business_trend']['periods'][path[2]] if typed else None
                 if not typed or not valid_reported_numeric(item, context=value, row=row,
                         field_name=path[4], cumulative=path[3] == 'cumulative_fields'):
-                    raise ValueError('Normalized reported numeric proof is invalid or outside its typed quarter field')
+                    raise ValueError('Normalized reported numeric proof is invalid or outside its typed filing field')
             for key, child in item.items():
                 if not isinstance(key, str) or not key or len(key) > 200:
                     raise ValueError('Invalid normalized research context key')

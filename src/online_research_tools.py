@@ -185,6 +185,8 @@ def _trend(histories, coverage):
             period.update(kind=kind, currency=currency, fields=_fields(source),
                 cumulative_fields=_json(source.get('cumulative_fields', {})),
                 filing_status=state.get('status', 'unverified'), current=False)
+            if kind == 'annual' and source.get('source_id') == 'sec_archive_inline':
+                period['withheld_fields'] = _json(source['withheld_fields'])
             if kind == 'interim' and not state:
                 period.update(status='withheld',reason='interim_filing_source_unverified')
             current = coverage.get('current', {}).get(kind, {})
@@ -267,7 +269,7 @@ def _peer_context(peers, *, ticker, cik, now, coverage, prices):
     # Keep normalized accepted/excluded observations, never their source archives.
     result = _json(result)
     result['relationship'] = 'observed_industry_references_not_trusted_economic_peers'
-    current = coverage.get('current', {}).get('annual', {})
+    current = coverage.get('structured_annual', coverage.get('current', {}).get('annual', {}))
     subject = result.get('subject') or {}
     reason = None
     if subject:
@@ -441,10 +443,17 @@ def build_online_research_context(financial, prices, peers=None, association=Non
         rows = next((rows for kind, rows, _ in histories if kind == 'quarterly'), [])
         histories = [history for history in histories if history[0] != 'quarterly']
         histories.append(('quarterly', merge_archive_quarter(rows, archive), archive['unit']))
+    from src.sec_online_annual_evidence import validated_archive_annual
+    from src.sec_native_annual_history import native_archive_annual_rows
+    native_annual = validated_archive_annual(financial, ticker=ticker, expected_cik=cik, inventory=inventory,
+                                            as_of=now) if identity_valid and coverage.get('structured_annual') else None
+    if native_annual:
+        histories = [history for history in histories if history[0] != 'annual']
+        histories.append(('annual', native_archive_annual_rows(foreign, native_annual), native_annual['unit']))
     trend = _trend(histories, coverage)
     base = dict(status='withheld', reason='validated_current_annual_revenue_required', revenue=None,
         currency=None, period_start=None, period_end=None, source_refs=[])
-    current = coverage.get('current', {}).get('annual', {})
+    current = coverage.get('structured_annual', coverage.get('current', {}).get('annual', {}))
     annual_rows = [p for p in trend['periods'] if p['kind']=='annual']
     latest = annual_rows[-1] if annual_rows else None
     if latest and latest['status']=='available' and current.get('status')=='corroborated' and latest['current']:
@@ -472,6 +481,9 @@ def build_online_research_context(financial, prices, peers=None, association=Non
     receipts = _receipt_rows(financial, prices, inventory, peer)
     if archive:
         receipts.extend(dict(row, source='exact_quarter_receipt', rights_status=archive['rights_status']) for row in archive['source_receipts'])
+    if native_annual:
+        receipts.extend(dict(row, source='exact_annual_receipt', rights_status=native_annual['rights_status'])
+                        for row in native_annual['source_receipts'])
     semantic_inputs = dict(ticker=ticker, sec_cik=cik, financial_identity_valid=identity_valid,
         financial_status=financial.get('status'), financial_reason=financial.get('reason'),
         filing_inventory=inventory, filing_coverage=coverage, earnings_components=earnings,
@@ -512,7 +524,8 @@ def build_online_research_context(financial, prices, peers=None, association=Non
     if peer.get('status') != 'research_comparison':
         gaps.append(peer.get('reason') or 'Observed industry references are unavailable.')
     observation_times = []
-    for source in (identity if identity_valid else {}, annual or {}, quarterly or {}, foreign or {}, archive or {}, inventory, price):
+    for source in (identity if identity_valid else {}, annual or {}, quarterly or {}, foreign or {},
+                   archive or {}, native_annual or {}, inventory, price):
         stamp = source.get('observed_at')
         if _fresh(stamp, now):
             observation_times.append(_utc_timestamp(stamp))

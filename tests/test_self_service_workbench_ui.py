@@ -65,6 +65,20 @@ def test_new_filing_pending_never_labels_older_revenue_as_current():
     assert answers[0]['value'] == 'Revenue USD 150'
 
 
+def test_exact_native_annual_answer_preserves_separate_quarter_pending_status():
+    from src.online_research_tools_ui import qualify_current_answers
+    answers = ({'key': 'financial', 'value': 'Revenue TWD 150', 'context': '2025-12-31',
+                'headline': 'Revenue up 25.0%', 'headline_context': 'Year ended 2025-12-31',
+                'native_archive_annual': True, 'evidence': ('Annual observation',), 'links': ()},)
+    pending = {'status': 'facts_pending', 'anchor': {'period_end': '2026-09-30'}}
+    context = {'filing_coverage': {'current': {'quarterly': pending}}}
+    assert qualify_current_answers(answers, context) == answers
+    context['filing_coverage']['current']['annual'] = pending
+    held = qualify_current_answers(answers, context)[0]
+    assert held['value'] == 'New filing · financial facts pending'
+    assert held['headline'] is None and 'Annual observation' not in held['evidence']
+
+
 def _app():
     import streamlit as st
     from src.company_workbench_ui import render_integrated_company

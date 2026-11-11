@@ -133,6 +133,21 @@ def _money(currency, value):
     return f'{currency} {value:,.0f}' if value % 1 == 0 else f'{currency} {value:,.2f}'
 
 
+def _direction(current, prior):
+    return 'increased' if current > prior else 'decreased' if current < prior else 'unchanged'
+
+
+def _change_headline(label, current, prior, direction):
+    if direction == 'unchanged':
+        return f'{label} unchanged'
+    if prior > 0:
+        change = abs(current - prior) / prior * 100
+        if _number(change):
+            amount = f'{change:,.1f}%' if change >= .05 else '<0.1%'
+            return f"{label} {'up' if direction == 'increased' else 'down'} {amount}"
+    return f'{label} {direction}'
+
+
 def _financial_answer(projection, financial):
     financial = financial if isinstance(financial, Mapping) else {}
     fact = projection.get('facts', {}).get('revenue')
@@ -159,21 +174,53 @@ def _financial_answer(projection, financial):
     cik = financial.get('sec_cik')
     if isinstance(cik, str) and re.fullmatch(r'\d{10}', cik) and isinstance(accession, str) and re.fullmatch(r'\d{10}-\d{2}-\d{6}', accession):
         links.append(('SEC filing index', f'https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace("-", "")}/{accession}-index.htm'))
-    comparison = _comparable_revenue(financial, end, kind, unit)
+    label = 'Revenue net of interest expense' if fact.get('concept') == 'RevenuesNetOfInterestExpense' else 'Revenue'
+    value_text = f'{label} {_money(unit, value)}'
+    change_label = 'Net revenue' if label != 'Revenue' else label
+    comparison_value = value
+    native_annual = exact and kind == 'annual' and unit != 'USD'
+    if native_annual:
+        prior = projection.get('comparative') or {}
+        field_name = prior.get('field')
+        current = projection['facts'].get(field_name, {})
+        prior_value = prior.get('value')
+        comparison = None
+        if (field_name in {'revenue', 'operating_income'} and current.get('unit') == unit
+                and _number(current.get('value')) and current['value'] == prior.get('current_value')
+                and _number(prior_value) and _iso_date(prior.get('period_end'))):
+            comparison_value = current['value']
+            comparison = ('vs prior fiscal year', _direction(comparison_value, prior_value),
+                          prior['period_end'], prior_value)
+            if field_name == 'operating_income':
+                change_label = 'Operating income'
+                evidence.append(f'Operating income for this period · {unit} {comparison_value:,}')
+                if current.get('source_ref'):
+                    links.append(('Exact SEC operating income fact', current['source_ref']))
+            if prior.get('source_ref'):
+                links.append((f'Prior {change_label.lower()} source', prior['source_ref']))
+    else:
+        comparison = _comparable_revenue(financial, end, kind, unit)
     context = f'Period ended {end}'
+    extra = {'native_archive_annual': native_annual, 'headline_context': context}
     if comparison:
         basis, direction, prior_date, prior_value = comparison
-        direction_label = {'increased': 'increased', 'decreased': 'decreased', 'unchanged': 'unchanged'}
-        context += f' · Revenue {direction_label[direction]} {basis}'
-        evidence.append(f'Comparison period ended {prior_date} · {unit} {prior_value:,}. Direction is shown for the comparable periods.')
+        context += f' · {change_label} {direction} {basis}'
+        evidence.append(f'Comparison period ended {prior_date} · {change_label} {unit} {prior_value:,}.')
+        period_label = 'quarter ended' if kind == 'quarterly' else 'year ended'
+        extra.update(headline=_change_headline(change_label, comparison_value, prior_value, direction),
+                     headline_context=f'Year over year · {period_label} {end} · {value_text}')
+        if change_label == 'Operating income':
+            extra['gap'] = 'Revenue comparison needs verification'
+            evidence.append('A comparable revenue baseline or reporting basis is unverified.')
     else:
         context += ' · Comparable change needs verification'
         evidence.append('A comparable baseline or reporting basis is unverified.')
+        extra['gap'] = 'Comparable financial change needs verification'
     if projection.get('withheld_periods'):
         context += ' · Newer period needs verification'
         evidence.extend(f"Newer period ended {row['period_end']}. See Data Sources for details." for row in projection['withheld_periods'])
-    label = 'Revenue net of interest expense' if fact.get('concept') == 'RevenuesNetOfInterestExpense' else 'Revenue'
-    return _card('financial', f'{label} {_money(unit, value)}', context, tuple(evidence), tuple(links))
+        extra['headline_context'] += ' · Newer period needs verification'
+    return dict(_card('financial', value_text, context, tuple(evidence), tuple(links)), **extra)
 
 
 def _annual_filing_links(label, context):
@@ -186,7 +233,7 @@ def _annual_filing_links(label, context):
     ]
 
 
-def _valuation_answer(ticker, view):
+def _valuation_answer(ticker, view, *, native_archive_annual=False):
     method = f'Reported annual diluted P/E · Same-day closes · Fiscal-year window {FISCAL_WINDOW_DAYS} days · At least {MIN_PEERS} references'
     if not isinstance(view, Mapping) or view.get('status') == 'not_requested':
         return _card('valuation', 'Peer valuation not checked', 'Open Valuation & Peers to request a comparison.', (method,))
@@ -255,8 +302,10 @@ def _valuation_answer(ticker, view):
         if view.get('status') == 'research_comparison':
             reason = 'Reference count, multiple, or same-day close evidence is unverified.'
         value = _GAP_VALUES['valuation']
-        if not subject or not context_parts:
-            context_parts.append(reason)
+        short_reason = reason
+        if native_archive_annual and view.get('reason') == 'latest_annual_filing_not_corroborated':
+            short_reason = 'Annual EPS on the traded security basis needs verification.'
+        context_parts.insert(0, short_reason)
         evidence.append(reason)
         if not subject:
             evidence.append('Company evidence is unverified. Industry references have not been checked.')
@@ -287,11 +336,12 @@ def build_company_answers(ticker, projection, financial, prices, association, pe
     if _mode_reason('research') or projection.get('identity_conflict'):
         reason = 'Company or security identity conflicts. Values are withheld.' if projection.get('identity_conflict') else 'Personal research observations are unavailable in this workspace.'
         return tuple(_card(key, _GAP_VALUES[key], reason, (reason,)) for key in _TITLES)
-    return (_price_answer(ticker, prices, association), _financial_answer(projection, financial),
-            _valuation_answer(ticker, peer_view))
+    financial_answer = _financial_answer(projection, financial)
+    return (_price_answer(ticker, prices, association), financial_answer,
+            _valuation_answer(ticker, peer_view, native_archive_annual=financial_answer.get('native_archive_annual', False)))
 
 
-def company_answers_html(answers, *, compact=False):
+def company_answers_html(answers, *, compact=False, gaps=()):
     """Render escaped cards and native evidence disclosures in both surfaces."""
     if compact:
         rows = []
@@ -313,4 +363,6 @@ def company_answers_html(answers, *, compact=False):
             f'<p class="company-answer-context">{context}</p>'
             f'<details><summary aria-label="View {title.lower()} evidence">View evidence</summary><ul>{lines}{links}</ul></details></article>'
         )
-    return '<section class="company-answer-summary" aria-label="Company research summary">' + ''.join(cards) + '</section>'
+    gap_strip = ('<aside class="company-answer-gaps" aria-label="Research gaps"><strong>Research gaps</strong>'
+                 '<span>' + escape(' · '.join(gaps)) + '</span></aside>') if gaps else ''
+    return '<section class="company-answer-summary" aria-label="Company research summary">' + ''.join(cards) + gap_strip + '</section>'

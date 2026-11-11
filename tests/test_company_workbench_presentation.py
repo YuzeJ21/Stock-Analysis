@@ -58,9 +58,28 @@ def test_overview_metrics_keep_price_financial_and_peer_evidence_with_a_separate
     answers = build_company_answers('FICT', workbench_projection('FICT',f,p), f,p,{},peer)
     html = workbench_metrics_html('FICT', answers, peer)
     assert html.count('data-company-answer=') == 4
+    assert html.index('data-company-answer="financial"') < html.index('data-company-answer="valuation"')
+    assert html.index('data-company-answer="valuation"') < html.index('data-company-answer="price"')
+    assert '<h2>What changed</h2>' in html and 'Revenue up 25.0%' in html
     assert 'Annual diluted EPS' in html and 'Needs verification' in html
     assert 'Open Valuation &amp; Peers' in html
     assert 'View evidence' in html
+
+
+def test_overview_surfaces_selected_financial_gaps_beside_the_existing_cards():
+    from src.company_workbench_presentation import workbench_metrics_html
+    from src.company_workbench_sections import workbench_projection
+    from src.company_answer_summary import build_company_answers
+
+    financial, prices = financial_view(), price_view()
+    projection = workbench_projection('FICT', financial, prices)
+    projection['withheld_fields'] = {'operating_income': 'missing_direct_fact'}
+    answers = build_company_answers('FICT', projection, financial, prices, {}, None)
+    context = {'filing_coverage': {'current': {'quarterly': {'status': 'withheld'}}}}
+    html = workbench_metrics_html('FICT', answers, None, projection=projection, research_context=context)
+    assert 'Research gaps' in html
+    assert 'Operating income needs verification' in html
+    assert 'Direct-quarter evidence needs verification' in html
 
 
 def test_eps_card_does_not_reuse_other_security_or_nonfinite_values():

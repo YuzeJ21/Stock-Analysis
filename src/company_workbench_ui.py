@@ -154,7 +154,8 @@ def _render_company_content(st_api,ticker,*,profile_scope,scope,candidate,expect
         elif not attempted:
             answers_html='<p class="company-load-prompt">Refresh financials and prices to load company observations.</p>'
         elif selected=='overview':
-            answers_html=workbench_metrics_html(ticker,answers,peer_view)
+            answers_html=workbench_metrics_html(ticker,answers,peer_view,projection=projection,
+                                               research_context=context if enable_online_tools else None)
         else:
             answers_html=company_answers_html(tuple(answer for answer in answers if answer['key'] in attempted),compact=True)
         header.markdown(workbench_header_html(ticker,projection,saved_scope=candidate is None,
@@ -166,11 +167,12 @@ def _render_company_content(st_api,ticker,*,profile_scope,scope,candidate,expect
         if selected=='overview':
             if projection['attempted'] or projection['facts']:
                 foreign=validated_foreign_financials(financial)
-                if foreign:
+                if foreign and not projection.get('annual_archive'):
                     st_api.markdown(foreign_financials_html(financial),unsafe_allow_html=True)
                 else:
-                    kind='quarterly' if projection['quarter_count'] else 'annual'
-                    st_api.markdown(financial_workspace_html(ticker,financial,period_kind=kind),unsafe_allow_html=True)
+                    kind=projection['period_kind'] or ('quarterly' if projection['quarter_count'] else 'annual')
+                    metric=(projection.get('comparative') or {}).get('field','revenue')
+                    st_api.markdown(financial_workspace_html(ticker,financial,period_kind=kind,metric=metric),unsafe_allow_html=True)
             if prices.get('status')!='not_requested':
                 with st_api.expander('Price history',expanded=False):
                     st_api.markdown(online_price_history_html(prices),unsafe_allow_html=True)
@@ -184,7 +186,15 @@ def _render_company_content(st_api,ticker,*,profile_scope,scope,candidate,expect
                 from src.sec_online_quarter_view import archive_quarter_html
                 st_api.markdown(archive_quarter_html(financial),unsafe_allow_html=True)
                 foreign=validated_foreign_financials(financial)
-                if foreign:
+                if projection.get('annual_archive'):
+                    default_metric=(projection.get('comparative') or {}).get('field','revenue')
+                    metric=st_api.selectbox('Chart metric',tuple(METRICS),format_func=METRICS.get,
+                        index=tuple(METRICS).index(default_metric),key=f'company-financial-metric:{profile_scope}:{ticker}:{scope}')
+                    st_api.markdown(financial_workspace_html(ticker,financial,period_kind='annual',metric=metric,limit=8),unsafe_allow_html=True)
+                    if foreign:
+                        with st_api.expander('Structured annual, quarter and interim history',expanded=False):
+                            st_api.markdown(foreign_financials_html(financial),unsafe_allow_html=True)
+                elif foreign:
                     st_api.markdown(foreign_financials_html(financial),unsafe_allow_html=True)
                 else:
                     kind=st_api.radio('Reporting period',('annual','quarterly'),format_func=lambda x:'Annual' if x=='annual' else 'Quarterly',

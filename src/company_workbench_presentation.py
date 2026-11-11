@@ -10,6 +10,7 @@ from src.online_company_identity import _mode_reason
 from src.online_history_contract import validated_annual_history
 from src.online_peer_valuation_ui import _link
 from src.online_research_expansion_view import financial_field_label
+from src.sec_foreign_financials import validated_foreign_financials
 from src.sec_quarterly_history import validated_quarterly_history
 
 
@@ -94,6 +95,13 @@ WORKBENCH_STYLE = '''<style>
  .company-analysis-surface{padding:1rem}.company-workspace-kicker{margin-bottom:.4rem!important}
 }
 @media(max-width:320px){.st-key-company-workbench-layout .company-answer-summary{grid-template-columns:minmax(0,1fr)!important}}
+.company-answer-gaps{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:baseline;gap:.15rem .6rem;background:#fff8ea;color:#593c17;border:1px solid #e8d2ad;border-radius:.55rem;padding:.55rem .75rem;font-size:.8rem;line-height:1.45;overflow-wrap:anywhere}
+@media(max-width:767px){
+ .st-key-company-workbench-layout .company-answer-summary .company-answer[data-company-answer="financial"],
+ .st-key-company-workbench-layout .company-answer-summary .company-answer[data-company-answer="valuation"]{order:-2}
+ .st-key-company-workbench-layout .company-answer-summary .company-answer-gaps{order:-1}
+ .st-key-company-workbench-layout .company-answer-summary .company-answer-value{font-size:1.05rem!important;margin:.35rem 0!important}
+}
 </style>'''
 
 
@@ -154,11 +162,21 @@ def financial_workspace_html(ticker, financial, *, period_kind='annual', metric=
     history = None
     if view.get('ticker')==ticker and not projection['identity_conflict']:
         history = (validated_annual_history(view) if view.get('status')=='inspection_only' else None) if period_kind=='annual' else validated_quarterly_history(view)
-        if period_kind=='quarterly':
+        annual_archive = projection.get('annual_archive')
+        foreign = validated_foreign_financials(view) if annual_archive else None
+        if period_kind == 'annual' and annual_archive:
+            from src.sec_native_annual_history import native_archive_annual_rows
+            history = dict(unit=annual_archive['unit'],
+                           periods=native_archive_annual_rows(foreign, annual_archive),
+                           source_url=annual_archive['source_url'], observed_at=annual_archive['observed_at'],
+                           source_label='Exact SEC annual filing')
+        elif period_kind=='quarterly':
             from src.sec_online_quarter_evidence import validated_archive_quarter
             from src.sec_online_quarter_view import merge_archive_quarter
             archive=validated_archive_quarter(view)
-            if archive:
+            if foreign and foreign['unit'] != 'USD' and foreign['quarterly']:
+                history = dict(foreign, periods=foreign['quarterly'])
+            elif archive:
                 history=dict(history or {},unit=archive['unit'],
                              periods=merge_archive_quarter(history['periods'] if history else [],archive),
                              source_url=archive['source_url'],observed_at=archive['observed_at'],source_label='Exact SEC filing · separate archive scope')
@@ -216,7 +234,29 @@ def financial_workspace_html(ticker, financial, *, period_kind='annual', metric=
         +('<details><summary>Cumulative cash flow · not single-quarter</summary><ul>'+''.join(cumulative)+'</ul></details>' if cumulative else '')+'</section></div>')
 
 
-def workbench_metrics_html(ticker, answers, peer_view):
+def _overview_gaps(financial, projection, research_context):
+    gaps = [financial['gap']] if financial.get('gap') else []
+    withheld = (projection or {}).get('withheld_fields') or {}
+    for field, label in METRICS.items():
+        if field in withheld:
+            gaps.append(f'{label} needs verification')
+    current = (research_context or {}).get('filing_coverage', {}).get('current', {})
+    for kind, label in (('annual', 'Annual filing evidence'), ('quarterly', 'Direct-quarter evidence')):
+        state = current.get(kind, {})
+        if state.get('status') not in {'withheld', 'facts_pending', 'amendment_unresolved'}:
+            continue
+        reason = {
+            'supported_filing_form_unavailable': 'no supported filing form',
+            'filing_document_metadata_unavailable': 'filing document unavailable',
+            'new_filing_structured_facts_pending': 'structured facts pending',
+            'amended_filing_structured_facts_unresolved': 'amendment unresolved',
+            'ambiguous_filing_version': 'filing version unresolved',
+        }.get(state.get('reason'))
+        gaps.append(f'{label} needs verification' + (f' ({reason})' if reason else ''))
+    return gaps
+
+
+def workbench_metrics_html(ticker, answers, peer_view, *, projection=None, research_context=None):
     """Retain existing answer evidence; EPS is separately qualified, never inferred."""
     view = peer_view if isinstance(peer_view,Mapping) else {}
     subject = view.get('subject') if view.get('ticker')==ticker and not _mode_reason('research') else None
@@ -233,9 +273,14 @@ def workbench_metrics_html(ticker, answers, peer_view):
                       'Reported annual diluted EPS. This is separate from the latest quarter shown alongside.',),
             links=(('SEC annual filing',subject['filing_ref']),('SEC EPS fact',subject['source_ref'])))
     by_key={answer['key']:dict(answer) for answer in answers}
-    if by_key['financial']['value'].startswith('Revenue USD '):
-        by_key['financial'].update(title='Reported revenue',value=by_key['financial']['value'].removeprefix('Revenue '))
+    financial = by_key['financial']
+    financial['title'] = 'What changed'
+    if financial.get('headline'):
+        financial['value'] = financial['headline']
+    if financial.get('headline_context'):
+        financial['context'] = financial['headline_context']
     valuation=by_key['valuation']
     if valuation['value'].startswith('Annual P/E '):
         valuation.update(title='Annual P/E vs peers',value=valuation['value'].removeprefix('Annual P/E ').replace('industry references','references'))
-    return company_answers_html((by_key['price'],by_key['financial'],eps,by_key['valuation']))
+    return company_answers_html((financial, valuation, by_key['price'], eps),
+                                gaps=_overview_gaps(financial, projection, research_context))

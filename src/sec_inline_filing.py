@@ -60,6 +60,9 @@ def _taxonomy(uri):
 def _transform(value,namespaces):
     if value is None:return None
     uri,name=_qname(value,namespaces)
+    # Registry 5 retains the existing English date and dot-decimal transformations.
+    if uri == 'http://www.xbrl.org/inlineXBRL/transformation/2022-02-16':
+        return name if name in {'date-monthname-day-year-en', 'num-dot-decimal'} else 'unsupported'
     if uri not in {'http://www.xbrl.org/inlineXBRL/transformation/2020-02-12','http://www.xbrl.org/inlineXBRL/transformation/2015-02-26'}:return 'unsupported'
     return name
 

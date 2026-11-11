@@ -30,10 +30,17 @@ def valid_reported_numeric(field, *, context, row, field_name, cumulative=False)
         if (not isinstance(field, dict) or set(field) != _KEYS
                 or not isinstance(context, Mapping) or not isinstance(row, Mapping)
                 or type(cumulative) is not bool or field.get('reported_numeric_schema') != SCHEMA
-                or row.get('kind') != 'quarterly' or row.get('currency') != 'USD'
-                or field.get('unit') != 'USD' or field.get('rights_status') != RIGHTS
+                or field.get('unit') != row.get('currency') or field.get('rights_status') != RIGHTS
                 or field.get('field') != field_name
                 or any(field.get(k) != context.get(k) for k in ('ticker', 'sec_cik'))):
+            return False
+        annual = row.get('kind') == 'annual'
+        if annual:
+            if (cumulative or field.get('taxonomy') != 'ifrs-full' or field.get('source_id') != SOURCE_ID
+                    or not isinstance(field.get('unit'), str) or not re.fullmatch(r'[A-Z]{3}', field['unit'])
+                    or field['unit'] == 'USD' or field.get('form') not in {'20-F', '20-F/A'}):
+                return False
+        elif row.get('kind') != 'quarterly' or field.get('unit') != 'USD' or field.get('form') not in {'10-Q', '10-Q/A'}:
             return False
         cik = field['sec_cik']; ticker = field['ticker']
         if (not isinstance(cik, str) or not re.fullmatch(r'\d{10}', cik, re.ASCII) or int(cik) == 0
@@ -53,7 +60,6 @@ def valid_reported_numeric(field, *, context, row, field_name, cumulative=False)
                 return False
         accession = field['accession']; document = field['primary_document']
         if (not isinstance(accession, str) or not re.fullmatch(r'\d{10}-\d{2}-\d{6}', accession, re.ASCII)
-                or field['form'] not in {'10-Q', '10-Q/A'}
                 or not isinstance(document, str)
                 or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,180}\.(?:htm|html|xhtml)', document)
                 or '..' in document
@@ -66,16 +72,18 @@ def valid_reported_numeric(field, *, context, row, field_name, cumulative=False)
         if not isinstance(field['payload_sha256'], str) or not re.fullmatch(r'[0-9a-f]{64}', field['payload_sha256']):
             return False
         start, end, filed = (_iso_date(field[k]) for k in ('period_start', 'period_end', 'filed'))
-        quarter_start = _iso_date(row.get('period_start'))
+        row_start = _iso_date(row.get('period_start'))
         observed = _utc_timestamp(field['observed_at']); accepted = _utc_timestamp(field['accepted_at'])
         context_observed = _utc_timestamp(context.get('observed_at'))
-        if (not all((start, end, filed, quarter_start, observed, accepted, context_observed))
-                or not 70 <= (end-quarter_start).days <= 105
+        if (not all((start, end, filed, row_start, observed, accepted, context_observed))
                 or not end <= filed <= observed.date() or not end <= accepted.date() <= observed.date()
                 or not accepted <= observed <= context_observed):
             return False
+        minimum, maximum = (300, 430) if annual else (70, 105)
+        if not minimum <= (end - row_start).days <= maximum:
+            return False
         if cumulative:
-            if not start < quarter_start or not 105 < (end-start).days <= 320:
+            if not start < row_start or not 105 < (end-start).days <= 320:
                 return False
             bucket = row.get('cumulative_fields')
             if not isinstance(bucket, Mapping) or not 1 <= len(bucket) <= len(catalog[taxonomy]):

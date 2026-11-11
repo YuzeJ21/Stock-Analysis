@@ -456,6 +456,19 @@ def corroborate_online_financials(financial, inventory, *, as_of=None):
             result['periods']['quarterly'][row['period_end']] = deepcopy(state)
             result['gaps'] = [gap for gap in result['gaps'] if not gap.startswith('quarterly:')]
         result['gaps'].append('Companyfacts quarter: ' + result['structured_quarterly']['reason'])
+    from src.sec_online_annual_evidence import validated_archive_annual
+    native_annual = validated_archive_annual(financial, inventory=verified, as_of=as_of)
+    structured = result['current']['annual']
+    if native_annual and structured['status'] != 'corroborated':
+        result['structured_annual'] = deepcopy(structured)
+        row = native_annual['periods'][0]
+        if row['status'] == 'available':
+            state = _coverage_state('corroborated', 'exact_archive_annual_and_filing', verified['latest']['annual'])
+            state.update(source_id=native_annual['source_id'], rights_status=native_annual['rights_status'])
+            result['current']['annual'] = state
+            result['periods']['annual'][row['period_end']] = deepcopy(state)
+            result['gaps'] = [gap for gap in result['gaps'] if not gap.startswith('annual:')]
+        result['gaps'].append('Companyfacts annual: ' + structured['reason'])
     states = [result['current'][kind]['status'] for kind in expected]
     result['status'] = 'corroborated' if all(s == 'corroborated' for s in states) else 'partial' if any(s == 'corroborated' for s in states) else 'withheld'
     return result

@@ -86,17 +86,29 @@ def filing_status_html(context):
 
 def qualify_current_answers(answers, context):
     """Do not present older facts as the response to a known new report."""
-    pending = [state for state in (context.get('filing_coverage') or {}).get('current', {}).values()
-               if isinstance(state, Mapping) and state.get('status') in {'facts_pending', 'amendment_unresolved'}]
+    pending = {kind: state for kind, state in (context.get('filing_coverage') or {}).get('current', {}).items()
+               if isinstance(state, Mapping) and state.get('status') in {'facts_pending', 'amendment_unresolved'}}
     if not pending:
         return answers
-    latest = max(pending, key=lambda state: (state.get('anchor') or {}).get('period_end') or '')
-    anchor = latest.get('anchor') or {}
-    return tuple({**answer, 'value': 'New filing · financial facts pending',
-                  'context': f"Period ended {anchor.get('period_end')} · {_label(latest.get('reason'))}",
-                  'evidence': tuple(answer.get('evidence') or ()) + ('Older observations remain dated history. The new filing has not been substituted with prior facts.',),
-                  'links': (('Latest SEC filing', anchor['source_url']),) if anchor.get('source_url') else ()}
-                 if answer['key'] == 'financial' else answer for answer in answers)
+    qualified = []
+    for answer in answers:
+        if answer['key'] != 'financial':
+            qualified.append(answer)
+            continue
+        if answer.get('native_archive_annual'):
+            latest = pending.get('annual')
+            if not latest:
+                qualified.append(answer)
+                continue
+        else:
+            latest = max(pending.values(), key=lambda state: (state.get('anchor') or {}).get('period_end') or '')
+        anchor = latest.get('anchor') or {}
+        qualified.append({**answer, 'value': 'New filing · financial facts pending',
+                          'context': f"Period ended {anchor.get('period_end')} · {_label(latest.get('reason'))}",
+                          'evidence': ('Older observations remain dated history. Review the latest filing for the current period.',),
+                          'links': (('Latest SEC filing', anchor['source_url']),) if anchor.get('source_url') else (),
+                          'headline': None, 'headline_context': None, 'gap': None})
+    return tuple(qualified)
 
 
 def qualify_peer_view(view, context):

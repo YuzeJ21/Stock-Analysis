@@ -22,12 +22,13 @@ def section_key(value):
     return value if isinstance(value,str) and value in dict(SECTIONS) else 'overview'
 
 
-def workbench_projection(ticker, financial_view, prices, expected_cik=None):
+def workbench_projection(ticker, financial_view, prices, expected_cik=None, *, as_of=None):
     view=financial_view if isinstance(financial_view,Mapping) else {}
     result=dict(ticker=ticker, annual_count=0, quarter_count=0, price_count=0,
                 facts={}, period_end=None, period_start=None, period_kind=None,
                 unit=None, identity_conflict=False, model_eligibility='independent',
-                readiness_promoted=False, withheld_periods=[], attempted=any(
+                readiness_promoted=False, withheld_periods=[], annual_archive=None, comparative=None,
+                withheld_fields={}, attempted=any(
                     isinstance(item,Mapping) and item.get('status') not in (None,'not_requested')
                     for item in (financial_view,prices)))
     if _mode_reason('research'):
@@ -54,6 +55,15 @@ def workbench_projection(ticker, financial_view, prices, expected_cik=None):
         quarter=dict(unit=archive['unit'],source_url=archive['source_url'],observed_at=archive['observed_at'],
                      periods=merge_archive_quarter(quarter['periods'] if quarter else [],archive))
     foreign=validated_foreign_financials(view)
+    from src.sec_online_annual_evidence import validated_archive_annual
+    from src.sec_native_annual_history import native_archive_annual_rows, native_annual_comparison
+    native_annual=validated_archive_annual(view, as_of=as_of)
+    if native_annual:
+        from src.online_filing_context import corroborate_online_financials
+        coverage=corroborate_online_financials(view,view['filing_inventory'],as_of=as_of)
+        if not coverage.get('structured_annual'):
+            native_annual=None
+    result['annual_archive']=native_annual
     candidates=[]
     def inspect_latest(kind,rows,history):
         if not rows:return
@@ -65,23 +75,31 @@ def workbench_projection(ticker, financial_view, prices, expected_cik=None):
                 reason=row['reason'],filed=row.get('filed'),source_ref=history.get('source_url'),
                 observed_at=history.get('observed_at')))
     for kind,history in (('annual',annual),('quarterly',quarter)):
-        if history is None:continue
+        if history is None or kind=='annual' and native_annual:continue
         rows=history['periods'];available=[r for r in rows if r['status']=='available']
         result['annual_count' if kind=='annual' else 'quarter_count']=len(available)
         inspect_latest(kind,rows,history)
     if foreign is not None:
         for kind,key in (('annual','annual_count'),('quarterly','quarter_count')):
+            if kind=='annual' and native_annual:continue
             rows=foreign[kind]
             if rows and foreign['unit'] != 'USD':
                 candidates=[candidate for candidate in candidates if candidate[0] != kind]
             result[key]=len([r for r in rows if r['status']=='available'])
             inspect_latest(kind,rows,foreign)
+    if native_annual:
+        rows=native_archive_annual_rows(foreign,native_annual)
+        result['annual_count']=sum(r['status']=='available' for r in rows)
+        inspect_latest('annual',rows,native_annual)
     if candidates:
         kind,row,unit=max(candidates,key=lambda item:item[1]['period_end'])
         fields=row['fields'];fields={f['field']:f for f in fields} if isinstance(fields,list) else fields
         result.update(facts={k:dict(v) for k,v in fields.items() if k in FIELD_LABELS},
                       period_start=row['period_start'],period_end=row['period_end'],period_kind=kind,unit=unit,
                       filed=row.get('filed'))
+        if native_annual and row is native_annual['periods'][0]:
+            result['withheld_fields']=dict(row['withheld_fields'])
+            result['comparative']=native_annual_comparison(row,rows,coverage)
     result['withheld_periods']=[row for row in result['withheld_periods']
                                if result['period_end'] is None or row['period_end']>result['period_end']]
     return result

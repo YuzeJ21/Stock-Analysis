@@ -19,7 +19,7 @@ Use TSM's captured research to verify save, unchanged comparison and exact offli
 3. Verify the full captured context in a disposable store and use constructed data to exercise save and exact Monitor return on desktop and phone.
 4. Record measured results, protected data checks and remaining source gaps.
 
-Follow with the exact TSM 20-F annual evidence, explicitly dated TWD quarterly statements, and IBN's separate non-XBRL integration. Keep ADS earnings and native/convenience currencies independently qualified. Verify a meaningful subsequent-filing change through Monitor when a new comparable observation is available. Hosted operation requires a separate delivery and source-rights decision.
+The exact native-currency annual workflow has now been verified on TSM and unfamiliar UMC. Follow with explicitly dated native-currency quarterly statements and IBN's separate non-XBRL integration. Keep ADS earnings and native/convenience currencies independently qualified. Verify a meaningful subsequent-filing change through Monitor when a new comparable observation is available. Hosted operation requires a separate delivery and source-rights decision. [Annual portability evidence](../NATIVE_ANNUAL_OVERVIEW_RELEASE.md)
 
 ## Completed foundation: shared acquisition continuity
 

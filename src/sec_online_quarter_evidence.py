@@ -25,14 +25,16 @@ _REF_KEYS = ('source_url', 'observed_at', 'payload_sha256')
 _FIELD_KEYS = frozenset(('field', 'taxonomy', 'concept', 'namespace_uri', 'unit', 'unit_id',
     'context_id', 'period_start', 'period_end', 'fact_id', 'source_ref', 'rights_status',
     'value', 'raw_text', 'scale', 'sign', 'decimals', 'transformation'))
+_QUARTER_FORMS = frozenset({'10-Q', '10-Q/A'})
+_QUARTER_SOURCES = frozenset({SOURCE_ID, BANK_SOURCE_ID})
 
 
 def _json(value):
     return json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()
 
 
-def _held(ticker, cik, reason):
-    return dict(schema_version=SCHEMA, status='withheld', reason=reason, ticker=ticker, sec_cik=cik,
+def _held(ticker, cik, reason, *, schema=SCHEMA):
+    return dict(schema_version=schema, status='withheld', reason=reason, ticker=ticker, sec_cik=cik,
                 rights_status=RIGHTS, commercial_eligible=False, saved_readiness_promoted=False)
 
 
@@ -49,23 +51,24 @@ def _identity_inventory(financial, ticker, cik, inventory, as_of):
     return validated_filing_inventory(inventory, ticker=ticker, expected_cik=cik, as_of=as_of)
 
 
-def _source_packet(financial, wrapper, *, ticker, cik, inventory, as_of):
+def _source_packet(financial, wrapper, *, ticker, cik, inventory, as_of, schema=SCHEMA,
+                   period_kind='quarterly', forms=_QUARTER_FORMS, source_ids=_QUARTER_SOURCES):
     verified = _identity_inventory(financial, ticker, cik, inventory, as_of)
     if not verified or not isinstance(wrapper, Mapping):
         return None
-    if (wrapper.get('schema_version') != SCHEMA or wrapper.get('status') != 'inspection_only'
+    if (wrapper.get('schema_version') != schema or wrapper.get('status') != 'inspection_only'
             or wrapper.get('reason') is not None or wrapper.get('ticker') != ticker or wrapper.get('sec_cik') != cik
             or wrapper.get('rights_status') != RIGHTS or wrapper.get('commercial_eligible') is not False
             or wrapper.get('saved_readiness_promoted') is not False
             or len(_json(wrapper)) > MAX_WRAPPER_BYTES
             or wrapper.get('packet_digest') != _digest({k: v for k, v in wrapper.items() if k != 'packet_digest'})):
         return None
-    packet = validated_filing_preview(wrapper.get('source_packet'), ticker, 'quarterly')
-    if (not packet or packet.get('sec_cik') != cik or packet.get('source_id') not in {SOURCE_ID, BANK_SOURCE_ID}
+    packet = validated_filing_preview(wrapper.get('source_packet'), ticker, period_kind)
+    if (not packet or packet.get('sec_cik') != cik or packet.get('source_id') not in source_ids
             or wrapper.get('source_packet_digest') != packet.get('packet_digest')):
         return None
-    anchor = verified['latest']['quarterly']
-    if not anchor or anchor['form'] not in {'10-Q', '10-Q/A'} or any(packet.get(k) != anchor[k] for k in _ANCHOR_KEYS):
+    anchor = verified['latest'][period_kind]
+    if not anchor or anchor['form'] not in forms or any(packet.get(k) != anchor[k] for k in _ANCHOR_KEYS):
         return None
     refs = packet['source_receipts']; now = _now(as_of)
     if any(not _ref(ref, ref.get('source_url'), now) for ref in refs):
@@ -87,6 +90,14 @@ def _source_packet(financial, wrapper, *, ticker, cik, inventory, as_of):
     return packet, verified
 
 
+def _wrap_source_packet(ticker, cik, source_packet, *, schema):
+    wrapper = dict(schema_version=schema, status='inspection_only', reason=None, ticker=ticker, sec_cik=cik,
+        source_packet=deepcopy(source_packet), source_packet_digest=source_packet.get('packet_digest'),
+        rights_status=RIGHTS, commercial_eligible=False, saved_readiness_promoted=False)
+    wrapper['packet_digest'] = _digest(wrapper)
+    return wrapper
+
+
 def build_archive_quarter(financial, source_packet, *, inventory=None, as_of=None):
     """Bind a complete source packet to the current inventory without transport."""
     ticker = financial.get('ticker') if isinstance(financial, Mapping) else None
@@ -94,16 +105,40 @@ def build_archive_quarter(financial, source_packet, *, inventory=None, as_of=Non
     held = _held(ticker, cik, 'archive_quarter_evidence_unavailable')
     if not isinstance(source_packet, Mapping) or source_packet.get('status') != 'inspection_only':
         return held
-    wrapper = dict(schema_version=SCHEMA, status='inspection_only', reason=None, ticker=ticker, sec_cik=cik,
-        source_packet=deepcopy(source_packet), source_packet_digest=source_packet.get('packet_digest'),
-        rights_status=RIGHTS, commercial_eligible=False, saved_readiness_promoted=False)
     try:
-        wrapper['packet_digest'] = _digest(wrapper)
+        wrapper = _wrap_source_packet(ticker, cik, source_packet, schema=SCHEMA)
         selected_inventory = inventory if inventory is not None else financial.get('filing_inventory')
         return wrapper if _source_packet(financial, wrapper, ticker=ticker, cik=cik,
                                         inventory=selected_inventory, as_of=as_of) else held
     except (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowError, RecursionError):
         return held
+
+
+def _archive_dto(packet, verified, *, schema, period_kind):
+    source_metadata = {k: packet[k] for k in (*_ANCHOR_KEYS, 'ticker', 'sec_cik', 'source_id', 'observed_at', 'payload_sha256')}
+    periods = []
+    for row in packet['periods']:
+        fields = {}
+        for name, value in row['fields'].items():
+            field = {k: deepcopy(v) for k, v in value.items() if k != 'raw_text'}
+            field.update(reported_text=value['raw_text'], reported_numeric_schema=NUMERIC_SCHEMA,
+                         **source_metadata)
+            fields[name] = field
+        available = 'revenue' in fields
+        periods.append(dict(kind=row['kind'], period_start=row['period_start'],
+            period_end=row['period_end'], fields=fields, withheld_fields=deepcopy(row['withheld_fields']),
+            status='available' if available else 'withheld',
+            reason=None if available else row['withheld_fields'].get('revenue', 'reported_revenue_unavailable'),
+            **{k: v for k, v in source_metadata.items() if k != 'period_end'}))
+    result = dict(schema_version=schema, status='inspection_only', reason=None, **source_metadata,
+        period_kind=period_kind, taxonomy=packet['taxonomy'], unit=packet['unit'], periods=periods,
+        source_receipts=[{k: r[k] for k in _REF_KEYS} for r in packet['source_receipts']], source_packet_digest=packet['packet_digest'],
+        inventory_digest=verified['packet_digest'], rights_status=RIGHTS, commercial_eligible=False,
+        saved_readiness_promoted=False, readiness_promoted=False)
+    if len(_json(result)) > MAX_DTO_BYTES:
+        return None
+    result['packet_digest'] = _digest(result)
+    return result
 
 
 def validated_archive_quarter(financial, *, ticker=None, expected_cik=None, inventory=None, as_of=None):
@@ -123,33 +158,27 @@ def validated_archive_quarter(financial, *, ticker=None, expected_cik=None, inve
                                 inventory=selected_inventory, as_of=as_of)
         if not source:
             return None
-        packet, verified = source
-        source_metadata = {k: packet[k] for k in (*_ANCHOR_KEYS, 'ticker', 'sec_cik', 'source_id', 'observed_at', 'payload_sha256')}
-        periods = []
-        for row in packet['periods']:
-            fields = {}
-            for name, value in row['fields'].items():
-                field = {k: deepcopy(v) for k, v in value.items() if k != 'raw_text'}
-                field.update(reported_text=value['raw_text'], reported_numeric_schema=NUMERIC_SCHEMA,
-                             **source_metadata)
-                fields[name] = field
-            available = 'revenue' in fields
-            periods.append(dict(kind=row['kind'], period_start=row['period_start'],
-                period_end=row['period_end'], fields=fields, withheld_fields=deepcopy(row['withheld_fields']),
-                status='available' if available else 'withheld',
-                reason=None if available else row['withheld_fields'].get('revenue', 'reported_revenue_unavailable'),
-                **{k: v for k, v in source_metadata.items() if k != 'period_end'}))
-        result = dict(schema_version=SCHEMA, status='inspection_only', reason=None, **source_metadata,
-            period_kind='quarterly', taxonomy=packet['taxonomy'], unit=packet['unit'], periods=periods,
-            source_receipts=[{k: r[k] for k in _REF_KEYS} for r in packet['source_receipts']], source_packet_digest=packet['packet_digest'],
-            inventory_digest=verified['packet_digest'], rights_status=RIGHTS, commercial_eligible=False,
-            saved_readiness_promoted=False, readiness_promoted=False)
-        if len(_json(result)) > MAX_DTO_BYTES:
-            return None
-        result['packet_digest'] = _digest(result)
-        return result
+        return _archive_dto(*source, schema=SCHEMA, period_kind='quarterly')
     except (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowError, RecursionError):
         return None
+
+
+def _receipt_gap(financial, verified, ticker_map_receipt, submissions_receipt, as_of):
+    ticker, cik = financial['ticker'], financial['sec_cik']
+    identity = financial['companyfacts_identity']
+    now = _now(as_of)
+    map_ref = _ref(ticker_map_receipt, MAP_URL, now)
+    profile_ref = _ref(submissions_receipt, f'https://data.sec.gov/submissions/CIK{cik}.json', now)
+    expected_map = dict(source_url=identity['association_source_url'], observed_at=identity['association_observed_at'],
+                        payload_sha256=identity['association_payload_sha256'])
+    if (not map_ref or not profile_ref or ticker_map_receipt.get('status') != 'ready'
+            or any(map_ref[k] != expected_map[k] for k in _REF_KEYS)
+            or any(profile_ref[k] != verified['source_receipt'][k] for k in _REF_KEYS)):
+        return 'receipt_mismatch'
+    replayed = build_filing_inventory(submissions_receipt, ticker=ticker, expected_cik=cik, as_of=as_of)
+    if replayed.get('packet_digest') != verified['packet_digest']:
+        return 'profile_mismatch'
+    return None
 
 
 def fetch_archive_quarter(financial, *, user_agent, ticker_map_receipt, submissions_receipt,
@@ -163,20 +192,11 @@ def fetch_archive_quarter(financial, *, user_agent, ticker_map_receipt, submissi
         verified = _identity_inventory(financial, ticker, cik, inventory, observed_at)
         if not verified:
             return _held(ticker, cik, 'archive_quarter_current_source_unavailable')
-        identity = financial['companyfacts_identity']; now = _now(observed_at)
-        map_ref = _ref(ticker_map_receipt, MAP_URL, now)
-        profile_ref = _ref(submissions_receipt, f'https://data.sec.gov/submissions/CIK{cik}.json', now)
-        expected_map = dict(source_url=identity['association_source_url'], observed_at=identity['association_observed_at'],
-                            payload_sha256=identity['association_payload_sha256'])
-        if (not map_ref or not profile_ref or ticker_map_receipt.get('status') != 'ready'
-                or any(map_ref[k] != expected_map[k] for k in _REF_KEYS)
-                or any(profile_ref[k] != verified['source_receipt'][k] for k in _REF_KEYS)):
-            return _held(ticker, cik, 'archive_quarter_receipt_mismatch')
-        replayed = build_filing_inventory(submissions_receipt, ticker=ticker, expected_cik=cik, as_of=observed_at)
-        if replayed.get('packet_digest') != verified['packet_digest']:
-            return _held(ticker, cik, 'archive_quarter_profile_mismatch')
+        gap = _receipt_gap(financial, verified, ticker_map_receipt, submissions_receipt, observed_at)
+        if gap:
+            return _held(ticker, cik, 'archive_quarter_' + gap)
         anchor = verified['latest']['quarterly']
-        if not anchor or anchor['form'] not in {'10-Q', '10-Q/A'}:
+        if not anchor or anchor['form'] not in _QUARTER_FORMS:
             return held
         # Recompute from the fresh structured evidence; caller-supplied coverage
         # cannot force a source request for an already covered quarter.

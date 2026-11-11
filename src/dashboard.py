@@ -38462,6 +38462,18 @@ def render_company_workbench(
         view=bundle["financial"]
         from src.sec_online_quarter_view import archive_quarter_html
         st.markdown(archive_quarter_html(view),unsafe_allow_html=True)
+        annual_archive = bundle["projection"].get("annual_archive")
+        if annual_archive:
+            annual_row = annual_archive["periods"][0]
+            with st.expander("Exact SEC annual evidence", expanded=False):
+                st.markdown(f"[Open exact SEC primary document]({annual_archive['source_url']})")
+                st.caption(
+                    f"{annual_archive['form']} · Filed {annual_archive['filed']} · "
+                    f"{annual_row['period_start']} to {annual_row['period_end']} · {annual_archive['unit']} · "
+                    "Personal inspection only"
+                )
+                st.json(dict(fields=annual_row["fields"], gaps=annual_row["withheld_fields"],
+                             receipts=annual_archive["source_receipts"]), expanded=False)
         if online_candidate:
             st.markdown("<p class='company-scope-note'>SEC CIK "+html.escape(expected_cik)+
                 " · observed "+html.escape(online_candidate["observed_at"])+
