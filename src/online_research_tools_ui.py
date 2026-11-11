@@ -272,6 +272,14 @@ def _snapshots(st, context, bundle):
             if requested:
                 historical = load_research_context(requested, **scope, project_root=PROJECT_ROOT)
                 st.info('Historical replay · ' + historical['observed_at'])
+                trend = historical['context'].get('business_trend') or {}
+                comparisons = trend.get('comparative_periods') or []
+                if comparisons:
+                    from src.sec_online_quarter_view import native_quarter_comparisons_html
+                    current_quarter = next(row for row in trend['periods']
+                        if row.get('current') is True and row.get('period_basis') == 'direct_quarter')
+                    st.markdown(native_quarter_comparisons_html(current_quarter, comparisons,
+                                trend.get('comparative_gaps')), unsafe_allow_html=True)
                 _evidence(st, historical['context'])
             if not snapshots:
                 st.caption('No saved online research in this exact company scope.')

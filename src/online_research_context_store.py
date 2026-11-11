@@ -18,6 +18,7 @@ import stat
 import zlib
 
 from src.sec_cover_observations import COVER_FIELDS, validate_cover_scope
+from src.sec_native_quarter_comparisons import BASES as NATIVE_COMPARISON_BASES, FIELDS as NATIVE_COMPARISON_FIELDS
 from src.sec_reported_numeric import valid_reported_numeric
 
 
@@ -33,6 +34,8 @@ MAX_JSON_DEPTH = 32
 MAX_JSON_NODES = 40000
 REPLAY_NOTICE = 'Historical saved research context. Explicitly refresh company research for current observations.'
 _SCOPE_KEYS = ('profile_key', 'ticker', 'sec_cik')
+_NATIVE_COMPARISON_KEYS = frozenset({'kind', 'currency', 'status', 'current', 'period_start', 'period_end',
+    'current_period_end', 'comparison_basis', 'filed', 'form', 'accession', 'provisional', 'unaudited', 'fields'})
 _SNAPSHOT_KEYS = {'schema_version', 'snapshot_id', 'snapshot_sha256', 'profile_key', 'ticker',
     'sec_cik', 'saved_at', 'observed_at', 'source_revision', 'context', 'historical', 'current', 'replay_notice'}
 _RAW_KEYS = {'raw', 'body', 'raw_body', 'raw_payload', 'raw_response', 'response_body', 'payload',
@@ -151,6 +154,25 @@ def _normalized(value):
     nodes = 0
     cover_documents = set()
 
+    def validate_comparison_rows(trend):
+        rows = trend.get('comparative_periods', [])
+        gaps = trend.get('comparative_gaps', {})
+        if (not isinstance(rows, list) or len(rows) > len(NATIVE_COMPARISON_BASES)
+                or not isinstance(gaps, dict) or not gaps.keys() <= NATIVE_COMPARISON_BASES.keys()
+                or any(reason not in ('same_filing_comparison_unavailable', 'independent_comparison_revision_unresolved')
+                       for reason in gaps.values())):
+            raise ValueError('Invalid normalized native quarter comparisons')
+        bases = set(gaps)
+        for row in rows:
+            if (not isinstance(row, dict) or row.keys() != _NATIVE_COMPARISON_KEYS
+                    or not isinstance(row['comparison_basis'], str) or row['comparison_basis'] not in NATIVE_COMPARISON_BASES
+                    or row['comparison_basis'] in bases or not isinstance(row['fields'], dict) or not row['fields']
+                    or not row['fields'].keys() <= set(NATIVE_COMPARISON_FIELDS)
+                    or any(not isinstance(field, dict) or field.get('reported_numeric_schema') != 'sec-native-table-number-v1'
+                           for field in row['fields'].values())):
+                raise ValueError('Invalid normalized native quarter comparison row')
+            bases.add(row['comparison_basis'])
+
     def cover_owner(path, owner):
         if path in {('peer_read_through', 'subject'), ('peer_read_through', 'subject_source_context')}:
             if (owner.get('ticker', value.get('ticker')), owner.get('sec_cik')) != (value.get('ticker'), value.get('sec_cik')):
@@ -194,13 +216,21 @@ def _normalized(value):
             raise ValueError('Research context depth or cycle limit exceeded')
         active.add(id(item))
         if isinstance(item, dict):
+            if path == ('business_trend',):
+                validate_comparison_rows(item)
             if any(isinstance(key, str) and key.lower() in {'reported_text', 'reported_numeric_schema'} for key in item):
                 typed = (len(path) == 5 and path[:2] == ('business_trend', 'periods')
                     and type(path[2]) is int and path[3] in {'fields', 'cumulative_fields'}
                     and isinstance(path[4], str))
+                comparative = (len(path) == 5 and path[:2] == ('business_trend', 'comparative_periods')
+                    and type(path[2]) is int and path[3] == 'fields' and isinstance(path[4], str))
                 row = value['business_trend']['periods'][path[2]] if typed else None
                 valid = False
-                if typed and item.get('reported_numeric_schema') == 'sec-native-table-number-v1':
+                if comparative:
+                    from src.sec_online_native_quarter_evidence import valid_native_quarter_comparative_field
+                    prior = value['business_trend']['comparative_periods'][path[2]]
+                    valid = valid_native_quarter_comparative_field(item, context=value, row=prior, field_name=path[4])
+                elif typed and item.get('reported_numeric_schema') == 'sec-native-table-number-v1':
                     from src.sec_online_native_quarter_evidence import valid_native_quarter_field
                     valid = path[3] == 'fields' and valid_native_quarter_field(item, context=value, row=row, field_name=path[4])
                 elif typed:

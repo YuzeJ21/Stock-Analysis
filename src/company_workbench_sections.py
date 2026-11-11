@@ -70,6 +70,7 @@ def workbench_projection(ticker, financial_view, prices, expected_cik=None, *, a
     if native_rows:
         selected=list(native_rows.values())
         result['native_quarter_archive']=dict(native_quarter,periods=selected,
+            comparative_periods=native_quarter.get('comparative_periods', []) if native_current else [],
             excluded_kinds=[row['kind'] for row in native_quarter['periods'] if row not in selected])
     result['annual_archive']=native_annual
     candidates=[]

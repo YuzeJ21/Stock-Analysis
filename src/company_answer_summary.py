@@ -11,6 +11,7 @@ from src.online_history_contract import validated_annual_history
 from src.online_peer_valuation import FISCAL_WINDOW_DAYS, MIN_PEERS
 from src.online_peer_valuation_ui import _link, _multiple, _number, _reason
 from src.online_research_history_view import validated_online_price_history
+from src.sec_native_quarter_comparisons import BASES, quarter_changes
 from src.sec_quarterly_history import validated_quarterly_history
 
 
@@ -187,6 +188,8 @@ def _financial_answer(projection, financial):
     value_text = f'{label} {_money(unit, value)}'
     change_label = 'Net revenue' if label != 'Revenue' else label
     comparison_value = value
+    comparison_label = 'Year over year'
+    native_comparison_gaps = []
     native_annual = exact and kind == 'annual' and unit != 'USD'
     if native_annual:
         prior = projection.get('comparative') or {}
@@ -209,19 +212,37 @@ def _financial_answer(projection, financial):
                 links.append((f'Prior {change_label.lower()} source', prior['source_ref']))
     elif native_quarter:
         comparison = None
+        results = quarter_changes(row, projection['native_quarter_archive'].get('comparative_periods', ()))
+        for basis, description in BASES.items():
+            change = results.get(basis, {}).get('fields', {}).get('revenue', {})
+            if not change.get('prior'):
+                native_comparison_gaps.append(description + ' revenue needs verification')
+                continue
+            prior = change['prior']
+            comparison_note = (_change_headline(change_label, value, prior['value'], _direction(value, prior['value']))
+                               if change['fraction'] is not None else 'Percentage needs a positive baseline')
+            evidence.append(f"{description} · {prior['period_start']} to {prior['period_end']} · "
+                            f"{unit} {prior['value']:,} · {prior['column_header']} · {comparison_note}")
+            if change['fraction'] is None:
+                native_comparison_gaps.append(description + ' revenue percentage needs a positive baseline')
+                continue
+            if comparison is None:
+                comparison_label = 'Year over year' if basis == 'year_over_year' else 'Quarter over quarter'
+                comparison = ('vs ' + description.lower(), _direction(value, prior['value']), prior['period_end'], prior['value'])
     else:
         comparison = _comparable_revenue(financial, end, kind, unit)
     context = f'Period ended {end}'
     extra = {'native_archive_annual': native_annual, 'headline_context': context}
     if native_quarter:
         extra['native_quarter_end'] = end
+        extra['native_comparison_gaps'] = native_comparison_gaps
     if comparison:
         basis, direction, prior_date, prior_value = comparison
         context += f' · {change_label} {direction} {basis}'
         evidence.append(f'Comparison period ended {prior_date} · {change_label} {unit} {prior_value:,}.')
         period_label = 'quarter ended' if kind == 'quarterly' else 'year ended'
         extra.update(headline=_change_headline(change_label, comparison_value, prior_value, direction),
-                     headline_context=f'Year over year · {period_label} {end} · {value_text}')
+                     headline_context=f'{comparison_label} · {period_label} {end} · {value_text}')
         if change_label == 'Operating income':
             extra['gap'] = 'Revenue comparison needs verification'
             evidence.append('A comparable revenue baseline or reporting basis is unverified.')

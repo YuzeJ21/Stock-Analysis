@@ -79,20 +79,82 @@ def test_native_snapshot_rejects_cross_scope_numeric_proof(tmp_path, change):
     assert not list(tmp_path.iterdir())
 
 
-def test_missing_ytd_stays_visible_and_quarter_keeps_its_exact_source():
+def test_missing_ytd_and_yoy_remain_visible_with_supported_sequential_change():
     sources, _, _, exhibit = _quarter_sources()
-    from test_sec_native_quarter_tables import quarter_release
-    sources[exhibit] = quarter_release()
+    sources[exhibit] = _comparative_exhibit().replace(
+        '<th>Three Months Ended September 30, 2025</th>', '<th>Nine Months Ended September 30, 2025</th>')
     financial = _online(sources)
     projection = workbench_projection('FICT', financial, {}, expected_cik=CIK, as_of=OBSERVED)
     assert projection['native_ytd_missing']
     html = native_quarter_html(projection['native_quarter_archive'])
     assert 'Year-to-date values are unavailable in this results document.' in html
-    assert 'Provisional when published' in html
     financial_answer = next(a for a in build_company_answers('FICT', projection, financial, {}, {}, {})
                             if a['key'] == 'financial')
     assert ('Exact SEC results document', exhibit) in financial_answer['links']
-    assert 'Comparable financial change needs verification' == financial_answer['gap']
+    assert financial_answer['headline'] == 'Revenue up 25.0%'
+    assert 'Quarter over quarter' in financial_answer['headline_context']
+    assert financial_answer['native_comparison_gaps'] == ['Same quarter last year revenue needs verification']
+
+
+def _comparative_exhibit():
+    return '''<h2>Consolidated Statements of Income</h2><p>(TWD in millions)</p>
+    <table><tr><th></th><th>Three Months Ended September 30, 2026</th>
+    <th>Three Months Ended June 30, 2026 (Retrospectively Adjusted)</th>
+    <th>Three Months Ended September 30, 2025</th></tr>
+    <tr><td>Revenue</td><td>125</td><td>100</td><td>80</td></tr>
+    <tr><td>Operating income</td><td>14</td><td>0</td><td>7</td></tr></table>'''
+
+
+def test_same_filing_quarter_comparisons_reach_overview_trends_and_replay(tmp_path):
+    sources, _, _, exhibit = _quarter_sources()
+    sources[exhibit] = _comparative_exhibit()
+    financial = _online(sources)
+    projection = workbench_projection('FICT', financial, {}, expected_cik=CIK, as_of=OBSERVED)
+    summary = next(a for a in build_company_answers('FICT', projection, financial, {}, {}, {})
+                   if a['key'] == 'financial')
+    assert summary['headline'] == 'Revenue up 56.2%'
+    assert 'Year over year' in summary['headline_context']
+    assert ('Exact SEC results document', exhibit) in summary['links']
+    html = native_quarter_html(projection['native_quarter_archive'])
+    assert 'Quarter comparisons' in html and 'Previous quarter' in html and '+25.0%' in html
+    assert 'Retrospectively adjusted' in html and 'Prior value must be positive' in html
+    assert 'Year-to-date values are unavailable' in html
+    context = _context(financial)
+    trend = context['business_trend']
+    assert [row['comparison_basis'] for row in trend['comparative_periods']] == ['year_over_year', 'sequential']
+    assert all(row['kind'] == 'quarterly' for row in trend['comparative_periods'])
+    growth = {m['key']: m for m in trend['metrics'] if m['period_end'] == '2026-09-30'}
+    assert growth['revenue_yoy']['value'] == pytest.approx(0.5625)
+    assert growth['revenue_qoq']['value'] == pytest.approx(0.25)
+    assert growth['revenue_yoy']['from_period_end'] == '2025-09-30'
+    first = save_research_context(context, project_root=tmp_path, **SCOPE)
+    reopened = load_research_context(first['snapshot_id'], project_root=tmp_path, **SCOPE)
+    assert reopened == first and compare_research_contexts(first, reopened)['status'] == 'unchanged'
+
+
+@pytest.mark.parametrize('tamper', ['value', 'source', 'unit', 'period', 'strip_proof', 'duplicate_basis'])
+def test_comparative_snapshot_rejects_unqualified_or_relabelled_values(tmp_path, tamper):
+    sources, _, _, exhibit = _quarter_sources()
+    sources[exhibit] = _comparative_exhibit()
+    context = _context(_online(sources))
+    rows = context['business_trend']['comparative_periods']
+    proof = rows[0]['fields']['revenue']
+    if tamper == 'value':
+        proof['value'] += 1
+    elif tamper == 'source':
+        proof['source_ref'] = exhibit + '?changed=1'
+    elif tamper == 'unit':
+        proof['unit'] = 'USD'
+    elif tamper == 'period':
+        proof['period_start'] = '2025-01-01'
+    elif tamper == 'strip_proof':
+        del proof['reported_numeric_schema']
+        del proof['reported_text']
+    else:
+        rows[1] = deepcopy(rows[0])
+    with pytest.raises(ValueError, match='reported numeric proof|native quarter comparison'):
+        save_research_context(context, project_root=tmp_path, **SCOPE)
+    assert not list(tmp_path.iterdir())
 
 
 def test_current_structured_ytd_keeps_its_source_when_exact_quarter_fills_a_gap():

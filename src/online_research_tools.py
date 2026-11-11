@@ -26,6 +26,7 @@ from src.research_outcome_review import ResearchOutcome, derive_outcome_status, 
 from src.research_thesis_journal import JournalEntry, derive_journal_state, validate_journal_entry
 from src.scenario_lab import ScenarioParameters, validate_scenario_parameters
 from src.sec_foreign_financials import validated_foreign_financials
+from src.sec_native_quarter_comparisons import quarter_changes
 from src.sec_quarterly_history import validated_quarterly_history
 from src.valuation import DCFAssumptions, ValuationInput, calculate_dcf
 
@@ -176,7 +177,7 @@ def _cash_metric(period, fields):
         basis='Total reported CFO less positive PP&E spending; not issuer-defined FCF and not FCFF for DCF')
 
 
-def _trend(histories, coverage):
+def _trend(histories, coverage, comparative_periods=()):
     periods, metrics, gaps = [], [], []
     for kind, history_rows, currency in histories:
         rows = []
@@ -215,18 +216,35 @@ def _trend(histories, coverage):
                 metrics.append(_cash_metric(cumulative, cf))
             if kind not in {'annual', 'quarterly'}:
                 continue
+            native_quarter = period.get('period_basis') == 'direct_quarter'
+            exact_changes = quarter_changes(period, comparative_periods) if native_quarter else {}
             for key, sequential in [('revenue_yoy', False)] + ([('revenue_qoq', True)] if kind == 'quarterly' else []):
+                label = 'Revenue sequential growth' if sequential else 'Revenue year-over-year growth'
+                if native_quarter:
+                    pair = exact_changes.get('sequential' if sequential else 'year_over_year', {})
+                    change = pair.get('fields', {}).get('revenue', {})
+                    metrics.append(_metric(key, label, period, [change.get('prior'), revenue], change.get('fraction'),
+                        change.get('reason', 'compatible_periods_and_revenue_definition_required'), prior=pair.get('period'),
+                        basis='Direct quarters from the same consolidated SEC results document'))
+                    continue
                 prior = rows[index-1] if index else None
                 if kind == 'quarterly' and not sequential:
                     prior = next((p for p in reversed(rows[:index]) if _compatible(p, period, kind)), None)
                 pr = prior['fields'].get('revenue') if prior else None
                 good = bool(prior and _compatible(prior, period, kind, sequential=sequential) and _definition(pr, revenue) and pr['value'] > 0)
-                metrics.append(_metric(key, 'Revenue sequential growth' if sequential else 'Revenue year-over-year growth', period,
+                metrics.append(_metric(key, label, period,
                     [pr, revenue], revenue['value']/pr['value']-1 if good else None,
                     None if good else 'compatible_periods_and_revenue_definition_required', prior=prior))
-            prior = rows[index-1] if index else None
-            pr = prior['fields'].get('revenue') if prior else None
-            pi = prior['fields'].get('operating_income') if prior else None
+            if native_quarter:
+                pair = exact_changes.get('sequential', {})
+                prior = dict(pair['period'], currency=pair['period']['unit']) if pair else None
+                changes = pair.get('fields', {})
+                pr = changes.get('revenue', {}).get('prior')
+                pi = changes.get('operating_income', {}).get('prior')
+            else:
+                prior = rows[index-1] if index else None
+                pr = prior['fields'].get('revenue') if prior else None
+                pi = prior['fields'].get('operating_income') if prior else None
             good = (prior and _compatible(prior, period, kind, sequential=(kind=='quarterly'))
                 and margin is not None and _same_period(pr, pi) and pr['value'] > 0
                 and _definition(pr, revenue) and _definition(pi, income))
@@ -465,7 +483,18 @@ def build_online_research_context(financial, prices, peers=None, association=Non
         compatible = [previous for previous in rows if previous['period_end'] < row['period_end']]
         histories = [history for history in histories if history[0] != kind]
         histories.append((kind, [*compatible, row], row['unit']))
-    trend = _trend(histories, coverage)
+    has_native_quarter = any(kind == 'quarterly' for kind, _ in native_periods)
+    comparative_periods = native_quarter.get('comparative_periods', ()) if has_native_quarter else ()
+    trend = _trend(histories, coverage, comparative_periods)
+    if comparative_periods:
+        trend['comparative_periods'] = [dict(
+            kind='quarterly', currency=row['unit'], status=row['status'], current=False,
+            period_start=row['period_start'], period_end=row['period_end'], current_period_end=row['current_period_end'],
+            comparison_basis=row['comparison_basis'], filed=row['filed'], form=row['form'], accession=row['accession'],
+            provisional=row['provisional'], unaudited=row['unaudited'], fields=_fields(row),
+        ) for row in comparative_periods]
+    if has_native_quarter and native_quarter.get('comparative_gaps'):
+        trend['comparative_gaps'] = _json(native_quarter['comparative_gaps'])
     base = dict(status='withheld', reason='validated_current_annual_revenue_required', revenue=None,
         currency=None, period_start=None, period_end=None, source_refs=[])
     current = coverage.get('structured_annual', coverage.get('current', {}).get('annual', {}))

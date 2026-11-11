@@ -236,6 +236,8 @@ def financial_workspace_html(ticker, financial, *, period_kind='annual', metric=
 
 def _overview_gaps(financial, projection, research_context):
     gaps = [financial['gap']] if financial.get('gap') else []
+    if not gaps:
+        gaps.extend(financial.get('native_comparison_gaps') or ())
     if (projection or {}).get('native_ytd_missing'):
         gaps.append('Year-to-date evidence needs verification')
     withheld = (projection or {}).get('withheld_fields') or {}

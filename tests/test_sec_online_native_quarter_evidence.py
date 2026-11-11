@@ -159,3 +159,67 @@ def test_provisional_marker_cannot_be_discarded_from_a_reported_row():
     dto['periods'][0]['provisional'] = False
     dto['packet_digest'] = _digest({key: value for key, value in dto.items() if key != 'packet_digest'})
     assert validated_native_quarter(financial, as_of=OBSERVED) is None
+
+
+def test_same_filing_comparison_preserves_current_and_ytd_durations():
+    from src.sec_online_native_quarter_evidence import validated_native_quarter
+
+    sources, _, _, exhibit = _quarter_sources()
+    dto = validated_native_quarter(_online(sources), as_of=OBSERVED)
+    assert [row['kind'] for row in dto['periods']] == ['quarterly', 'cumulative']
+    comparison, = dto['comparative_periods']
+    assert comparison['comparison_basis'] == 'year_over_year'
+    assert comparison['current_period_end'] == dto['period_end'] == '2026-09-30'
+    assert (comparison['period_start'], comparison['period_end']) == ('2025-07-01', '2025-09-30')
+    field = comparison['fields']['revenue']
+    assert field['source_ref'] == exhibit and field['value'] == 1_000_000_000
+    assert field['current_period_end'] == comparison['current_period_end']
+    assert dto['comparative_gaps'] == {'sequential': 'same_filing_comparison_unavailable'}
+
+
+@pytest.mark.parametrize('change', ['basis', 'current_end', 'table', 'row', 'column', 'rights'])
+def test_resealed_comparison_must_match_current_table_cell(change):
+    from src.online_filing_context import _digest
+    from src.sec_online_native_quarter_evidence import validated_native_quarter
+
+    financial = _online(_quarter_sources()[0])
+    dto = financial['native_archive_quarter']
+    comparison = dto['comparative_periods'][0]
+    field = comparison['fields']['revenue']
+    if change == 'basis':
+        comparison['comparison_basis'] = field['comparison_basis'] = 'sequential'
+    elif change == 'current_end':
+        comparison['current_period_end'] = field['current_period_end'] = '2025-12-31'
+    elif change == 'column':
+        field['column_index'] = dto['periods'][0]['fields']['revenue']['column_index']
+    elif change == 'rights':
+        comparison['rights_status'] = field['rights_status'] = 'cleared'
+    else:
+        field[change + '_index'] += 1
+    dto['packet_digest'] = _digest({key: value for key, value in dto.items() if key != 'packet_digest'})
+    assert validated_native_quarter(financial, as_of=OBSERVED) is None
+
+
+def test_later_independent_baseline_amendment_holds_comparison_only():
+    from src.sec_online_native_quarter_evidence import validated_native_quarter
+
+    sources, _, _, _ = _quarter_sources()
+    _add(sources, 4, form='10-Q/A', filed='2026-10-24', report_date='2025-09-30',
+         content='<html><body>Independent baseline amendment</body></html>')
+    dto = validated_native_quarter(_online(sources), as_of=OBSERVED)
+    assert dto['period_end'] == '2026-09-30'
+    assert dto['periods'][0]['fields']['revenue']['value'] == 1_234_000_000
+    assert dto['comparative_periods'] == []
+    assert dto['comparative_gaps']['year_over_year'] == 'independent_comparison_revision_unresolved'
+
+
+def test_original_native_packet_remains_valid_without_optional_comparisons():
+    from src.online_filing_context import _digest
+    from src.sec_online_native_quarter_evidence import validated_native_quarter
+
+    financial = _online(_quarter_sources()[0])
+    dto = financial['native_archive_quarter']
+    dto.pop('comparative_periods')
+    dto.pop('comparative_gaps')
+    dto['packet_digest'] = _digest({key: value for key, value in dto.items() if key != 'packet_digest'})
+    assert validated_native_quarter(financial, as_of=OBSERVED) == dto

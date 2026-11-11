@@ -2,7 +2,7 @@
 
 from calendar import monthrange
 from collections.abc import Mapping
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 import re
 
@@ -52,6 +52,7 @@ _CURRENCY_MARKER = re.compile(
 )
 _UNSUPPORTED_SCOPE = re.compile(r'\b(?:adjusted|segment|non-IFRS|non-GAAP|guidance|standalone|pro forma)\b', re.I)
 _DURATIONS = {'three': 3, 'six': 6, 'nine': 9}
+COMPARISON_BASES = ('year_over_year', 'sequential')
 _ORDINALS = {'first': 1, 'second': 2, 'third': 3, 'fourth': 4}
 _MONTHS = ('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September',
            'October', 'November', 'December')
@@ -147,19 +148,30 @@ def _period(end, months, fiscal_year_end):
     return ('quarterly' if months == 3 else 'cumulative', start, end, month_in_year // 3)
 
 
-def _release_period(header, evidence, fiscal_year_end):
+def _comparison_end(current, basis):
+    if basis == 'sequential':
+        return current[1] - timedelta(days=1)
+    if basis == 'year_over_year':
+        end = current[2]
+        return date(end.year - 1, end.month, monthrange(end.year - 1, end.month)[1])
+    return None
+
+
+def _release_period(header, evidence, fiscal_year_end, basis=None):
     amount = _RELEASE_COLUMN.fullmatch(header)
     explicit = _ENDED.fullmatch(evidence)
     if not amount or not explicit:
         return None
-    period = _period(_end_date(explicit[2]), 3, fiscal_year_end)
-    if not period:
+    current = _period(_end_date(explicit[2]), 3, fiscal_year_end)
+    if not current or _ORDINALS[explicit[1].lower()] != current[3]:
+        return None
+    period = _period(_comparison_end(current, basis), 3, fiscal_year_end) if basis else current
+    if not period or basis and amount[3]:
         return None
     _, _, end, quarter = period
     fiscal_month = int(fiscal_year_end[:2])
     label_year = end.year + (end.month > fiscal_month)
-    if (int(amount[1]) != quarter or _ORDINALS[explicit[1].lower()] != quarter
-            or amount[2] not in {str(label_year), str(label_year)[-2:]}):
+    if int(amount[1]) != quarter or amount[2] not in {str(label_year), str(label_year)[-2:]}:
         return None
     return period
 
@@ -193,6 +205,15 @@ def _compatible_sign(concept, value):
     return concept not in {'reported_operating_loss', 'reported_operating_cash_outflow'} or value <= 0
 
 
+def matching_native_quarter_definition(current, previous):
+    """Confirm different period columns share the same directly reported table row."""
+    return bool(current and previous and current['column_index'] != previous['column_index'] and all(
+        current[key] == previous[key] for key in (
+            'field', 'concept', 'taxonomy', 'unit', 'scale', 'unit_evidence', 'table_index', 'row_index', 'row_label',
+        )
+    ))
+
+
 def valid_native_table_number(field, *, fiscal_year_end):
     """Recheck the bounded source literals behind a stored numeric observation."""
     if not isinstance(field, Mapping):
@@ -217,10 +238,22 @@ def valid_native_table_number(field, *, fiscal_year_end):
         header, evidence = field['column_header'], field['period_evidence']
         if not all(isinstance(s, str) and 1 <= len(s) <= 125 for s in (header, evidence)):
             return False
-        period = _release_period(header, evidence, fiscal_year_end)
+        basis, current, anchor = field.get('comparison_basis'), None, None
+        if 'comparison_basis' in field or 'current_period_end' in field:
+            if basis not in COMPARISON_BASES:
+                return False
+            anchor = date.fromisoformat(field['current_period_end'])
+            current = _period(anchor, 3, fiscal_year_end)
+            if not current or anchor.isoformat() != field['current_period_end']:
+                return False
+        period = _release_period(header, evidence, fiscal_year_end, basis)
         if period and label.casefold() not in _INCOME_ROWS:
             return False
+        if period and basis and _end_date(_ENDED.fullmatch(evidence)[2]) != anchor:
+            return False
         period = period or _statement_period(header, evidence, fiscal_year_end)
+        if basis and (not period or period[0] != 'quarterly' or period[2] != _comparison_end(current, basis)):
+            return False
         return bool(period and (field['period_start'], field['period_end']) == (
             period[1].isoformat(), period[2].isoformat(),
         ))
@@ -249,15 +282,25 @@ def _release_columns(headers, caption, prefix, fiscal_year_end, provisional):
         return []
     evidence, = matches
     matches = []
-    for cells, width in headers:
+    for index, (cells, width) in enumerate(headers):
         for cell in cells:
             header = cell['text']
             if not cell['start'] or not _RELEASE_COLUMN.fullmatch(header):
                 continue
             period = _release_period(header, evidence, fiscal_year_end)
             if period and (not header.casefold().endswith('a') or provisional):
-                matches.append((cell, width, period, header, evidence))
-    return matches if len(matches) == 1 else []
+                matches.append((index, (cell, width, period, header, evidence)))
+    if len(matches) != 1:
+        return []
+    index, current = matches[0]
+    cells, width = headers[index]
+    results = [current]
+    for basis in COMPARISON_BASES:
+        previous = [(cell, width, period, cell['text'], evidence) for cell in cells if cell['start']
+                    if (period := _release_period(cell['text'], evidence, fiscal_year_end, basis))]
+        if len(previous) == 1:
+            results.extend(previous)
+    return results
 
 
 def _statement_columns(headers, fiscal_year_end):
@@ -362,6 +405,7 @@ def _extract_table(table, parser, following, currency, fiscal_year_end):
         columns = _release_columns(headers, release, prefix, fiscal_year_end, provisional)
     else:
         columns = _statement_columns(headers, fiscal_year_end)
+    release_end = columns[0][2][2] if release and columns else None
     unaudited = bool(re.search(r'\(Unaudited\)', unit_context, re.I))
     results = []
     for column, width, (kind, start, end, _), header, evidence in columns:
@@ -395,13 +439,55 @@ def _extract_table(table, parser, following, currency, fiscal_year_end):
                 column_index=column['start'], row_label=label, column_header=header,
                 period_evidence=evidence, unit_evidence=unit_evidence,
             )
-        results.append((kind, start, end, fields, gaps, bool(release and provisional), unaudited))
+        results.append(dict(kind=kind, start=start, end=end, fields=fields, gaps=gaps, table_index=table['index'],
+                            provisional=bool(provisional and end == release_end), unaudited=unaudited))
     return results
 
 
+def _period_row(matching, currency, *, current=None, basis=None):
+    fields, gaps = {}, {}
+    if current:
+        current_fields = current['fields']
+        tables = {field['table_index'] for field in current_fields.values()}
+        matching = [item for item in matching if item['table_index'] in tables]
+        if not matching:
+            return None
+    for candidate in matching:
+        observations, withheld = candidate['fields'], candidate['gaps']
+        if current:
+            observations = {name: field for name, field in observations.items()
+                            if matching_native_quarter_definition(current_fields.get(name), field)}
+        for name, reason in withheld.items():
+            if reason != 'non_equivalent_reported_component' and name in fields:
+                fields.pop(name)
+                gaps[name] = 'conflicting_reported_rows'
+            else:
+                gaps.setdefault(name, reason)
+        for name, field in observations.items():
+            if name in fields or name in gaps and gaps[name] != 'non_equivalent_reported_component':
+                fields.pop(name, None)
+                gaps[name] = 'conflicting_reported_rows'
+            else:
+                gaps.pop(name, None)
+                fields[name] = field
+    for name in _FIELDS:
+        if name not in fields:
+            gaps.setdefault(name, 'direct_reported_row_unavailable')
+    first = matching[0]
+    row = dict(kind=first['kind'], period_start=first['start'].isoformat(), period_end=first['end'].isoformat(),
+               unit=currency, fields=fields, withheld_fields=gaps,
+               provisional=any(item['provisional'] for item in matching),
+               unaudited=any(item['unaudited'] for item in matching))
+    if current:
+        comparison = {'comparison_basis': basis, 'current_period_end': current['period_end']}
+        row.update(comparison, fields={name: dict(field, **comparison) for name, field in fields.items()})
+    return row
+
+
 def parse_native_quarter_tables(raw: bytes, *, currency: str, fiscal_year_end: str) -> dict:
-    """Return exact reported quarter and same-end YTD amounts, or a scoped reason to hold."""
-    held = {'status': 'withheld', 'reason': 'qualified_consolidated_native_period_unavailable', 'periods': []}
+    """Read separate reported quarter, same-end YTD, and comparable earlier-quarter columns."""
+    held = {'status': 'withheld', 'reason': 'qualified_consolidated_native_period_unavailable',
+            'periods': [], 'comparative_periods': []}
     if (not isinstance(currency, str) or currency not in _CURRENCY or not isinstance(raw, bytes)
             or not 0 < len(raw) <= _MAX_BYTES or b'\0' in raw or b'<!entity' in raw.lower()):
         return held
@@ -416,36 +502,23 @@ def parse_native_quarter_tables(raw: bytes, *, currency: str, fiscal_year_end: s
                            else len(parser.all_text))
             following = _norm(' '.join(parser.all_text[start:min(start + 80, next_offset)]))[:600]
             candidates.extend(_extract_table(table, parser, following, currency, fiscal_year_end))
-        latest = max((period[2] for period in candidates), default=None)
+        latest = max((period['end'] for period in candidates), default=None)
         periods = []
         for kind in ('quarterly', 'cumulative'):
-            matching = [item for item in candidates if item[0] == kind and item[2] == latest]
-            if not matching:
-                continue
-            fields, gaps = {}, {}
-            for _, start, end, observations, withheld, _, _ in matching:
-                for field, reason in withheld.items():
-                    if reason != 'non_equivalent_reported_component' and field in fields:
-                        fields.pop(field)
-                        gaps[field] = 'conflicting_reported_rows'
-                    else:
-                        gaps.setdefault(field, reason)
-                for field, observation in observations.items():
-                    if field in fields or field in gaps and gaps[field] != 'non_equivalent_reported_component':
-                        fields.pop(field, None)
-                        gaps[field] = 'conflicting_reported_rows'
-                    else:
-                        gaps.pop(field, None)
-                        fields[field] = observation
-            for field in _FIELDS:
-                if field not in fields:
-                    gaps.setdefault(field, 'direct_reported_row_unavailable')
-            periods.append(dict(kind=kind, period_start=start.isoformat(), period_end=end.isoformat(),
-                                unit=currency, fields=fields, withheld_fields=gaps,
-                                provisional=any(item[5] for item in matching),
-                                unaudited=any(item[6] for item in matching)))
+            matching = [item for item in candidates if item['kind'] == kind and item['end'] == latest]
+            if matching:
+                periods.append(_period_row(matching, currency))
         if not any(period['fields'] for period in periods):
             return held
-        return {'status': 'inspection_only', 'reason': None, 'periods': periods}
+        comparative = []
+        if periods[0]['kind'] == 'quarterly' and periods[0]['fields']:
+            for basis in COMPARISON_BASES:
+                target = _comparison_end(_period(latest, 3, fiscal_year_end), basis)
+                matching = [item for item in candidates if item['kind'] == 'quarterly' and item['end'] == target]
+                if matching:
+                    row = _period_row(matching, currency, current=periods[0], basis=basis)
+                    if row and row['fields']:
+                        comparative.append(row)
+        return {'status': 'inspection_only', 'reason': None, 'periods': periods, 'comparative_periods': comparative}
     except (ValueError, RecursionError):
         return held

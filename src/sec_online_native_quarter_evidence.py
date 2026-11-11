@@ -52,6 +52,11 @@ _METADATA = ('ticker', 'sec_cik', 'accession', 'form', 'filed', 'accepted_at', '
 _PACKET_KEYS = set(_METADATA) | {'schema_version', 'status', 'reason', 'period_end', 'period_kind', 'taxonomy',
     'unit', 'periods', 'source_receipts', 'reviewed_preceding', 'selection', 'inventory_digest', 'packet_digest',
     'commercial_eligible', 'readiness_promoted', 'saved_readiness_promoted'}
+_COMPARATIVE_PACKET_KEYS = {'comparative_periods', 'comparative_gaps'}
+_COMPARISON_MONTHS = {'year_over_year': 12, 'sequential': 3}
+_COMPARISON_KEYS = ('comparison_basis', 'current_period_end')
+_COMPARISON_UNAVAILABLE = 'same_filing_comparison_unavailable'
+_COMPARISON_REVISION = 'independent_comparison_revision_unresolved'
 
 
 def _clean(parts):
@@ -230,6 +235,23 @@ def _later_structured_quarter(financial, verified, period_end, event):
     return False
 
 
+def _comparison_revision_unresolved(verified, baseline_end, current, structured_rows):
+    """Use report-date aliases only to find revisions to a known baseline."""
+    reports = verified['earnings_reports']
+    gaps = verified.get('metadata_gaps', [])
+    structured = [row for row in structured_rows if row.get('period_end') == baseline_end]
+    matching_reports = [report for report in reports if any(all(report.get(key) == row.get(key)
+                        for key in ('accession', 'form', 'filed')) for row in structured)]
+    report_dates = {baseline_end} | {report['report_date'] for report in matching_reports if report['report_date']}
+    revisions = matching_reports + [report for report in reports + gaps if report['form'] == '6-K/A'
+                                     and report['report_date'] in report_dates]
+    revisions.extend(report for report in verified['periods']['quarterly'] + gaps
+                     if report['form'] in {'10-Q', '10-Q/A'} and report['period_end'] == baseline_end)
+    publication = current['filed'], _utc_timestamp(current['accepted_at'])
+    return any(report['accession'] != current['accession']
+               and (report['filed'], _utc_timestamp(report['accepted_at'])) >= publication for report in revisions)
+
+
 def _valid_source_url(value, cik, accession):
     match = _ARCHIVE_URL.fullmatch(value) if isinstance(value, str) else None
     return bool(match and '..' not in match[3] and match[1].zfill(10) == cik
@@ -282,7 +304,7 @@ def valid_native_quarter_field(field, *, context, row, field_name):
         return False
 
 
-def _valid_field(field, context, row, field_name):
+def _valid_field(field, context, row, field_name, *, comparative=False):
     from src.sec_native_quarter_tables import valid_native_table_number
 
     if (not isinstance(field, Mapping) or field_name not in _FIELD_NAMES
@@ -301,6 +323,8 @@ def _valid_field(field, context, row, field_name):
         return False
     if any(k in row and field.get(k) != row[k] for k in _METADATA):
         return False
+    if not comparative and any(key in field or key in row for key in _COMPARISON_KEYS):
+        return False
     accession, cik = field.get('accession'), field.get('sec_cik')
     end, filed = (_iso_date(field.get(k)) for k in ('period_end', 'filed'))
     observed, accepted = (_utc_timestamp(field.get(k)) for k in ('observed_at', 'accepted_at'))
@@ -315,7 +339,55 @@ def _valid_field(field, context, row, field_name):
     return (_valid_source_url(primary, cik, accession) and _valid_source_url(source, cik, accession)
             and field.get('primary_document') == primary.rsplit('/', 1)[-1]
             and field.get('source_ref') == source and _valid_duration(row, field.get('fiscal_year_end'))
-            and (not saved or _saved_source_matches(field, context, row, observed, source, primary)))
+            and (not saved or comparative or _saved_source_matches(field, context, row, observed, source, primary)))
+
+
+def _comparison_end(current_end, basis):
+    end = _iso_date(current_end)
+    months = _COMPARISON_MONTHS.get(basis)
+    if not end or months is None:
+        return None
+    year, zero_month = divmod(end.year * 12 + end.month - 1 - months, 12)
+    month = zero_month + 1
+    return end.replace(year=year, month=month, day=monthrange(year, month)[1]).isoformat()
+
+
+def _comparison_matches(field, context, row, field_name, current):
+    from src.sec_native_quarter_tables import matching_native_quarter_definition
+
+    basis, current_end = (row.get(key) for key in _COMPARISON_KEYS)
+    reference = current.get('fields', {}).get(field_name)
+    if (row.get('kind') != 'quarterly' or row.get('status') != 'available'
+            or current.get('kind') != 'quarterly' or current_end != current.get('period_end')
+            or row.get('period_end') != _comparison_end(current_end, basis)
+            or type(row.get('provisional')) is not bool or type(row.get('unaudited')) is not bool
+            or not isinstance(reference, Mapping) or not _valid_field(field, context, row, field_name, comparative=True)
+            or any(field.get(key) != row.get(key) for key in _COMPARISON_KEYS)):
+        return False
+    return (all(field.get(key) == reference.get(key) for key in _METADATA)
+            and matching_native_quarter_definition(reference, field))
+
+
+def valid_native_quarter_comparative_field(field, *, context, row, field_name):
+    """Recheck a saved comparison against its same-report current quarter and receipts."""
+    try:
+        if context.get('schema_version') != 'online-company-research-v1' or row.get('current') is not False:
+            return False
+        current = [period for period in context['business_trend']['periods'] if period.get('kind') == 'quarterly'
+                   and period.get('current') is True and period.get('period_end') == row.get('current_period_end')]
+        if len(current) != 1 or not _comparison_matches(field, context, row, field_name, current[0]):
+            return False
+        reference = current[0]['fields'][field_name]
+        if not valid_native_quarter_field(reference, context=context, row=current[0], field_name=field_name):
+            return False
+        verified = validated_filing_inventory(context.get('filing_inventory'), ticker=field['ticker'],
+                    expected_cik=field['sec_cik'], as_of=_utc_timestamp(context.get('observed_at')), allow_historical=True)
+        if not verified:
+            return False
+        prior = context['filing_coverage']['periods'].get('quarterly', {}).get(row['period_end'], {}).get('anchor')
+        return not _comparison_revision_unresolved(verified, row['period_end'], reference, [prior] if prior else [])
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowError, RecursionError):
+        return False
 
 
 def _valid_duration(row, fiscal_year_end):
@@ -408,11 +480,43 @@ def _valid_periods(packet):
     return 'revenue' in periods[0]['fields']
 
 
+def _valid_comparative_periods(packet, verified, structured_rows):
+    if 'comparative_periods' not in packet:
+        return True  # original v1 packet shape
+    comparisons, gaps = packet['comparative_periods'], packet['comparative_gaps']
+    if (not isinstance(comparisons, list) or len(comparisons) > len(_COMPARISON_MONTHS)
+            or not isinstance(gaps, Mapping) or not all(isinstance(row, Mapping) for row in comparisons)):
+        return False
+    bases = [row.get('comparison_basis') for row in comparisons]
+    if (bases != [basis for basis in _COMPARISON_MONTHS if basis in bases]
+            or set(gaps) != set(_COMPARISON_MONTHS) - set(bases)):
+        return False
+    current = packet['periods'][0]
+    for basis, reason in gaps.items():
+        end = _comparison_end(current['period_end'], basis)
+        blocked = _comparison_revision_unresolved(verified, end, current, structured_rows)
+        if reason != (_COMPARISON_REVISION if blocked else _COMPARISON_UNAVAILABLE):
+            return False
+    for row in comparisons:
+        fields, withheld = row.get('fields'), row.get('withheld_fields')
+        if (row.get('unit') != current['unit'] or row.get('reason') is not None
+                or any(row.get(key) != packet[key] for key in _METADATA)
+                or not isinstance(fields, Mapping) or not fields or not isinstance(withheld, Mapping)
+                or set(fields) | set(withheld) != _FIELD_NAMES or set(fields) & set(withheld)
+                or any(not isinstance(reason, str) or not re.fullmatch(r'[a-z0-9_]{1,100}', reason) for reason in withheld.values())
+                or _comparison_revision_unresolved(verified, row['period_end'], current, structured_rows)):
+            return False
+        if any(not _comparison_matches(field, packet, row, name, current) for name, field in fields.items()):
+            return False
+    return True
+
+
 def _verify_packet(financial, wrapper, *, ticker, cik, inventory, as_of):
     verified = _identity_inventory(financial, ticker, cik, inventory, as_of)
     if not verified or not isinstance(wrapper, Mapping) or wrapper.get('status') != 'inspection_only':
         return None
-    if (set(wrapper) != _PACKET_KEYS or wrapper.get('schema_version') != SCHEMA or wrapper.get('reason') is not None
+    if (set(wrapper) not in (_PACKET_KEYS, _PACKET_KEYS | _COMPARATIVE_PACKET_KEYS)
+            or wrapper.get('schema_version') != SCHEMA or wrapper.get('reason') is not None
             or wrapper.get('ticker') != ticker or wrapper.get('sec_cik') != cik
             or wrapper.get('source_id') != SOURCE_ID or wrapper.get('taxonomy') != TAXONOMY
             or wrapper.get('period_kind') != 'quarterly' or wrapper.get('rights_status') != RIGHTS
@@ -431,6 +535,7 @@ def _verify_packet(financial, wrapper, *, ticker, cik, inventory, as_of):
     event = events[index]
     primary, source = wrapper.get('primary_source_url'), wrapper.get('source_url')
     end = _iso_date(wrapper.get('period_end'))
+    structured = validated_foreign_financials(financial)
     if (not end or not _iso_date(verified['latest']['annual']['period_end']) <= end <= _iso_date(event['filed'])
             or any(_same_publication(a, b) for a, b in zip(events[:index + 1], events[1:index + 2]))
             or any(wrapper.get(k) != event[k] for k in ('form', 'filed', 'accepted_at', 'primary_document', 'report_date'))
@@ -439,6 +544,7 @@ def _verify_packet(financial, wrapper, *, ticker, cik, inventory, as_of):
             or not _selection_matches(wrapper.get('selection'), primary, source)
             or not _source_receipts_match(wrapper, financial, verified, events[:index], event, now)
             or not _valid_periods(wrapper)
+            or not _valid_comparative_periods(wrapper, verified, structured['quarterly'] if structured else [])
             or _later_structured_quarter(financial, verified, wrapper['period_end'], event)):
         return None
     return deepcopy(dict(wrapper))
@@ -458,22 +564,35 @@ def validated_native_quarter(financial, *, ticker=None, expected_cik=None, inven
         return None
 
 
-def _build_packet(parsed, *, verified, event, receipts, reviewed, selection, unit, fiscal_year_end):
+def _observed_row(row, metadata):
+    fields = {name: dict(field, **metadata, source_ref=metadata['source_url'])
+              for name, field in row['fields'].items()}
+    return dict(row, fields=fields, status='available', reason=None, **metadata)
+
+
+def _build_packet(parsed, *, verified, event, receipts, reviewed, selection, unit, fiscal_year_end, financial):
     source = receipts[-1]
     metadata = {k: event[k] for k in ('accession', 'form', 'filed', 'accepted_at', 'primary_document', 'report_date')}
     metadata.update({k: source[k] for k in _REF_KEYS})
     metadata.update(ticker=verified['ticker'], sec_cik=verified['sec_cik'], primary_source_url=event['source_url'],
                     source_id=SOURCE_ID, fiscal_year_end=fiscal_year_end, rights_status=RIGHTS)
-    periods = []
-    for row in parsed['periods']:
-        if not row['fields']:
-            continue
-        fields = {name: dict(field, **metadata, source_ref=source['source_url'])
-                  for name, field in row['fields'].items()}
-        periods.append(dict(row, fields=fields, status='available', reason=None, **metadata))
+    periods = [_observed_row(row, metadata) for row in parsed['periods'] if row['fields']]
+    structured = validated_foreign_financials(financial)
+    structured_rows = structured['quarterly'] if structured else []
+    available = {row['comparison_basis']: row for row in parsed.get('comparative_periods', []) if row['fields']}
+    comparisons, gaps = [], {}
+    for basis in _COMPARISON_MONTHS:
+        baseline_end = _comparison_end(periods[0]['period_end'], basis)
+        if _comparison_revision_unresolved(verified, baseline_end, event, structured_rows):
+            gaps[basis] = _COMPARISON_REVISION
+        elif basis in available:
+            comparisons.append(_observed_row(available[basis], metadata))
+        else:
+            gaps[basis] = _COMPARISON_UNAVAILABLE
     packet = dict(schema_version=SCHEMA, status='inspection_only', reason=None, **metadata,
                   period_end=periods[0]['period_end'], period_kind='quarterly', taxonomy=TAXONOMY, unit=unit,
-                  periods=periods, source_receipts=receipts, reviewed_preceding=reviewed, selection=selection,
+                  periods=periods, comparative_periods=comparisons, comparative_gaps=gaps,
+                  source_receipts=receipts, reviewed_preceding=reviewed, selection=selection,
                   inventory_digest=verified['packet_digest'], commercial_eligible=False,
                   readiness_promoted=False, saved_readiness_promoted=False)
     packet['packet_digest'] = _digest(packet)
@@ -542,7 +661,8 @@ def fetch_native_quarter(financial, *, user_agent, ticker_map_receipt, submissio
                 return hold('native_quarter_' + reason if isinstance(reason, str)
                             and re.fullmatch(r'[a-z0-9_]{1,80}', reason) else _UNAVAILABLE)
             packet = _build_packet(parsed, verified=verified, event=event, receipts=refs,
-                                   reviewed=reviewed, selection=selection, unit=unit, fiscal_year_end=fiscal_year_end)
+                                   reviewed=reviewed, selection=selection, unit=unit, fiscal_year_end=fiscal_year_end,
+                                   financial=financial)
             if _later_structured_quarter(financial, verified, packet['period_end'], event):
                 return hold('native_quarter_newer_structured_period_or_version')
             return (_verify_packet(financial, packet, ticker=ticker, cik=cik, inventory=verified, as_of=observed_at)

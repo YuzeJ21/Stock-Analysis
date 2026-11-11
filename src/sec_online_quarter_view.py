@@ -3,6 +3,7 @@ from copy import deepcopy
 from html import escape
 
 from src.online_research_expansion_view import financial_field_label
+from src.sec_native_quarter_comparisons import BASES, REASONS, quarter_changes
 
 _STYLE = ('<style>.company-archive-quarter{min-width:0;overflow-wrap:anywhere;margin:16px 0;padding:16px;background:#fff;color:#172522;border:1px solid #dce3de;border-radius:8px}.archive-quarter-table{max-width:100%;overflow-x:auto}'
           '.company-archive-quarter p,.company-archive-quarter th,.company-archive-quarter td,.company-archive-quarter li,.company-archive-quarter summary{color:#172522!important}.company-archive-quarter a{color:#245842!important}'
@@ -69,7 +70,49 @@ def archive_quarter_html(financial, *, as_of=None):
             + escape('Accepted ' + archive['accepted_at'] + ' · Observed ' + archive['observed_at']) + '</p><ul>' + refs + '</ul></details></section>')
 
 
-def native_quarter_html(archive):
+def native_quarter_comparisons_html(current, comparatives, gaps=None):
+    """Show direct-quarter comparison values and their same-document basis."""
+    comparisons = quarter_changes(current, comparatives)
+    panels = []
+    for basis, title in BASES.items():
+        panels.append(f'<h5>{title}</h5>')
+        comparison = comparisons.get(basis)
+        if comparison is None:
+            reason = (gaps or {}).get(basis, 'same_filing_comparison_unavailable')
+            panels.append('<p>' + escape(REASONS[reason]) + '</p>')
+            continue
+        prior = comparison['period']
+        panels.append('<p>' + escape(f"{prior['period_start']} to {prior['period_end']} · "
+                                     f"compared with {current['period_start']} to {current['period_end']}") + '</p>')
+        lines, definitions = [], []
+        for name, change in comparison['fields'].items():
+            label = financial_field_label(name, change.get('current'))
+            if 'prior' in change:
+                previous, latest = change['prior'], change['current']
+                value = f"{previous['unit']} {previous['value']:,} → {latest['value']:,}"
+                fraction = change['fraction']
+                change_text = f'{fraction:+.1%}' if fraction is not None else REASONS[change['reason']]
+                if fraction is not None and 0 < abs(fraction) < .0005:
+                    change_text = ('+' if fraction > 0 else '−') + '<0.1%'
+                value += ' · ' + change_text
+                if 'retrospectively adjusted' in previous['column_header'].casefold():
+                    value += ' · Retrospectively adjusted prior figure'
+                definitions.append('<li>' + escape(f"{label} · {previous['row_label']} · "
+                    f"{previous['column_header']} → {latest['column_header']} · {previous['unit_evidence']}") + '</li>')
+            else:
+                value = 'Withheld · ' + REASONS[change['reason']]
+            lines.append('<li><strong>' + escape(label) + '</strong> · ' + escape(value) + '</li>')
+        panels.append('<ul>' + ''.join(lines) + '</ul>')
+        if definitions:
+            source = next(c['prior']['source_ref'] for c in comparison['fields'].values() if c.get('prior'))
+            panels.append('<details><summary>Comparison evidence</summary><p><a target="_blank" '
+                          'rel="noopener noreferrer" href="' + escape(source, quote=True)
+                          + '">Exact SEC comparison source</a></p><ul>' + ''.join(definitions) + '</ul></details>')
+    return ('<section aria-label="Quarter comparisons"><h4>Quarter comparisons</h4>'
+            '<p>Changes use the three-month columns from the same filing.</p>' + ''.join(panels) + '</section>')
+
+
+def native_quarter_html(archive, *, show_comparisons=True):
     """Render qualified table evidence with a distinct panel for each duration."""
     if not archive:
         return ''
@@ -100,7 +143,7 @@ def native_quarter_html(archive):
             else:
                 reason = row['withheld_fields'][key]
                 explanation = {
-                    'non_equivalent_reported_component': 'The source reports net property and equipment payments. Gross purchases need verification.',
+                    'non_equivalent_reported_component': REASONS['non_equivalent_reported_component'],
                     'direct_reported_row_unavailable': 'A matching value is absent from this duration in the results document.',
                 }.get(reason, reason.replace('_', ' '))
                 value = 'Withheld · ' + explanation
@@ -109,6 +152,9 @@ def native_quarter_html(archive):
                       '<thead><tr><th scope="col">Field</th><th scope="col">Reported value</th></tr></thead><tbody>'
                       + ''.join(lines) + '</tbody></table></div><details><summary>Field definitions</summary><ul>'
                       + ''.join(definitions) + '</ul></details>')
+    if show_comparisons and 'quarterly' in periods:
+        panels.append(native_quarter_comparisons_html(periods['quarterly'], archive.get('comparative_periods', ()),
+                                                      archive.get('comparative_gaps')))
     refs = ''.join('<li><a target="_blank" rel="noopener noreferrer" href="' + escape(r['source_url'], quote=True)
                    + '">SEC document</a> · observed ' + escape(r['observed_at']) + ' · SHA-256 '
                    + escape(r['payload_sha256']) + '</li>' for r in archive['source_receipts'])

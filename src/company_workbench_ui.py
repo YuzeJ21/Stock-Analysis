@@ -169,7 +169,7 @@ def _render_company_content(st_api,ticker,*,profile_scope,scope,candidate,expect
                 foreign=validated_foreign_financials(financial)
                 if projection['native_quarter_selected']:
                     from src.sec_online_quarter_view import native_quarter_html
-                    st_api.markdown(native_quarter_html(projection['native_quarter_archive']),unsafe_allow_html=True)
+                    st_api.markdown(native_quarter_html(projection['native_quarter_archive'],show_comparisons=False),unsafe_allow_html=True)
                 elif foreign and not projection.get('annual_archive'):
                     st_api.markdown(foreign_financials_html(financial),unsafe_allow_html=True)
                 else:
