@@ -156,7 +156,8 @@ def _compatible(previous, current, kind, *, sequential=False):
 
 def _metric(key, label, period, fields, value=None, reason=None, *, unit='ratio', prior=None, basis=None):
     return dict(key=key, label=label, status='calculated' if value is not None else 'withheld',
-        value=value, unit=unit, period_kind=period['kind'], period_start=period['period_start'],
+        value=value, unit=unit, period_kind='cumulative' if period.get('period_basis') == 'year_to_date' else period['kind'],
+        period_start=period['period_start'],
         period_end=period['period_end'], from_period_end=prior.get('period_end') if prior else None,
         source_refs=[_ref(f) for f in fields if f], reason=reason,
         basis=basis or 'Personal derived observation; latest reported as observed, not point-in-time history')
@@ -185,7 +186,11 @@ def _trend(histories, coverage):
             period.update(kind=kind, currency=currency, fields=_fields(source),
                 cumulative_fields=_json(source.get('cumulative_fields', {})),
                 filing_status=state.get('status', 'unverified'), current=False)
-            if kind == 'annual' and source.get('source_id') == 'sec_archive_inline':
+            if source.get('source_id') == 'sec_archive_native_quarter_html':
+                period.update(withheld_fields=_json(source['withheld_fields']),
+                              provisional=source['provisional'], unaudited=source.get('unaudited', False),
+                              period_basis='year_to_date' if kind == 'interim' else 'direct_quarter')
+            elif kind == 'annual' and source.get('source_id') == 'sec_archive_inline':
                 period['withheld_fields'] = _json(source['withheld_fields'])
             if kind == 'interim' and not state:
                 period.update(status='withheld',reason='interim_filing_source_unverified')
@@ -450,6 +455,16 @@ def build_online_research_context(financial, prices, peers=None, association=Non
     if native_annual:
         histories = [history for history in histories if history[0] != 'annual']
         histories.append(('annual', native_archive_annual_rows(foreign, native_annual), native_annual['unit']))
+    from src.online_filing_context import selected_native_quarter_periods
+    from src.sec_online_native_quarter_evidence import validated_native_quarter
+    native_quarter = validated_native_quarter(financial, ticker=ticker, expected_cik=cik, inventory=inventory,
+                                              as_of=now) if identity_valid and coverage['current'] else None
+    native_periods = list(selected_native_quarter_periods(native_quarter, coverage))
+    for kind, row in native_periods:
+        rows = next((rows for scope, rows, unit in histories if scope == kind and unit == row['unit']), [])
+        compatible = [previous for previous in rows if previous['period_end'] < row['period_end']]
+        histories = [history for history in histories if history[0] != kind]
+        histories.append((kind, [*compatible, row], row['unit']))
     trend = _trend(histories, coverage)
     base = dict(status='withheld', reason='validated_current_annual_revenue_required', revenue=None,
         currency=None, period_start=None, period_end=None, source_refs=[])
@@ -484,6 +499,9 @@ def build_online_research_context(financial, prices, peers=None, association=Non
     if native_annual:
         receipts.extend(dict(row, source='exact_annual_receipt', rights_status=native_annual['rights_status'])
                         for row in native_annual['source_receipts'])
+    if native_periods:
+        receipts.extend(dict(row, source='exact_native_quarter_receipt', rights_status=native_quarter['rights_status'])
+                        for row in native_quarter['source_receipts'])
     semantic_inputs = dict(ticker=ticker, sec_cik=cik, financial_identity_valid=identity_valid,
         financial_status=financial.get('status'), financial_reason=financial.get('reason'),
         filing_inventory=inventory, filing_coverage=coverage, earnings_components=earnings,
@@ -525,7 +543,7 @@ def build_online_research_context(financial, prices, peers=None, association=Non
         gaps.append(peer.get('reason') or 'Observed industry references are unavailable.')
     observation_times = []
     for source in (identity if identity_valid else {}, annual or {}, quarterly or {}, foreign or {},
-                   archive or {}, native_annual or {}, inventory, price):
+                   archive or {}, native_annual or {}, native_quarter if native_periods else {}, inventory, price):
         stamp = source.get('observed_at')
         if _fresh(stamp, now):
             observation_times.append(_utc_timestamp(stamp))

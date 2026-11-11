@@ -314,6 +314,18 @@ def _coverage_state(status, reason, anchor=None):
     return dict(status=status, reason=reason, anchor=deepcopy(anchor))
 
 
+def selected_native_quarter_periods(archive, coverage):
+    """Select the exact table rows adopted as current research observations."""
+    for row in archive['periods'] if archive else ():
+        kind = 'quarterly' if row['kind'] == 'quarterly' else 'interim'
+        state = coverage.get('current', {}).get(kind, {})
+        anchor = state.get('anchor') or {}
+        if (state.get('reason') == 'exact_native_quarter_table_and_filing'
+                and anchor.get('accession') == archive['accession']
+                and anchor.get('period_end') == row['period_end']):
+            yield kind, row
+
+
 def corroborate_online_financials(financial, inventory, *, as_of=None):
     """Join validated financial durations to exact sources, without event-date inference."""
     kinds = ('annual', 'quarterly', 'interim')
@@ -469,6 +481,41 @@ def corroborate_online_financials(financial, inventory, *, as_of=None):
             result['periods']['annual'][row['period_end']] = deepcopy(state)
             result['gaps'] = [gap for gap in result['gaps'] if not gap.startswith('annual:')]
         result['gaps'].append('Companyfacts annual: ' + structured['reason'])
+    from src.sec_online_native_quarter_evidence import validated_native_quarter
+    native_quarter = validated_native_quarter(financial, inventory=verified, as_of=as_of)
+    if native_quarter:
+        source = next(a for a in events if a['accession'] == native_quarter['accession'])
+        latest_reporting_end = max((a['period_end'] for a in known), default='')
+        for row in native_quarter['periods']:
+            kind = 'quarterly' if row['kind'] == 'quarterly' else 'interim'
+            end = row['period_end']
+            previous = result['current'][kind]
+            existing = result['periods'][kind].get(end)
+            previous_end = (previous.get('anchor') or {}).get('period_end') or ''
+            if (row['status'] != 'available' or end < max(latest_reporting_end, previous_end)
+                    or existing and existing['status'] in {'corroborated', 'amendment_unresolved', 'facts_pending'}):
+                continue
+            anchor = dict(source, period_start=row['period_start'], period_end=end, period_kind=kind,
+                          period_basis='exact_native_quarter_table')
+            native_state = _coverage_state('corroborated', 'exact_native_quarter_table_and_filing', anchor)
+            native_state.update(source_id=native_quarter['source_id'], rights_status=native_quarter['rights_status'])
+            result['current'][kind] = native_state
+            result['periods'][kind][end] = deepcopy(native_state)
+            result['gaps'] = [gap for gap in result['gaps'] if not gap.startswith(kind + ':')]
+            result['gaps'].append(f'Companyfacts {kind}: ' + previous['reason'])
+        if (result['current']['quarterly']['reason'] == 'exact_native_quarter_table_and_filing'
+                and not any(row['kind'] == 'cumulative' for row in native_quarter['periods'])):
+            result['gaps'].append('year_to_date:native_year_to_date_values_unavailable')
+    else:
+        native = financial.get('native_archive_quarter')
+        reason = native.get('reason') if isinstance(native, Mapping) else None
+        annual_source = verified['latest']['annual'] or {}
+        if (annual_source.get('form') in {'20-F', '20-F/A'} and isinstance(reason, str)
+                and re.fullmatch(r'(?:native_quarter_|sec_archive_|qualified_consolidated_native_)[a-z_]{1,100}', reason)
+                and reason != 'native_quarter_not_required'):
+            result['gaps'].append('native quarter:' + reason)
+    if result['current']['interim']['reason'] == 'exact_native_quarter_table_and_filing' and 'interim' not in expected:
+        expected.append('interim')
     states = [result['current'][kind]['status'] for kind in expected]
     result['status'] = 'corroborated' if all(s == 'corroborated' for s in states) else 'partial' if any(s == 'corroborated' for s in states) else 'withheld'
     return result

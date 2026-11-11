@@ -38460,9 +38460,10 @@ def render_company_workbench(
                 st.markdown(f'[Open separately scoped saved research tools](?mode=research&page=company-workbench&ticker={ticker}&section=notes)',unsafe_allow_html=False)
     def sources(bundle):
         view=bundle["financial"]
-        from src.sec_online_quarter_view import archive_quarter_html
-        st.markdown(archive_quarter_html(view),unsafe_allow_html=True)
-        annual_archive = bundle["projection"].get("annual_archive")
+        projection=bundle.get("projection", {})
+        from src.sec_online_quarter_view import archive_quarter_html, native_quarter_html
+        st.markdown(archive_quarter_html(view)+native_quarter_html(projection.get('native_quarter_archive')),unsafe_allow_html=True)
+        annual_archive = projection.get("annual_archive")
         if annual_archive:
             annual_row = annual_archive["periods"][0]
             with st.expander("Exact SEC annual evidence", expanded=False):

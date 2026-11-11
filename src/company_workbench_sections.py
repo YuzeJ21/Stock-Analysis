@@ -27,7 +27,8 @@ def workbench_projection(ticker, financial_view, prices, expected_cik=None, *, a
     result=dict(ticker=ticker, annual_count=0, quarter_count=0, price_count=0,
                 facts={}, period_end=None, period_start=None, period_kind=None,
                 unit=None, identity_conflict=False, model_eligibility='independent',
-                readiness_promoted=False, withheld_periods=[], annual_archive=None, comparative=None,
+                readiness_promoted=False, withheld_periods=[], annual_archive=None, native_quarter_archive=None,
+                native_quarter_selected=False, native_ytd_missing=False, comparative=None,
                 withheld_fields={}, attempted=any(
                     isinstance(item,Mapping) and item.get('status') not in (None,'not_requested')
                     for item in (financial_view,prices)))
@@ -57,12 +58,19 @@ def workbench_projection(ticker, financial_view, prices, expected_cik=None, *, a
     foreign=validated_foreign_financials(view)
     from src.sec_online_annual_evidence import validated_archive_annual
     from src.sec_native_annual_history import native_archive_annual_rows, native_annual_comparison
+    from src.sec_online_native_quarter_evidence import validated_native_quarter
+    from src.online_filing_context import corroborate_online_financials, selected_native_quarter_periods
     native_annual=validated_archive_annual(view, as_of=as_of)
-    if native_annual:
-        from src.online_filing_context import corroborate_online_financials
-        coverage=corroborate_online_financials(view,view['filing_inventory'],as_of=as_of)
-        if not coverage.get('structured_annual'):
-            native_annual=None
+    native_quarter=validated_native_quarter(view,ticker=ticker,expected_cik=expected_cik,as_of=as_of)
+    coverage=corroborate_online_financials(view,view['filing_inventory'],as_of=as_of) if native_annual or native_quarter else {}
+    if not coverage.get('structured_annual'):
+        native_annual=None
+    native_rows=dict(selected_native_quarter_periods(native_quarter,coverage))
+    native_current=native_rows.get('quarterly')
+    if native_rows:
+        selected=list(native_rows.values())
+        result['native_quarter_archive']=dict(native_quarter,periods=selected,
+            excluded_kinds=[row['kind'] for row in native_quarter['periods'] if row not in selected])
     result['annual_archive']=native_annual
     candidates=[]
     def inspect_latest(kind,rows,history):
@@ -75,22 +83,26 @@ def workbench_projection(ticker, financial_view, prices, expected_cik=None, *, a
                 reason=row['reason'],filed=row.get('filed'),source_ref=history.get('source_url'),
                 observed_at=history.get('observed_at')))
     for kind,history in (('annual',annual),('quarterly',quarter)):
-        if history is None or kind=='annual' and native_annual:continue
+        if history is None or kind=='annual' and native_annual or kind=='quarterly' and native_current:continue
         rows=history['periods'];available=[r for r in rows if r['status']=='available']
         result['annual_count' if kind=='annual' else 'quarter_count']=len(available)
         inspect_latest(kind,rows,history)
     if foreign is not None:
         for kind,key in (('annual','annual_count'),('quarterly','quarter_count')):
-            if kind=='annual' and native_annual:continue
+            if kind=='annual' and native_annual or kind=='quarterly' and native_current:continue
             rows=foreign[kind]
             if rows and foreign['unit'] != 'USD':
                 candidates=[candidate for candidate in candidates if candidate[0] != kind]
             result[key]=len([r for r in rows if r['status']=='available'])
             inspect_latest(kind,rows,foreign)
     if native_annual:
-        rows=native_archive_annual_rows(foreign,native_annual)
-        result['annual_count']=sum(r['status']=='available' for r in rows)
-        inspect_latest('annual',rows,native_annual)
+        annual_rows=native_archive_annual_rows(foreign,native_annual)
+        result['annual_count']=sum(r['status']=='available' for r in annual_rows)
+        inspect_latest('annual',annual_rows,native_annual)
+    if native_current:
+        history=foreign['quarterly'] if foreign and foreign['unit']==native_current['unit'] else []
+        result['quarter_count']=1+sum(r['status']=='available' and r['period_end']<native_current['period_end'] for r in history)
+        inspect_latest('quarterly',[native_current],native_quarter)
     if candidates:
         kind,row,unit=max(candidates,key=lambda item:item[1]['period_end'])
         fields=row['fields'];fields={f['field']:f for f in fields} if isinstance(fields,list) else fields
@@ -99,7 +111,13 @@ def workbench_projection(ticker, financial_view, prices, expected_cik=None, *, a
                       filed=row.get('filed'))
         if native_annual and row is native_annual['periods'][0]:
             result['withheld_fields']=dict(row['withheld_fields'])
-            result['comparative']=native_annual_comparison(row,rows,coverage)
+            result['comparative']=native_annual_comparison(row,annual_rows,coverage)
+        if row is native_current:
+            ytd_state=coverage['current']['interim']
+            ytd_anchor=ytd_state.get('anchor') or {}
+            result.update(withheld_fields=dict(row['withheld_fields']), native_quarter_selected=True,
+                          native_ytd_missing=not (ytd_state['status']=='corroborated'
+                                                  and ytd_anchor.get('period_end')==row['period_end']))
     result['withheld_periods']=[row for row in result['withheld_periods']
                                if result['period_end'] is None or row['period_end']>result['period_end']]
     return result

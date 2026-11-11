@@ -78,7 +78,8 @@ def filing_status_html(context):
         state = current.get(kind) or {}
         anchor = state.get('anchor') or latest.get(kind)
         if anchor:
-            rows.append(f"{kind.title()} {anchor.get('period_end') or 'period unverified'}: {_label(state.get('status'))}")
+            label = ('Year to date' if kind == 'interim' else 'Direct quarter') if anchor.get('period_basis') == 'exact_native_quarter_table' else kind.title()
+            rows.append(f"{label} {anchor.get('period_end') or 'period unverified'}: {_label(state.get('status'))}")
     if not rows:
         return '<p class="company-scope-note">Latest filing status has not been verified. Use Research company to check SEC reports and structured facts.</p>'
     return '<p class="company-scope-note" data-online-filing-status="1">' + escape(' · '.join(rows)) + '</p>'
@@ -103,6 +104,9 @@ def qualify_current_answers(answers, context):
         else:
             latest = max(pending.values(), key=lambda state: (state.get('anchor') or {}).get('period_end') or '')
         anchor = latest.get('anchor') or {}
+        if answer.get('native_quarter_end') and (anchor.get('period_end') or '') <= answer['native_quarter_end']:
+            qualified.append(answer)
+            continue
         qualified.append({**answer, 'value': 'New filing · financial facts pending',
                           'context': f"Period ended {anchor.get('period_end')} · {_label(latest.get('reason'))}",
                           'evidence': ('Older observations remain dated history. Review the latest filing for the current period.',),

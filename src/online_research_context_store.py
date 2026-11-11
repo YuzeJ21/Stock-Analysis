@@ -199,8 +199,14 @@ def _normalized(value):
                     and type(path[2]) is int and path[3] in {'fields', 'cumulative_fields'}
                     and isinstance(path[4], str))
                 row = value['business_trend']['periods'][path[2]] if typed else None
-                if not typed or not valid_reported_numeric(item, context=value, row=row,
-                        field_name=path[4], cumulative=path[3] == 'cumulative_fields'):
+                valid = False
+                if typed and item.get('reported_numeric_schema') == 'sec-native-table-number-v1':
+                    from src.sec_online_native_quarter_evidence import valid_native_quarter_field
+                    valid = path[3] == 'fields' and valid_native_quarter_field(item, context=value, row=row, field_name=path[4])
+                elif typed:
+                    valid = valid_reported_numeric(item, context=value, row=row, field_name=path[4],
+                                                   cumulative=path[3] == 'cumulative_fields')
+                if not valid:
                     raise ValueError('Normalized reported numeric proof is invalid or outside its typed filing field')
             for key, child in item.items():
                 if not isinstance(key, str) or not key or len(key) > 200:

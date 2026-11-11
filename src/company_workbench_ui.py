@@ -167,7 +167,10 @@ def _render_company_content(st_api,ticker,*,profile_scope,scope,candidate,expect
         if selected=='overview':
             if projection['attempted'] or projection['facts']:
                 foreign=validated_foreign_financials(financial)
-                if foreign and not projection.get('annual_archive'):
+                if projection['native_quarter_selected']:
+                    from src.sec_online_quarter_view import native_quarter_html
+                    st_api.markdown(native_quarter_html(projection['native_quarter_archive']),unsafe_allow_html=True)
+                elif foreign and not projection.get('annual_archive'):
                     st_api.markdown(foreign_financials_html(financial),unsafe_allow_html=True)
                 else:
                     kind=projection['period_kind'] or ('quarterly' if projection['quarter_count'] else 'annual')
@@ -183,8 +186,8 @@ def _render_company_content(st_api,ticker,*,profile_scope,scope,candidate,expect
             if financial.get('status')=='not_requested':
                 st_api.info('Refresh financials and prices to load reported periods.')
             else:
-                from src.sec_online_quarter_view import archive_quarter_html
-                st_api.markdown(archive_quarter_html(financial),unsafe_allow_html=True)
+                from src.sec_online_quarter_view import archive_quarter_html, native_quarter_html
+                st_api.markdown(archive_quarter_html(financial)+native_quarter_html(projection['native_quarter_archive']),unsafe_allow_html=True)
                 foreign=validated_foreign_financials(financial)
                 if projection.get('annual_archive'):
                     default_metric=(projection.get('comparative') or {}).get('field','revenue')

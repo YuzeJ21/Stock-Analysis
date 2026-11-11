@@ -4,6 +4,11 @@ from html import escape
 
 from src.online_research_expansion_view import financial_field_label
 
+_STYLE = ('<style>.company-archive-quarter{min-width:0;overflow-wrap:anywhere;margin:16px 0;padding:16px;background:#fff;color:#172522;border:1px solid #dce3de;border-radius:8px}.archive-quarter-table{max-width:100%;overflow-x:auto}'
+          '.company-archive-quarter p,.company-archive-quarter th,.company-archive-quarter td,.company-archive-quarter li,.company-archive-quarter summary{color:#172522!important}.company-archive-quarter a{color:#245842!important}'
+          '.archive-quarter-table table{width:100%;font-size:.86rem;border-collapse:collapse}.archive-quarter-table th,.archive-quarter-table td{padding:8px;text-align:left;border-bottom:1px solid #dce3de}'
+          '.company-archive-quarter summary{cursor:pointer;min-height:44px;align-content:center}.company-archive-quarter summary:focus-visible{outline:3px solid #245842}</style>')
+
 
 def merge_archive_quarter(rows, archive):
     """Replace a whole missing/version-mismatched row, never individual fields."""
@@ -57,12 +62,61 @@ def archive_quarter_html(financial, *, as_of=None):
                       + ''.join(lines) + '</tbody></table></div><details><summary>Field definitions</summary><ul>' + ''.join(definitions) + '</ul></details>')
     refs = ''.join('<li><a target="_blank" rel="noopener noreferrer" href="' + escape(r['source_url'], quote=True) + '">SEC source</a> · observed '
                    + escape(r['observed_at']) + ' · SHA-256 ' + escape(r['payload_sha256']) + '</li>' for r in archive['source_receipts'])
-    return ('<style>.company-archive-quarter{min-width:0;overflow-wrap:anywhere;margin:16px 0;padding:16px;background:#fff;color:#172522;border:1px solid #dce3de;border-radius:8px}.archive-quarter-table{max-width:100%;overflow-x:auto}'
-            '.company-archive-quarter p,.company-archive-quarter th,.company-archive-quarter td,.company-archive-quarter li,.company-archive-quarter summary{color:#172522!important}.company-archive-quarter a{color:#245842!important}'
-            '.archive-quarter-table table{width:100%;font-size:.86rem;border-collapse:collapse}.archive-quarter-table th,.archive-quarter-table td{padding:8px;text-align:left;border-bottom:1px solid #dce3de}'
-            '.company-archive-quarter summary{cursor:pointer;min-height:44px;align-content:center}.company-archive-quarter summary:focus-visible{outline:3px solid #245842}</style>'
-            '<section class="company-archive-quarter" aria-label="Exact SEC quarter"><h3>Exact SEC quarter</h3><p>'
+    return (_STYLE + '<section class="company-archive-quarter" aria-label="Exact SEC quarter"><h3>Exact SEC quarter</h3><p>'
             + escape(archive['form'] + ' · filed ' + archive['filed'] + ' · accession ' + archive['accession'] + ' · CIK ' + archive['sec_cik']) + '</p>' + ''.join(panels)
             + '<details><summary>Source and reporting basis</summary><p>Directly reported parent-issuer facts from the exact SEC filing. Companyfacts coverage remains separate. No quarter is derived by subtraction; no missing component is inferred.</p>'
             + '<p>Personal inspection only · archive source rights are unregistered. Commercial use, redistribution and saved-model readiness remain unapproved.</p><p>'
             + escape('Accepted ' + archive['accepted_at'] + ' · Observed ' + archive['observed_at']) + '</p><ul>' + refs + '</ul></details></section>')
+
+
+def native_quarter_html(archive):
+    """Render qualified table evidence with a distinct panel for each duration."""
+    if not archive:
+        return ''
+    periods = {row['kind']: row for row in archive['periods']}
+    panels = []
+    for kind, title in (('quarterly', 'Direct quarter'), ('cumulative', 'Year to date')):
+        row = periods.get(kind)
+        panels.append(f'<h4>{title}</h4>')
+        if row is None:
+            if kind in archive.get('excluded_kinds', []):
+                panels.append('<p>Check filing coverage for the current evidence on this reporting basis.</p>')
+            else:
+                panels.append('<p>Year-to-date values are unavailable in this results document.</p>')
+            continue
+        basis = [row['period_start'] + ' to ' + row['period_end'], row['unit']]
+        if row.get('unaudited'):
+            basis.append('Unaudited')
+        if row['provisional']:
+            basis.append('Provisional when published')
+        lines, definitions = [], []
+        for key in (*row['fields'], *row['withheld_fields']):
+            field = row['fields'].get(key)
+            label = financial_field_label(key, field)
+            if field:
+                value = f"{field['unit']} {field['value']:,}"
+                definitions.append('<li>' + escape(f"{label} · {field['row_label']} · {field['column_header']} · "
+                    f"{field['unit_evidence']} · {field['period_evidence']}") + '</li>')
+            else:
+                reason = row['withheld_fields'][key]
+                explanation = {
+                    'non_equivalent_reported_component': 'The source reports net property and equipment payments. Gross purchases need verification.',
+                    'direct_reported_row_unavailable': 'A matching value is absent from this duration in the results document.',
+                }.get(reason, reason.replace('_', ' '))
+                value = 'Withheld · ' + explanation
+            lines.append('<tr><th scope="row">' + escape(label) + '</th><td>' + escape(value) + '</td></tr>')
+        panels.append('<p>' + escape(' · '.join(basis)) + '</p><div class="archive-quarter-table"><table>'
+                      '<thead><tr><th scope="col">Field</th><th scope="col">Reported value</th></tr></thead><tbody>'
+                      + ''.join(lines) + '</tbody></table></div><details><summary>Field definitions</summary><ul>'
+                      + ''.join(definitions) + '</ul></details>')
+    refs = ''.join('<li><a target="_blank" rel="noopener noreferrer" href="' + escape(r['source_url'], quote=True)
+                   + '">SEC document</a> · observed ' + escape(r['observed_at']) + ' · SHA-256 '
+                   + escape(r['payload_sha256']) + '</li>' for r in archive['source_receipts'])
+    return (_STYLE + '<section class="company-archive-quarter" aria-label="Exact SEC native-currency results">'
+            '<h3>Exact SEC native-currency results</h3><p>'
+            + escape(f"{archive['form']} · Filed {archive['filed']} · Accession {archive['accession']}") + '</p>'
+            + ''.join(panels) + '<details><summary>SEC source and reporting basis</summary>'
+            '<p><a target="_blank" rel="noopener noreferrer" href="' + escape(archive['source_url'], quote=True)
+            + '">Open exact SEC results document</a></p><p>Reported consolidated results · Personal inspection only.</p><p>'
+            + escape('Accepted ' + archive['accepted_at'] + ' · Observed ' + archive['observed_at'])
+            + '</p><ul>' + refs + '</ul></details></section>')

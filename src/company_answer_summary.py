@@ -168,9 +168,18 @@ def _financial_answer(projection, financial):
     if _iso_date(filed):
         evidence.append(f'Filed {filed}')
     exact = fact.get('reported_numeric_schema') == 'sec-reported-numeric-v1'
-    links = [('Exact SEC filing fact' if exact else 'SEC financial facts', fact['source_ref'])] if fact.get('source_ref') else []
-    if exact:
+    native_quarter = projection.get('native_quarter_selected') is True
+    source_label = 'Exact SEC results document' if native_quarter else 'Exact SEC filing fact' if exact else 'SEC financial facts'
+    links = [(source_label, fact['source_ref'])] if fact.get('source_ref') else []
+    if exact or native_quarter:
         evidence.append('Exact archive source · Personal inspection only; commercial rights and saved-model readiness remain unapproved.')
+    if native_quarter:
+        row = next(p for p in projection['native_quarter_archive']['periods'] if p['kind'] == 'quarterly')
+        evidence.append(f"Reported consolidated table · {fact['row_label']} · {fact['column_header']}")
+        if row['provisional']:
+            evidence.append('The results release identified these figures as provisional when published.')
+        if row.get('unaudited'):
+            evidence.append('The reported table is unaudited.')
     cik = financial.get('sec_cik')
     if isinstance(cik, str) and re.fullmatch(r'\d{10}', cik) and isinstance(accession, str) and re.fullmatch(r'\d{10}-\d{2}-\d{6}', accession):
         links.append(('SEC filing index', f'https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace("-", "")}/{accession}-index.htm'))
@@ -198,10 +207,14 @@ def _financial_answer(projection, financial):
                     links.append(('Exact SEC operating income fact', current['source_ref']))
             if prior.get('source_ref'):
                 links.append((f'Prior {change_label.lower()} source', prior['source_ref']))
+    elif native_quarter:
+        comparison = None
     else:
         comparison = _comparable_revenue(financial, end, kind, unit)
     context = f'Period ended {end}'
     extra = {'native_archive_annual': native_annual, 'headline_context': context}
+    if native_quarter:
+        extra['native_quarter_end'] = end
     if comparison:
         basis, direction, prior_date, prior_value = comparison
         context += f' · {change_label} {direction} {basis}'
