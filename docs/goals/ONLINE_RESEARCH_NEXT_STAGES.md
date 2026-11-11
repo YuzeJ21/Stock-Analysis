@@ -10,7 +10,16 @@ Discover's optional **Coverage studies → Self-service** study declares twelve 
 
 Reprocessing the same twelve saved source observations after the shared filing-catalog repair improved usable catalogs from 5/12 to 12/12. The same-source tool pass retained current annual facts for 9/12, direct-quarter facts for 5/12, interim facts for 0/12, dated closes for 12/12, compatible current or historical trends for 11/12, hypothetical scenarios for 5/12 and exact private replay for 10/12. All three banks remained excluded from operating-company FCFF scenarios. TSM's 758,318-byte context remained above the 524,288-byte replay bound; IBN's Companyfacts source was unavailable. These controlled counts are not final results from the separate fresh peer-source collection.
 
-Current next goal: assess exact peer-source retention and distinguish source-access failures from method exclusions; inspect the actual filed facts behind current gaps for C, DUK, SO and NEE; qualify TSM native-currency/6-K durations and the separate IBN non-XBRL path; and improve size-bounded exact replay without silently dropping context. Preserve unsupported DCF, share/ADS/currency, source-rights and consensus holds. Meaningful saved-update prioritization still requires independently observed subsequent filings. Hosted operation requires a separately authorized delivery and source-rights decision.
+## TSM snapshot replay goal
+
+Use TSM's captured research to verify save, unchanged comparison and exact offline return from Monitor. Keep all normalized fields, original observations, receipt dates and unsupported conclusions. Store larger valid snapshots losslessly within the existing 512 KiB file budget and a separate 1 MiB decoded budget. Continue reading existing snapshots and checking issuer/profile scope, normalized evidence, checksums and source eligibility.
+
+1. Reproduce the captured context's size failure through the real store.
+2. Add bounded lossless storage and connect Discover's replay result to the same limits.
+3. Verify the full captured context in a disposable store and use constructed data to exercise save and exact Monitor return on desktop and phone.
+4. Record measured results, protected data checks and remaining source gaps.
+
+Follow with the exact TSM 20-F annual evidence, explicitly dated TWD quarterly statements, and IBN's separate non-XBRL integration. Keep ADS earnings and native/convenience currencies independently qualified. Verify a meaningful subsequent-filing change through Monitor when a new comparable observation is available. Hosted operation requires a separate delivery and source-rights decision.
 
 ## Completed foundation: shared acquisition continuity
 

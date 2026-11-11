@@ -5,6 +5,7 @@ A checksum verifies saved bytes; it is not a source approval or a signature.
 """
 from __future__ import annotations
 
+from base64 import b64decode, b64encode
 from datetime import datetime, timezone
 from hashlib import sha256
 from itertools import islice
@@ -14,6 +15,7 @@ import os
 from pathlib import Path
 import re
 import stat
+import zlib
 
 from src.sec_cover_observations import COVER_FIELDS, validate_cover_scope
 from src.sec_reported_numeric import valid_reported_numeric
@@ -23,6 +25,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_VERSION = 'online-research-snapshot-v1'
 CONTEXT_SCHEMA_VERSION = 'online-company-research-v1'
 MAX_SNAPSHOT_BYTES = 512 * 1024
+MAX_EXPANDED_SNAPSHOT_BYTES = 1024 * 1024
+_COMPRESSED_SCHEMA = 'online-research-snapshot-zlib-v1'
 MAX_SNAPSHOTS_PER_SCOPE = 100
 MAX_RESEARCH_SCOPES = 100
 MAX_JSON_DEPTH = 32
@@ -40,9 +44,28 @@ _METADATA_KEYS = {'observed_at', 'observed_at_utc', 'retrieved_at', 'retrieved_a
     'packet_digest', 'digest', 'sha256'}
 
 
-def _json(value):
+class ResearchSnapshotSizeError(ValueError):
+    """The snapshot exceeds a storage or expansion limit."""
+
+    def __init__(self, message, *, limit_kind='expanded'):
+        super().__init__(message)
+        self.limit_kind = limit_kind
+
+
+def _json(value, *, max_bytes=None, limit_kind='expanded'):
     try:
-        return json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=True, allow_nan=False).encode('utf-8')
+        encoder = json.JSONEncoder(sort_keys=True, separators=(',', ':'), ensure_ascii=True, allow_nan=False)
+        if max_bytes is None:
+            return encoder.encode(value).encode('ascii')
+        output = bytearray()
+        for chunk in encoder.iterencode(value):
+            encoded = chunk.encode('ascii')
+            if len(output) + len(encoded) > max_bytes:
+                raise ResearchSnapshotSizeError('Research snapshot size limit exceeded', limit_kind=limit_kind)
+            output.extend(encoded)
+        return bytes(output)
+    except ResearchSnapshotSizeError:
+        raise
     except (TypeError, ValueError, RecursionError, OverflowError) as exc:
         raise ValueError('Research context must be finite normalized JSON') from exc
 
@@ -161,7 +184,7 @@ def _normalized(value):
             return
         if isinstance(item, str):
             if len(item) > MAX_SNAPSHOT_BYTES:
-                raise ValueError('Research snapshot size limit exceeded')
+                raise ResearchSnapshotSizeError('Research snapshot size limit exceeded', limit_kind='field')
             if item.lstrip().lower().startswith('data:') and ';base64,' in item.lower():
                 raise ValueError('Research context must contain normalized observations, not base64 bodies')
             return
@@ -201,9 +224,7 @@ def _normalized(value):
         active.remove(id(item))
 
     visit(value, 0)
-    raw = _json(value)
-    if len(raw) > MAX_SNAPSHOT_BYTES:
-        raise ValueError('Research snapshot size limit exceeded')
+    raw = _json(value, max_bytes=MAX_EXPANDED_SNAPSHOT_BYTES)
     return json.loads(raw)
 
 
@@ -311,7 +332,13 @@ def _read(path, root):
         raise ValueError('Saved research snapshot not found') from exc
     if not 0 < len(raw) <= MAX_SNAPSHOT_BYTES:
         raise ValueError('Saved research snapshot size limit exceeded')
+    snapshot = _parse_json(raw)
+    if isinstance(snapshot, dict) and snapshot.get('schema_version') == _COMPRESSED_SCHEMA:
+        snapshot = _expand_snapshot(snapshot)
+    return snapshot
 
+
+def _parse_json(raw):
     def unique(pairs):
         result = {}
         for key, value in pairs:
@@ -327,6 +354,37 @@ def _read(path, root):
         return json.loads(raw, object_pairs_hook=unique, parse_constant=constant)
     except (UnicodeError, json.JSONDecodeError, RecursionError, OverflowError) as exc:
         raise ValueError('Saved research snapshot could not be parsed') from exc
+
+
+def _expand_snapshot(wrapper):
+    size = wrapper.get('expanded_bytes')
+    payload = wrapper.get('payload_base64')
+    if (set(wrapper) != {'schema_version', 'expanded_bytes', 'payload_base64'}
+            or type(size) is not int or not 0 < size <= MAX_EXPANDED_SNAPSHOT_BYTES
+            or not isinstance(payload, str) or not payload):
+        raise ValueError('Invalid compressed research snapshot envelope')
+    try:
+        compressed = b64decode(payload, validate=True)
+        if b64encode(compressed).decode('ascii') != payload:
+            raise ValueError('Noncanonical compressed research snapshot encoding')
+        decoder = zlib.decompressobj()
+        expanded = decoder.decompress(compressed, size + 1)
+    except (ValueError, zlib.error) as exc:
+        raise ValueError('Invalid compressed research snapshot payload') from exc
+    if (len(expanded) != size or not decoder.eof
+            or decoder.unconsumed_tail or decoder.unused_data):
+        raise ValueError('Invalid compressed research snapshot stream or size')
+    return _parse_json(expanded)
+
+
+def _stored_snapshot(snapshot):
+    raw = _json(snapshot, max_bytes=MAX_EXPANDED_SNAPSHOT_BYTES - 1) + b'\n'
+    if len(raw) <= MAX_SNAPSHOT_BYTES:
+        return raw
+    compressed = zlib.compress(raw)
+    wrapper = dict(schema_version=_COMPRESSED_SCHEMA, expanded_bytes=len(raw),
+                   payload_base64=b64encode(compressed).decode('ascii'))
+    return _json(wrapper, max_bytes=MAX_SNAPSHOT_BYTES - 1, limit_kind='stored') + b'\n'
 
 
 def _limit(value, maximum):
@@ -362,9 +420,7 @@ def save_research_context(context, *, profile_key, ticker, sec_cik, project_root
     """Save an immutable normalized copy; exact repeated inputs are idempotent."""
     scope = _scope(profile_key, ticker, sec_cik)
     snapshot = _snapshot(_context(context, scope))
-    raw = _json(snapshot) + b'\n'
-    if len(raw) > MAX_SNAPSHOT_BYTES:
-        raise ValueError('Research snapshot size limit exceeded')
+    raw = _stored_snapshot(snapshot)
     directory, root = _directory(scope, project_root)
     existing = list_research_contexts(**scope, project_root=project_root, limit=MAX_SNAPSHOTS_PER_SCOPE)
     for saved in existing:

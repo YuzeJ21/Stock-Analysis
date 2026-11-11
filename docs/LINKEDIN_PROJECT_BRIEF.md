@@ -50,7 +50,7 @@ The full Streamlit workspace runs locally. GitHub Pages hosts the fictional Engl
 | Stage | Current answer | Boundary |
 | --- | --- | --- |
 | Now | Share the dated SEC filing case as the Featured example, the guided fictional Pages demo for the full interactive workflow, and the local workspace through the repository. | These are controlled portfolio/demo examples. They do not prove current-market coverage or outside reviewer demand. |
-| Next | Review one named peer relationship and explain price/financial comparability; qualify a new issuer or period when new source evidence is available. | Keep economic rationale, fiscal periods, price dates, exclusions, and source rights explicit. Distinguish financial or filing changes from retrieval or issuer-association metadata changes. |
+| Next | Qualify exact native-currency filings for foreign issuers and demonstrate a meaningful subsequent filing change through Monitor. | Retain source dates, reporting periods, currency and security basis, and field-level gaps. |
 | Not yet | Host the full Streamlit workspace or claim broad fundamentals, peers, earnings, estimates, predictive validation, or commercial operation. | Each needs source rights, repeatable operations, and direct validation. |
 
 The active sequence is in the [Roadmap](../ROADMAP.md). `make next-stage` prints the current package and source-proof decision ladder without changing local data. Run `make project-status-check` first and use `make provider-setup-checklist` when source-proof queues are exhausted. Do not run trusted-data pilot queues as a LinkedIn demo talking point unless project-status-check shows executable source-backed candidates.

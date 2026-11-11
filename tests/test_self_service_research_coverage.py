@@ -329,15 +329,37 @@ def test_listing_transport_failure_is_failed_with_original_attempt_reason_not_me
 
 def test_oversized_research_context_is_an_explicit_size_hold_before_any_snapshot_save(monkeypatch):
     from src import online_research_context_store as store
-    monkeypatch.setattr(store,'MAX_SNAPSHOT_BYTES',1)
+    monkeypatch.setattr(store,'MAX_EXPANDED_SNAPSHOT_BYTES',1)
     monkeypatch.setattr(store,'save_research_context',lambda *a,**k:pytest.fail('Oversized context attempted a save'))
     deps,calls=dependencies();state={};result=study(state,inspect=True,deps=deps)
     row=result['rows'][0];proof=row['snapshot_replay']
     assert row['capabilities']['snapshot_replay']=={'status':'held','reason':'research_snapshot_size_limit'}
     assert proof['context_bytes']>proof['max_context_bytes']==1
+    assert proof['limit_kind'] == 'expanded' and proof['max_stored_bytes'] == store.MAX_SNAPSHOT_BYTES
     assert proof['disposable_store'] is True and proof['user_store_written'] is False
     before=list(calls);again=study(state,deps=deps)
     assert calls==before and again['rows'][0]['snapshot_replay']==proof
+
+
+def test_snapshot_store_size_failure_is_held_and_keeps_proof_on_read(monkeypatch):
+    from src import online_research_context_store as store
+
+    def size_failure(*args, **kwargs):
+        raise store.ResearchSnapshotSizeError('Research snapshot size limit exceeded', limit_kind='stored')
+
+    monkeypatch.setattr(store, 'save_research_context', size_failure)
+    deps, calls = dependencies()
+    state = {}
+    result = study(state, inspect=True, deps=deps)
+    row = result['rows'][0]
+    proof = row['snapshot_replay']
+    assert row['capabilities']['snapshot_replay'] == {'status': 'held', 'reason': 'research_snapshot_size_limit'}
+    assert proof['limit_kind'] == 'stored' and proof['max_stored_bytes'] == store.MAX_SNAPSHOT_BYTES
+    assert proof['context_bytes'] <= proof['max_context_bytes'] == store.MAX_EXPANDED_SNAPSHOT_BYTES
+    assert proof['disposable_store'] is True and proof['user_store_written'] is False
+    before = list(calls)
+    assert study(state, deps=deps)['rows'][0]['snapshot_replay'] == proof
+    assert calls == before
 
 
 def test_oversized_peer_packet_preserves_independent_financial_catalog_and_price(monkeypatch):

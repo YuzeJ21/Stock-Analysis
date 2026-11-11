@@ -231,9 +231,10 @@ def _replay_probe(context, usable):
     from src import online_research_context_store as store
     try:
         context_bytes = len(_bytes(context))
-        if context_bytes > store.MAX_SNAPSHOT_BYTES:
+        if context_bytes > store.MAX_EXPANDED_SNAPSHOT_BYTES:
             result.update(reason='research_snapshot_size_limit',context_bytes=context_bytes,
-                max_context_bytes=store.MAX_SNAPSHOT_BYTES)
+                max_context_bytes=store.MAX_EXPANDED_SNAPSHOT_BYTES,
+                max_stored_bytes=store.MAX_SNAPSHOT_BYTES,limit_kind='expanded')
             return result
         scope = {key:context[key] for key in ('profile_key', 'ticker', 'sec_cik')}
         with TemporaryDirectory(prefix='self-service-capability-') as temporary:
@@ -246,6 +247,10 @@ def _replay_probe(context, usable):
                 reason='exact_private_context_replay' if exact and compared['status'] == 'unchanged' else 'private_context_replay_differs',
                 exact_context_match=exact, comparison_status=compared['status'],
                 snapshot_id=saved['snapshot_id'], source_revision=context['source_revision'])
+    except store.ResearchSnapshotSizeError as error:
+        result.update(reason='research_snapshot_size_limit',context_bytes=context_bytes,
+            max_context_bytes=store.MAX_EXPANDED_SNAPSHOT_BYTES,
+            max_stored_bytes=store.MAX_SNAPSHOT_BYTES,limit_kind=error.limit_kind)
     except (ValueError, OSError, TypeError, KeyError, AttributeError):
         result.update(status='failed', reason='disposable_private_replay_failed')
     return result

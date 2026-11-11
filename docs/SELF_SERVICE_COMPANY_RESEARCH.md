@@ -19,6 +19,8 @@ In **Discover → Coverage studies → Self-service**, use **Inspect next compan
 
 The four declared groups contain AMD/NVDA/QCOM, JPM/BAC/C, DUK/SO/NEE and TSM/SAP/IBN. They are study groups, not a market, industry or domicile census. Ten capabilities have separate available, partial, held, excluded, failed or unattempted states. A bank's excluded FCFF scenario does not erase useful financial observations, and a dated close does not establish P/E eligibility. The exact-replay check uses disposable private storage without reading user notes or writing user evidence stores. [Capabilities, measured results and source boundaries](CROSS_INDUSTRY_SELF_SERVICE.md)
 
+Large normalized contexts can use lossless compression within a 512 KiB stored snapshot limit and a 1 MiB decoded limit. Existing plain JSON snapshots remain readable. The original issuer scope, evidence, checksums and historical status are validated on replay. [TSM replay evidence](TSM_SNAPSHOT_REPLAY_RELEASE.md)
+
 ## What happens when a filing arrives
 
 Every financial refresh checks the issuer's SEC submissions metadata as well as Companyfacts. The inventory retains the current version for each annual/quarterly reporting period, accession, form, document, filing date, acceptance time and observation receipt. It validates issuer identity and exact SEC paths. Acceptance time and official filing date remain separate; neither is invented from the other.
