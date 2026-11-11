@@ -240,6 +240,8 @@ def _overview_gaps(financial, projection, research_context):
         gaps.extend(financial.get('native_comparison_gaps') or ())
     if (projection or {}).get('native_ytd_missing'):
         gaps.append('Year-to-date evidence needs verification')
+    if (projection or {}).get('bank_annual'):
+        gaps.extend(('Quarterly and year-to-date results need verification', 'Traded ADS earnings need verification'))
     withheld = (projection or {}).get('withheld_fields') or {}
     for field, label in METRICS.items():
         if field in withheld:
@@ -247,7 +249,8 @@ def _overview_gaps(financial, projection, research_context):
     current = (research_context or {}).get('filing_coverage', {}).get('current', {})
     for kind, label in (('annual', 'Annual filing evidence'), ('quarterly', 'Direct-quarter evidence')):
         state = current.get(kind, {})
-        if state.get('status') not in {'withheld', 'facts_pending', 'amendment_unresolved'}:
+        if (state.get('status') not in {'withheld', 'facts_pending', 'amendment_unresolved'}
+                or state.get('reason') == 'ibn_6k_reporting_basis_unqualified'):
             continue
         reason = {
             'supported_filing_form_unavailable': 'no supported filing form',

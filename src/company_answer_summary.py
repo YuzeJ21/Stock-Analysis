@@ -56,6 +56,13 @@ _FINANCIAL_GAPS = {
     'sec_user_agent_required': 'An identifying SEC user agent is required.',
     'sec_fetch_unavailable': 'The SEC financial source is unavailable.',
 }
+_BANK_FILING_GAPS = {
+    'ibn_annual_current_bank_filing_unverified': 'The latest annual filing could not be matched to the SEC catalog.',
+    'ibn_annual_source_receipts_unverified': 'The SEC issuer and filing receipts could not be verified.',
+    'ibn_annual_latest_non_xbrl_filing_unverified': 'The latest annual filing could not be qualified for the non-XBRL bank rule.',
+    'ibn_annual_current_fields_unavailable': 'The latest annual columns lack a verified directly reported bank field.',
+    'sec_archive_access_limited': 'The SEC limited access to the annual filing.',
+}
 
 
 def _card(key, value, context, evidence=(), links=()):
@@ -149,10 +156,41 @@ def _change_headline(label, current, prior, direction):
     return f'{label} {direction}'
 
 
+def _bank_financial_answer(bank):
+    """Lead with the bank's reported group profit and its same-statement baseline."""
+    current, previous, *_ = bank['periods']
+    label = 'Profit attributable to the Group'
+    field = current['fields'].get('profit_attributable_to_group')
+    baseline = previous['fields'].get('profit_attributable_to_group')
+    context = f"Year ended {current['period_end']} · Consolidated Indian GAAP"
+    source = [('Exact SEC annual filing', bank['source_url'])]
+    evidence = [f"Annual period {current['period_start']} to {current['period_end']}",
+                f"Form {bank['form']} · Filed {bank['filed']} · Observed {bank['observed_at']}"]
+    if not field:
+        answer = _card('financial', 'Reported bank income and cash flows', context, tuple(evidence), tuple(source))
+        return dict(answer, native_archive_annual=True, gap='Group profit needs verification')
+    value = f"{label} {_money(bank['unit'], field['value'])}"
+    source.append(('Consolidated profit and loss statement', field['source_ref']))
+    evidence.append(f"{label} · {field['unit']} {field['value']:,}")
+    if not baseline:
+        answer = _card('financial', value, context, tuple(evidence), tuple(source))
+        return dict(answer, native_archive_annual=True, gap='Prior-year Group profit needs verification')
+    evidence.append(f"Prior year ended {previous['period_end']} · {baseline['unit']} {baseline['value']:,}")
+    headline = _change_headline(label, field['value'], baseline['value'], _direction(field['value'], baseline['value']))
+    answer = _card('financial', value, context, tuple(evidence), tuple(source))
+    return dict(answer, native_archive_annual=True, headline=headline, headline_context=f'Year over year · {context}')
+
+
 def _financial_answer(projection, financial):
     financial = financial if isinstance(financial, Mapping) else {}
+    if projection.get('bank_annual'):
+        return _bank_financial_answer(projection['bank_annual'])
     fact = projection.get('facts', {}).get('revenue')
     if not fact:
+        bank = financial.get('ibn_archive_annual')
+        if isinstance(bank, Mapping):
+            message = _BANK_FILING_GAPS.get(bank.get('reason'), 'The exact non-XBRL bank statement needs verification.')
+            return _card('financial', 'Annual bank evidence needs verification', message, (message,))
         if financial.get('status') in {None, 'not_requested'}:
             message = 'Financials have not been requested. Refresh financials and prices to load a verified period.'
         else:

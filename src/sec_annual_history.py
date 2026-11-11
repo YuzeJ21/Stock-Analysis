@@ -192,6 +192,13 @@ def fetch_sec_online_research_view(ticker: str, *, user_agent: str, ticker_map_r
         view['filing_inventory'] = build_filing_inventory(
             profile_receipt, ticker=ticker, expected_cik=cik, as_of=observed_at,
         )
+        from src.sec_online_ibn_evidence import CIK as IBN_CIK, TICKER as IBN_TICKER, fetch_ibn_archive_annual
+        if (ticker, cik) == (IBN_TICKER, IBN_CIK):
+            view.update(ticker=ticker, sec_cik=cik)
+            view['ibn_archive_annual'] = fetch_ibn_archive_annual(
+                view, user_agent=user_agent, ticker_map_receipt=captured.get('map_receipt'),
+                submissions_receipt=profile_receipt, source_fetcher=source_fetcher, observed_at=observed_at,
+            )
         view['filing_coverage'] = corroborate_online_financials(view, view['filing_inventory'], as_of=observed_at)
         from src.sec_online_quarter_evidence import fetch_archive_quarter
         view['archive_quarterly'] = fetch_archive_quarter(

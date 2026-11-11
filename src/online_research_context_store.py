@@ -198,6 +198,10 @@ def _normalized(value):
         nodes += 1
         if depth > MAX_JSON_DEPTH or nodes > MAX_JSON_NODES:
             raise ValueError('Research context depth or node limit exceeded')
+        if path == ('business_trend', 'bank_annual'):
+            from src.sec_online_ibn_evidence import valid_saved_ibn_annual
+            if not valid_saved_ibn_annual(item, context=value):
+                raise ValueError('Normalized bank evidence is invalid or outside its exact filing scope')
         if item is None or isinstance(item, bool):
             return
         if isinstance(item, (int, float)) and not isinstance(item, bool):
@@ -224,9 +228,13 @@ def _normalized(value):
                     and isinstance(path[4], str))
                 comparative = (len(path) == 5 and path[:2] == ('business_trend', 'comparative_periods')
                     and type(path[2]) is int and path[3] == 'fields' and isinstance(path[4], str))
+                bank_field = (len(path) == 6 and path[:3] == ('business_trend', 'bank_annual', 'periods')
+                    and type(path[3]) is int and path[4] == 'fields' and isinstance(path[5], str))
                 row = value['business_trend']['periods'][path[2]] if typed else None
                 valid = False
-                if comparative:
+                if bank_field:
+                    valid = item.get('reported_numeric_schema') == 'sec-ibn-bank-number-v1'
+                elif comparative:
                     from src.sec_online_native_quarter_evidence import valid_native_quarter_comparative_field
                     prior = value['business_trend']['comparative_periods'][path[2]]
                     valid = valid_native_quarter_comparative_field(item, context=value, row=prior, field_name=path[4])

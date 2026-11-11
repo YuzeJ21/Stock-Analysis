@@ -38463,6 +38463,9 @@ def render_company_workbench(
         projection=bundle.get("projection", {})
         from src.sec_online_quarter_view import archive_quarter_html, native_quarter_html
         st.markdown(archive_quarter_html(view)+native_quarter_html(projection.get('native_quarter_archive')),unsafe_allow_html=True)
+        if projection.get('bank_annual'):
+            from src.sec_exact_filing_view import bank_annual_html
+            st.markdown(bank_annual_html(projection['bank_annual'],show_history=False),unsafe_allow_html=True)
         annual_archive = projection.get("annual_archive")
         if annual_archive:
             annual_row = annual_archive["periods"][0]

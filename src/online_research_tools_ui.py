@@ -263,6 +263,7 @@ def _snapshots(st, context, bundle):
             return
         scope = _scope(context)
         matched = bundle['financial'].get('companyfacts_identity', {}).get('status') == 'source_matched'
+        matched = matched or bool(context.get('business_trend', {}).get('bank_annual'))
         try:
             if st.button('Save research snapshot', key='online-research-save', disabled=not matched):
                 saved = save_research_context(context, **scope, project_root=PROJECT_ROOT)
@@ -273,6 +274,9 @@ def _snapshots(st, context, bundle):
                 historical = load_research_context(requested, **scope, project_root=PROJECT_ROOT)
                 st.info('Historical replay · ' + historical['observed_at'])
                 trend = historical['context'].get('business_trend') or {}
+                if trend.get('bank_annual'):
+                    from src.sec_exact_filing_view import bank_annual_html
+                    st.markdown(bank_annual_html(trend['bank_annual']), unsafe_allow_html=True)
                 comparisons = trend.get('comparative_periods') or []
                 if comparisons:
                     from src.sec_online_quarter_view import native_quarter_comparisons_html
@@ -311,7 +315,9 @@ def render_online_tools(st, section, bundle):
         return
     context = bundle['research_context']
     if section == 'financials':
-        _business_trend(st, context)
+        trend = context['business_trend']
+        if not trend.get('bank_annual') or trend['metrics']:
+            _business_trend(st, context)
     elif section == 'valuation':
         _scenario(st, context, bundle['online_scenario_key'])
     elif section == 'notes':

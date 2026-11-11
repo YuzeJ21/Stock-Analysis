@@ -21,6 +21,12 @@ DEFINITIONS={
  'cash_from_operations':('cash','Net cash flow from/(used in) operating activities ((i)+(ii)+(iii))','Net operating cash flow'),
  'fixed_asset_purchases':('cash','Purchase of fixed assets','Fixed-asset purchases · signed cash flow')}
 WITHHELD={k:'not_a_direct_equivalent_in_selected_consolidated_statements' for k in ('revenue','operating_income','net_interest_income','free_cash_flow','valuation')}
+_COVER_HEADERS=('Title of each class','Trading Symbol(s)','Name of each exchange on which registered')
+_COVER_EXCHANGE='The New York Stock Exchange'
+_COVER_ADS='American Depositary Shares'
+_COVER_EQUITY='Equity Shares of ICICI Bank Limited(1)'
+_COVER_NOTE='Not for trading, but only in connection with the registration of American Depositary Shares'
+_COVER_ADS_WRAP=(_COVER_ADS+', each representing two Equity Shares of','ICICI Bank Limited, par value','Rs. 2 per share')
 
 def _norm(s):return ' '.join(s.split())
 def _hidden(attrs):
@@ -83,6 +89,7 @@ class _Tables(HTMLParser):
    if self.stack[i][0]==tag:del self.stack[i:];break
 
 def _amount(text):
+ if not isinstance(text,str) or not 1<=len(text)<=40:return None
  raw=text.strip()
  if raw.startswith('(') and raw.endswith(')'):raw='-'+raw[1:-1].strip()
  if re.fullmatch(r'\((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?\)',raw):raw='-'+raw[1:-1]
@@ -92,6 +99,22 @@ def _amount(text):
   if not n.is_finite() or abs(n)>Decimal('1e20'):return None
   return int(n) if n==n.to_integral_value() else float(n)
  except (ValueError,InvalidOperation,OverflowError):return None
+
+def valid_bank_html_numeric(field, *, field_name, source_url):
+ """Check a parsed field's filed definition, signed amount and table locator."""
+ if not isinstance(field,Mapping) or not isinstance(field_name,str) or field_name not in DEFINITIONS or not isinstance(source_url,str):
+  return False
+ label,definition=DEFINITIONS[field_name][1:]
+ span,anchor=field.get('column_span'),field.get('anchor')
+ value=field.get('value')
+ return (field.get('field')==field_name and field.get('label')==label and field.get('definition')==definition
+         and field.get('unit')=='INR' and type(field.get('scale')) is int and field['scale']==1000
+         and field.get('rights_status')==RIGHTS and type(value) in {int,float} and value==_amount(field.get('raw_text'))
+         and type(field.get('table_index')) is int and 0<=field['table_index']<=10000
+         and type(field.get('row_index')) is int and 0<=field['row_index']<500
+         and isinstance(span,list) and len(span)==2 and all(type(n) is int for n in span) and 0<=span[0]<span[1]<=64
+         and isinstance(anchor,str) and bool(re.fullmatch(r'[A-Za-z_][A-Za-z0-9_.-]{0,127}',anchor))
+         and field.get('source_ref')==source_url+'#'+anchor)
 
 def _grid(table,end):
  if table['bad'] or not 1<=len(table['rows'])<=500 or not isinstance(table['anchor'],str) or not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_.-]{0,127}',table['anchor']):raise ValueError('unsupported_statement_structure')
@@ -135,16 +158,48 @@ def _basis_evidence(paragraphs):
  if not proof:raise ValueError('current_consolidated_basis_unverified')
  return proof
 
+def _cover_rows_match(rows):
+ if not rows or tuple(cell['text'] for cell in rows[0])!=_COVER_HEADERS or any(cell['bad'] for cell in rows[0]):
+  return False
+ ads=[(i,row) for i,row in enumerate(rows[1:],1) if row and _COVER_ADS in row[0]['text']]
+ if len(ads)!=1:return False
+ index,row=ads[0]
+ if len(row)!=3 or any(cell['bad'] or cell['span']!=1 for cell in row):return False
+ label,symbol,exchange=(cell['text'] for cell in row)
+ if label in {_COVER_ADS,'Equity Shares and '+_COVER_ADS}:
+  return (symbol,exchange)==('IBN',_COVER_EXCHANGE)
+ if label!=_COVER_ADS_WRAP[0] or symbol or exchange or index<2 or index+2>=len(rows):
+  return False
+ # The SEC cover wraps the ADS class below the equity line that bears note (1).
+ equity=rows[index-1]
+ continuation=rows[index+1:index+3]
+ return (len(equity)==3 and all(cell['span']==1 for cell in equity) and not any(cell['bad'] for cell in equity[1:])
+         and tuple(cell['text'] for cell in equity)==(_COVER_EQUITY,'IBN',_COVER_EXCHANGE)
+         and all(len(part)==3 and not any(cell['bad'] or cell['span']!=1 for cell in part)
+                 and tuple(cell['text'] for cell in part)==(text,'','')
+                 for part,text in zip(continuation,_COVER_ADS_WRAP[1:])))
+
+
+def _cover_text_matches(text):
+ if not isinstance(text,str) or len(text)>10000:return False
+ header=' '.join(_COVER_HEADERS)+' '
+ normalized=_norm(text)+' '
+ return any(normalized.startswith(header+record+' ') for record in (
+  _COVER_ADS+' IBN '+_COVER_EXCHANGE,
+  'Equity Shares and '+_COVER_ADS+' IBN '+_COVER_EXCHANGE,
+  _COVER_EQUITY+' IBN '+_COVER_EXCHANGE+' '+' '.join(_COVER_ADS_WRAP),
+ ))
+
+
 def _registration(parser,document,selection):
  held=dict(status='withheld',reason='qualified_cover_security_disclosure_unavailable',current_legal_type_established=False)
  tables=[t for t in parser.tables if t['index']<20 and not t['bad'] and len(t['rows'])<50
-         and 'Title of each class' in ' '.join(c['text'] for r in t['rows'] for c in r)]
- if len(tables)!=1:return held
- table=tables[0];text=' '.join(c['text'] for r in table['rows'] for c in r)
- prefix=document[:20000]
- if (not all(s in text for s in ('American Depositary Shares','IBN','The New York Stock Exchange','Trading Symbol'))
-     or 'Not for trading, but only in connection with the registration of American Depositary Shares' not in prefix):return held
- return dict(status='observed_as_filed',declared_type='depositary_receipt',label='American Depositary Shares',as_of=selection['filed'],current_legal_type_established=False,source_ref=selection['source_url'],table_index=table['index'],raw_cover_table=text,underlying_note='Not for trading, but only in connection with the registration of American Depositary Shares')
+         and any(c['text']==_COVER_HEADERS[0] for r in t['rows'] for c in r)]
+ if len(tables)!=1 or _COVER_NOTE not in document[:20000]:return held
+ table=tables[0]
+ if not _cover_rows_match(table['rows']):return held
+ text=' '.join(c['text'] for r in table['rows'] for c in r)
+ return dict(status='observed_as_filed',declared_type='depositary_receipt',label=_COVER_ADS,as_of=selection['filed'],current_legal_type_established=False,source_ref=selection['source_url'],table_index=table['index'],raw_cover_table=text,underlying_note=_COVER_NOTE)
 
 def extract_bank_html(raw,selection,receipt):
  held=dict(status='withheld',ticker=selection.get('ticker'),period_kind=selection.get('period_kind'),reason='bank_html_evidence_unavailable')
@@ -209,22 +264,15 @@ def validated_bank_html(p,ticker,period_kind):
   for y,row in enumerate(p['periods']):
    if row['period_start']!=f'{end.year-y-1}-04-01' or row['period_end']!=f'{end.year-y}-03-31' or set(row['fields'])|set(row['withheld_fields'])!=set(DEFINITIONS) or set(row['fields'])&set(row['withheld_fields']):return None
    if any(not isinstance(v,str) or not v for v in row['withheld_fields'].values()):return None
-   for name,f in row['fields'].items():
-    span=f['column_span'];anchor=f['anchor']
-    if (f['field']!=name or f['label']!=DEFINITIONS[name][1] or f['definition']!=DEFINITIONS[name][2] or f['unit']!='INR' or f['scale']!=1000 or f['rights_status']!=RIGHTS
-        or type(f['value']) not in {int,float} or f['value']!=_amount(f['raw_text']) or type(f['table_index']) is not int or not 0<=f['table_index']<=10000 or type(f['row_index']) is not int or not 0<=f['row_index']<500
-        or not isinstance(span,list) or len(span)!=2 or any(type(n) is not int for n in span) or not 0<=span[0]<span[1]<=64
-        or not isinstance(anchor,str) or not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_.-]{0,127}',anchor) or f['source_ref']!=url+'#'+anchor):return None
+   if any(not valid_bank_html_numeric(f,field_name=name,source_url=url) for name,f in row['fields'].items()):return None
   if p['packet_digest']!=_digest({k:v for k,v in p.items() if k!='packet_digest'}):return None
   if not isinstance(p.get('basis_evidence'),list) or _basis_evidence(p['basis_evidence'])!=p['basis_evidence']:return None
   r=p['registration_observation']
   if r.get('current_legal_type_established') is not False:return None
   if r.get('status')=='observed_as_filed':
-   if (r.get('declared_type')!='depositary_receipt' or r.get('label')!='American Depositary Shares' or r.get('as_of')!=p['filed'] or r.get('source_ref')!=url
+   if (r.get('declared_type')!='depositary_receipt' or r.get('label')!=_COVER_ADS or r.get('as_of')!=p['filed'] or r.get('source_ref')!=url
        or type(r.get('table_index')) is not int or not 0<=r['table_index']<20
-       or not isinstance(r.get('raw_cover_table'),str) or len(r['raw_cover_table'])>10000
-       or not all(s in r['raw_cover_table'] for s in ('American Depositary Shares','IBN','The New York Stock Exchange','Trading Symbol'))
-       or r.get('underlying_note')!='Not for trading, but only in connection with the registration of American Depositary Shares'):return None
+       or not _cover_text_matches(r.get('raw_cover_table')) or r.get('underlying_note')!=_COVER_NOTE):return None
   elif r!=dict(status='withheld',reason='qualified_cover_security_disclosure_unavailable',current_legal_type_established=False):return None
   return dict(p)
  except (KeyError,TypeError,ValueError,AttributeError,RecursionError):return None

@@ -103,6 +103,44 @@ def test_cover_ads_disclosure_is_an_independent_as_filed_observation():
  assert p['registration_observation']['current_legal_type_established'] is False
  assert extract()['registration_observation']['status']=='withheld'
 
+
+@pytest.mark.parametrize('rows', [
+ '<tr><td>Equity Shares and American Depositary Shares</td><td>XIBN</td><td>The New York Stock Exchange</td></tr>',
+ '<tr><td>Equity Shares of ICICI Bank Limited<sup>(1)</sup></td><td>IBN</td><td>The New York Stock Exchange</td></tr>'
+ '<tr><td>American Depositary Shares</td><td>OTHER</td><td>Nasdaq</td></tr>',
+ '<tr><td>Equity Shares and American Depositary Shares</td><td><span hidden>IBN</span></td>'
+ '<td>The New York Stock Exchange</td></tr>',
+])
+def test_cover_cannot_borrow_symbol_or_exchange_from_a_different_or_hidden_security(rows):
+ t=html().replace(BASIS,BASIS+'<table><tr><td>Title of each class</td><td>Trading Symbol(s)</td>'
+  '<td>Name of each exchange on which registered</td></tr>'+rows+'</table>'
+  '<p>Not for trading, but only in connection with the registration of American Depositary Shares.</p>')
+ p=extract(t)
+ assert p['status']=='inspection_only'
+ assert p['registration_observation']['status']=='withheld'
+
+
+def test_filing_cover_supports_wrapped_ads_class_bound_to_the_issuer_and_equity_note():
+ cover=('<table><tr><td>Title of each class</td><td>Trading Symbol(s)</td>'
+  '<td>Name of each exchange on which registered</td></tr>'
+  '<tr><td>Equity Shares of ICICI Bank Limited<sup>(1)</sup></td><td>IBN</td><td>The New York Stock Exchange</td></tr>'
+  '<tr><td>American Depositary Shares, each representing two Equity Shares of</td><td></td><td></td></tr>'
+  '<tr><td>ICICI Bank Limited, par value</td><td></td><td></td></tr>'
+  '<tr><td>Rs. 2 per share</td><td></td><td></td></tr></table>'
+  '<p>Not for trading, but only in connection with the registration of American Depositary Shares.</p>')
+ assert extract(html().replace(BASIS,BASIS+cover))['registration_observation']['status']=='observed_as_filed'
+ assert extract(html().replace(BASIS,BASIS+cover.replace('ICICI Bank Limited, par value','Other Bank, par value')))[
+  'registration_observation']['status']=='withheld'
+
+
+def test_bank_numeric_proof_reuses_exact_annual_label_scale_signed_literal_and_locator():
+ from src.sec_html_bank import valid_bank_html_numeric
+ field=extract()['periods'][0]['fields']['fixed_asset_purchases']
+ assert valid_bank_html_numeric(field,field_name='fixed_asset_purchases',source_url=URL)
+ assert not valid_bank_html_numeric(field,field_name='capital_expenditures',source_url=URL)
+ for key,value in (('scale',1),('raw_text','4'),('raw_text','0'*100),('source_ref',URL+'#wrong')):
+  assert not valid_bank_html_numeric(dict(field,**{key:value}),field_name='fixed_asset_purchases',source_url=URL)
+
 @pytest.mark.parametrize('cell',['50<sup>1</sup>','50<sub>1</sub>','50<small>1</small>','50<a href="#note">1</a>'])
 def test_annotated_financial_amounts_are_held_instead_of_joining_footnote_digits(cell):
  p=extract(html().replace('>50</td>','>'+cell+'</td>'))
