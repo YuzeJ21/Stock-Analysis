@@ -75,6 +75,14 @@ def _provider_status(root: Path) -> tuple[str, str, str]:
 
 def render_next_stage(root: Path | str | None = None, *, top_n: int = 10) -> str:
     project_root = resolve_project_root(Path(root or "."))
+    if (project_root / "ROADMAP.md").is_file():
+        product_lines = [
+            "Active product roadmap: ROADMAP.md → Product Decision",
+            "Use the active priorities and source requirements to choose bounded read-only online company evidence work.",
+        ]
+    else:
+        product_lines = ["Active product roadmap unavailable. ROADMAP.md is missing in this checkout."]
+
     project_status = build_project_status_payload(project_root, top_n=top_n)
     populations = project_status.get("coverage_populations") or {}
     saved = populations.get("saved_readiness") or {}
@@ -94,7 +102,7 @@ def render_next_stage(root: Path | str | None = None, *, top_n: int = 10) -> str
     linkedin_state, linkedin_evidence, linkedin_next = _stage_state(project_status, "LinkedIn publish")
     source_state, source_evidence, source_next = _stage_state(project_status, "Source-proof queues")
     generated_state, generated_evidence, generated_next = _stage_state(project_status, "Generated artifacts")
-    coverage_state, _, coverage_next = _stage_state(project_status, "Coverage depth")
+    coverage_state, _, _ = _stage_state(project_status, "Coverage depth")
     hosted_status = _hosted_url_status(project_root)
     missing_keys, configured_keys, smoke_command = _provider_status(project_root)
     workflow_continuation = project_status.get("workflow_continuation", {})
@@ -113,7 +121,7 @@ def render_next_stage(root: Path | str | None = None, *, top_n: int = 10) -> str
     ).strip()
 
     if suppress_execution:
-        executable_lines = [f"- Readiness inspection: {next_safe_command}"]
+        executable_lines = [f"- Saved-readiness inspection: {next_safe_command}"]
         external_heading = "External unblock conditions (not executable now):"
         external_lines = [
             f"- Hosted account/environment: {hosted_status}",
@@ -121,8 +129,8 @@ def render_next_stage(root: Path | str | None = None, *, top_n: int = 10) -> str
             "- Source rights, independent reviewers, and supplied point-in-time evidence remain separate external gates.",
         ]
         decision_lines = [
-            f"1. Readiness inspection: {next_safe_command}",
-            "   This is the sole executable continuation action until readiness evidence is tracked or separately reviewed.",
+            f"1. Saved-readiness inspection: {next_safe_command}",
+            "   The saved-readiness workflow stays inspection-only until readiness evidence is tracked or separately reviewed.",
             "2. Owner gate: remote synchronization and public sharing require separate authorization.",
             "3. External gates: hosted operation, credentials, source rights, reviewers, and supplied evidence remain unavailable until their state changes.",
             "4. Stop rule: Do not run broad proof queues while the continuation gate suppresses execution.",
@@ -169,15 +177,17 @@ def render_next_stage(root: Path | str | None = None, *, top_n: int = 10) -> str
         "Stock Research Command Center next-stage ladder",
         "Read-only: this target prints the current next-stage decision ladder only. It does not refresh data, import rows, stage files, commit, push, deploy, or expose secrets.",
         "",
+        *product_lines,
+        "",
         "Current package answer:",
         f"- Public/GitHub share: {linkedin_state}; {linkedin_evidence or 'run make public-check before sharing'}",
         f"- Coverage planning state: {coverage_state}; inspect saved readiness and proposed changes separately",
         f"- Generated artifacts: {generated_state}; {generated_evidence or 'keep generated churn excluded by default'}",
-        f"- Roadmap continuation: {continuation_state}; {continuation_evidence or 'run make project-status-check'}",
+        f"- Package continuation: {continuation_state}; {continuation_evidence or 'run make project-status-check'}",
         f"- Saved readiness coverage: {saved_coverage}",
         f"- Working universe for planning: {working_coverage}",
         "",
-        "Next executable repo-side item:",
+        "Available readiness and package checks:",
         *executable_lines,
         "",
         external_heading,

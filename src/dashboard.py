@@ -31361,6 +31361,11 @@ def render_online_coverage_study() -> None:
                 with st.spinner("Checking the next issuer batch…"):
                     universe=get_online_us_universe(st.session_state,user_agent=os.getenv("SEC_USER_AGENT"),inspect_requested=True)
             st.markdown(universe_coverage_html(universe),unsafe_allow_html=True)
+            with st.expander("Nasdaq Texas (NTX) listing check", expanded=False):
+                from src.nasdaq_texas_reconciliation import nasdaq_texas_detail_markdown, nasdaq_texas_review_markdown
+                st.markdown(nasdaq_texas_review_markdown())
+                if st.checkbox("Show Nasdaq Texas security evidence", key="nasdaq-texas-security-evidence"):
+                    st.markdown(nasdaq_texas_detail_markdown())
         with tabs[2]:
             requested=st.button("Classify observed listings",key="security-classification-refresh")
             classified=get_listing_classification(st.session_state,refresh_requested=requested,user_agent=os.getenv("SEC_USER_AGENT"))

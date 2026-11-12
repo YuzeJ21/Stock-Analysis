@@ -83,7 +83,7 @@ def test_next_stage_keeps_external_account_ladder_without_hosted_url(monkeypatch
     assert "Hosted demo status: external_account_required" in output
     assert "External unblock conditions (not executable now):" in output
     assert "- Hosted account/environment: external_account_required" in output
-    assert "Roadmap continuation: continue_with_pending_dependencies" in output
+    assert "Package continuation: continue_with_pending_dependencies" in output
 
 
 def test_next_stage_inspection_only_routes_external_setup_out_of_executable_section(
@@ -103,19 +103,34 @@ def test_next_stage_inspection_only_routes_external_setup_out_of_executable_sect
     )
 
     output = render_next_stage(".", top_n=1)
-    executable = output.split("Next executable repo-side item:\n", 1)[1].split(
+    executable = output.split("Available readiness and package checks:\n", 1)[1].split(
         "\n\nExternal unblock conditions (not executable now):", 1
     )[0]
     external = output.split(
         "External unblock conditions (not executable now):", 1
     )[1]
 
-    assert executable.strip() == "- Readiness inspection: make readiness-preview TOP_N=20"
+    assert executable.strip() == "- Saved-readiness inspection: make readiness-preview TOP_N=20"
+    assert "Active product roadmap: ROADMAP.md → Product Decision" in output
+    assert "bounded read-only online company evidence work" in output
+    assert "sole executable continuation action" not in output
     assert "hosted" not in executable.lower()
     assert "provider" not in executable.lower()
     assert "public-check" not in executable
     assert "hosted account" in external.lower()
     assert "FMP" in external
+
+
+def test_next_stage_reports_missing_roadmap_without_claiming_product_work(tmp_path, monkeypatch):
+    monkeypatch.setattr("src.next_stage.build_project_status_payload", lambda *_a, **_k: _inspection_only_payload())
+    monkeypatch.setattr("src.next_stage._hosted_url_status", lambda _root: "external_account_required; no hosted account")
+    monkeypatch.setattr("src.next_stage._provider_status", lambda _root: ("FMP", "-", "-"))
+
+    output = render_next_stage(tmp_path)
+
+    assert "Active product roadmap unavailable. ROADMAP.md is missing in this checkout." in output
+    assert "bounded read-only online company evidence work" not in output
+    assert "- Saved-readiness inspection: make readiness-preview TOP_N=20" in output
 
 
 def test_next_stage_restores_configured_host_and_provider_actions_when_execution_is_allowed(
@@ -144,7 +159,7 @@ def test_next_stage_restores_configured_host_and_provider_actions_when_execution
     )
 
     output = render_next_stage(".", top_n=1)
-    executable = output.split("Next executable repo-side item:\n", 1)[1].split(
+    executable = output.split("Available readiness and package checks:\n", 1)[1].split(
         "\n\nRemaining external unblock conditions:", 1
     )[0]
 

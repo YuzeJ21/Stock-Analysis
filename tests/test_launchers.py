@@ -1324,11 +1324,12 @@ def test_make_next_stage_prints_current_stage_ladder_without_running_broad_work(
     assert "Stock Research Command Center next-stage ladder" in output
     assert "Read-only: this target prints the current next-stage decision ladder only." in output
     assert "Current package answer:" in output
-    assert "Next executable repo-side item:" in output
-    executable = output.split("Next executable repo-side item:\n", 1)[1].split(
+    assert "Active product roadmap: ROADMAP.md → Product Decision" in output
+    assert "Available readiness and package checks:" in output
+    executable = output.split("Available readiness and package checks:\n", 1)[1].split(
         "\n\nExternal unblock conditions (not executable now):", 1
     )[0]
-    assert executable.strip() == "- Readiness inspection: make readiness-preview TOP_N=20"
+    assert executable.strip() == "- Saved-readiness inspection: make readiness-preview TOP_N=20"
     assert "Hosted demo status:" in output
     assert "Provider key status:" in output
     assert "Source-proof queue status:" in output

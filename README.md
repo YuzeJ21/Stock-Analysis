@@ -138,11 +138,11 @@ The supported workflow is research-only. Investment advice, broker account actio
 
 | Stage | Current focus |
 | --- | --- |
-| **Available today** | A local research beta with online filing checks, trends, hypothetical scenarios, issuer notes, private snapshot/Monitor replay and a fixed twelve-company capability study with complete bank peer-source retention and historical snapshot replay. Existing saved tools, bounded MRVL review, English public demo, dated AMD filing case and annual review for NEM, AMD, and DUK remain available. |
-| **Next** | Inspect exact filed facts for current quarters, extend qualified identity and native-currency support, and verify meaningful subsequent-filing changes. Preserve price, identity, period, definition, size and rights requirements. |
+| **Available today** | A local research beta with online filing checks, trends, hypothetical scenarios, issuer notes, private snapshots and Monitor replay. Discover includes a fixed twelve-company capability study and a dated Nasdaq Texas listing review. The public demo and AMD filing case give visitors a browser-based introduction. |
+| **Next** | Reconcile dated venue evidence in Discover, verify the next comparable filing change through Monitor, and rerun the fixed industry study to measure remaining research gaps. |
 | **Later gates** | Hosted full-workspace operation, authentication and private workspaces, operated data rights, provider reliability, independent user evidence, and commercial validation. |
 
-The [Roadmap](ROADMAP.md) is the active priority list. [Completed Milestones](docs/COMPLETED_MILESTONES.md) records shipped work and the evidence required to revisit parked features. Use `make next-stage` for the current local decision ladder.
+The [Roadmap](ROADMAP.md) is the active priority list. [Completed Milestones](docs/COMPLETED_MILESTONES.md) records shipped work and the evidence required to revisit parked features. Use `make next-stage` for the product direction and separate saved-readiness checks.
 
 For current selected-profile readiness, use `make readiness-ops-center`. A saved `make status-check TOP_N=5` snapshot can be stale.
 
