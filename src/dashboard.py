@@ -31374,6 +31374,13 @@ def render_online_coverage_study() -> None:
                 with st.spinner("Checking dated SEC filings…"):
                     audit = get_nyse_texas(st.session_state, refresh=requested, user_agent=sec_request_identification(st))
                 st.markdown(reconciliation_html(audit), unsafe_allow_html=True)
+            with st.expander("Texas Stock Exchange (TXSE) listing check", expanded=False):
+                from src.txse_reconciliation import txse_first_trade_markdown, txse_identity_markdown, txse_review_markdown
+                st.markdown(txse_review_markdown())
+                if st.checkbox("Show TXSE first-trade sources", key="txse-first-trade-sources"):
+                    st.markdown(txse_first_trade_markdown())
+                if st.checkbox("Show verified TXSE security identities", key="txse-identity-details"):
+                    st.markdown(txse_identity_markdown())
         with tabs[2]:
             requested=st.button("Classify observed listings",key="security-classification-refresh")
             classified=get_listing_classification(st.session_state,refresh_requested=requested,user_agent=os.getenv("SEC_USER_AGENT"))
