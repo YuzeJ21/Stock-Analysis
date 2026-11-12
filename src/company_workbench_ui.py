@@ -192,9 +192,12 @@ def _render_company_content(st_api,ticker,*,profile_scope,scope,candidate,expect
             if financial.get('status')=='not_requested':
                 st_api.info('Refresh financials and prices to load reported periods.')
             elif projection.get('bank_annual'):
-                from src.sec_exact_filing_view import bank_annual_html, bank_interim_html
+                from src.sec_exact_filing_view import bank_annual_html, bank_interim_html, bank_quarter_comparison_html
                 interim=projection.get('bank_interim')
                 if interim:
+                    pair=projection.get('bank_interim_comparison')
+                    if pair:
+                        st_api.markdown(bank_quarter_comparison_html(interim,pair),unsafe_allow_html=True)
                     st_api.markdown(bank_interim_html(interim),unsafe_allow_html=True)
                 st_api.markdown(bank_annual_html(projection['bank_annual'],show_interim_gap=not interim),unsafe_allow_html=True)
             else:

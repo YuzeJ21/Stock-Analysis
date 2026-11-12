@@ -199,8 +199,12 @@ def fetch_sec_online_research_view(ticker: str, *, user_agent: str, ticker_map_r
                 view, user_agent=user_agent, ticker_map_receipt=captured.get('map_receipt'),
                 submissions_receipt=profile_receipt, source_fetcher=source_fetcher, observed_at=observed_at,
             )
-            from src.sec_online_ibn_interim_evidence import fetch_ibn_archive_interim
+            from src.sec_online_ibn_interim_evidence import fetch_ibn_archive_interim, fetch_ibn_interim_comparison
             view['ibn_archive_interim'] = fetch_ibn_archive_interim(
+                view, user_agent=user_agent, ticker_map_receipt=captured.get('map_receipt'),
+                submissions_receipt=profile_receipt, source_fetcher=source_fetcher, observed_at=observed_at,
+            )
+            view['ibn_interim_comparison'] = fetch_ibn_interim_comparison(
                 view, user_agent=user_agent, ticker_map_receipt=captured.get('map_receipt'),
                 submissions_receipt=profile_receipt, source_fetcher=source_fetcher, observed_at=observed_at,
             )

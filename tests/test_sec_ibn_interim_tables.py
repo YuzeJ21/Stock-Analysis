@@ -47,6 +47,59 @@ def interim_html():
     return report.encode()
 
 
+def june_html():
+    report = '''<html><body><p>FORM 6-K</p><p>ICICI Bank Limited</p>
+    <p>(Translation of registrant’s name into English)</p>
+    <p>Unaudited financial results (standalone and consolidated) for the quarter ended June 30, 2026</p>
+    <p>CONSOLIDATED FINANCIAL RESULTS</p><p>(Rs. in crore)</p>
+    <table><tr><th rowspan="4">Sr. No.</th><th rowspan="4" colspan="2">Particulars</th>
+    <th colspan="3">Three months ended</th><th>Year ended</th></tr>'''
+    report += _row('June 30, 2026', 'March 31, 2026', 'June 30, 2025', 'March 31, 2026')
+    report += _row('(Q1-2027)', '(Q4-2026)', '(Q1-2026)', '(FY2026)')
+    report += _row('(Unaudited)', '(Audited) <sup>8</sup>', '(Unaudited)', '(Audited)')
+    for ordinal, name, current in (
+        ('1', 'Interest earned (a)+(b)+(c)+(d)', '83.30'),
+        ('2', 'Other income (e)+(f)', '14.95'),
+        ('3', 'TOTAL INCOME (1)+(2)', '98.25'),
+        ('4', 'Interest expended', '38.25'),
+        ('17', 'NET PROFIT FOR THE PERIOD (15)–(16)', '16.10'),
+    ):
+        report += (f'<tr><td>{ordinal}</td><td colspan="2">{name}</td><td>{current}</td>'
+                   '<td>90.00</td><td>80.00</td><td>350.00</td></tr>')
+    report += '''</table><p>Notes on consolidated financial results:</p><table>
+    <tr><td>2.</td><td>The consolidated financial results have been prepared in accordance with the recognition
+    and measurement principles laid down in Accounting Standards 25 “Interim Financial Reporting” (‘AS 25’),
+    the relevant Indian banking provisions and other accounting principles generally accepted in India.</td></tr>
+    </table></body></html>'''
+    return report.encode()
+
+
+def test_june_disclosure_has_only_the_direct_quarter_and_its_own_rupee_evidence():
+    packet = parse_ibn_interim_tables(june_html(), period_end='2026-06-30')
+    assert packet['status'] == 'inspection_only'
+    quarter, = packet['periods']
+    assert (quarter['kind'], quarter['period_start'], quarter['period_end']) == (
+        'quarterly', '2026-04-01', '2026-06-30',
+    )
+    assert len(quarter['fields']) == 5 and quarter['fields']['net_profit_for_period']['value'] == 161_000_000
+    assert quarter['withheld_fields'] == dict.fromkeys(('cash_from_operations', 'fixed_asset_purchases'),
+                                                     'direct_quarter_cash_statement_unavailable')
+    for field in quarter['fields'].values():
+        assert field['unit_evidence'] == '(Rs. in crore)' and field['column_span'] == [3, 4]
+        assert valid_ibn_interim_number(field)
+
+
+@pytest.mark.parametrize(('old', 'new'), [
+    ('quarter ended June 30', 'quarter and six months ended June 30'),
+    ('(Rs. in crore)', '(USD in crore)'),
+    ('(Q1-2027)', '(Q2-2027)'),
+    ('<td>(Unaudited)</td>', '<td><span hidden>(Unaudited)</span></td>'),
+    ('<td>June 30, 2026</td>', '<td>September 30, 2026</td>'),
+])
+def test_june_rejects_wrong_period_unit_or_unreadable_selected_header(old, new):
+    assert parse_ibn_interim_tables(june_html().decode().replace(old, new, 1).encode())['status'] == 'withheld'
+
+
 def test_extracts_only_separate_current_periods_and_signed_native_crore_fields():
     packet = parse_ibn_interim_tables(interim_html(), period_end=END)
     assert packet['status'] == 'inspection_only'

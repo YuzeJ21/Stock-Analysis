@@ -119,3 +119,31 @@ def bank_interim_html(view):
             + ' · Amounts converted from crore to INR</p><div class="exact-filing-grid">' + ''.join(cards)
             + '</div><details><summary>Interim filing source and dates</summary><p>' + source + '</p><p>' + dates
             + '</p><p>Personal inspection only. ADS earnings, valuation and Companyfacts coverage use separate evidence.</p></details></section>')
+
+
+def bank_quarter_comparison_html(current, pair):
+    """Render direct-quarter changes from the two validated filing documents."""
+    from src.sec_ibn_quarter_comparison import compare_ibn_quarters
+
+    comparison = compare_ibn_quarters(current, pair)
+    baseline = pair['baseline']
+    rows = []
+    for field in comparison['fields'].values():
+        fraction = field['fraction']
+        rate = f'{fraction:+.1%}' if fraction is not None else 'Percentage needs a positive prior value'
+        line = f"INR {_amount(field['before'])} → {_amount(field['after'])} · {rate}"
+        rows.append('<div><dt>' + escape(field['label']) + '</dt><dd>' + escape(line) + '</dd></div>')
+    gaps = ''.join('<li>' + escape(label) + ' needs matching direct-quarter evidence.</li>' for label in comparison['gaps'])
+    links = []
+    for title, filing in (('Prior quarter SEC 6-K', baseline), ('Current quarter SEC 6-K', current)):
+        url = escape(filing['source_url'], quote=True)
+        details = escape(f"Filed {filing['filed']} · {filing['accession']}")
+        links.append(f'<li><a href="{url}" target="_blank" rel="noopener noreferrer">{title}</a> · {details}</li>')
+    dates = escape(baseline['period_end'] + ' → ' + current['period_end'])
+    status = escape(comparison['status'])
+    return (_STYLE + '<section class="exact-sec-filing" aria-label="Quarter-to-quarter filing comparison">'
+            '<h3>Quarter-to-quarter filing comparison</h3><p>' + dates + ' · ' + status
+            + ' · Consolidated Indian GAAP (AS 25)</p><dl>' + ''.join(rows) + '</dl>'
+            + ('<ul>' + gaps + '</ul>' if gaps else '')
+            + '<p>Quarterly cash flow stays withheld. The six-month cash figures appear under Year to date.</p>'
+            '<details><summary>Both SEC filings</summary><ul>' + ''.join(links) + '</ul></details></section>')

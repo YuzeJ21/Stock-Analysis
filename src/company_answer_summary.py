@@ -181,7 +181,7 @@ def _bank_financial_answer(bank):
     return dict(answer, native_archive_annual=True, headline=headline, headline_context=f'Year over year · {context}')
 
 
-def _bank_interim_answer(bank):
+def _bank_interim_answer(bank, pair=None):
     quarter = next(row for row in bank['periods'] if row['kind'] == 'quarterly')
     profit = quarter['fields'].get('net_profit_for_period')
     context = f"Quarter ended {quarter['period_end']} · Consolidated, unaudited"
@@ -191,15 +191,32 @@ def _bank_interim_answer(bank):
     if profit:
         value = f"Quarterly net profit {_money(profit['unit'], profit['value'])}"
         evidence.append(f"{profit['label']} · {profit['unit']} {profit['value']:,}")
-    answer = _card('financial', value, context, tuple(evidence), (('Exact SEC 6-K', bank['source_url']),))
-    return dict(answer, native_quarter_end=quarter['period_end'],
-                gap=None if profit else 'Quarterly net profit needs verification')
+    sources = [('Exact SEC 6-K', bank['source_url'])]
+    extra = dict(native_quarter_end=quarter['period_end'], gap=None if profit else 'Quarterly net profit needs verification')
+    if pair:
+        from src.sec_ibn_quarter_comparison import compare_ibn_quarters
+        comparison = compare_ibn_quarters(bank, pair)
+        change = comparison['fields'].get('net_profit_for_period')
+        prior = pair['baseline']
+        sources.append(('Prior quarter SEC 6-K', prior['source_url']))
+        if change:
+            before, after = change['before'], change['after']
+            evidence.append(f"Prior quarter ended {prior['period_end']} · INR {before:,} · Filed {prior['filed']}")
+            extra.update(headline=_change_headline('Quarterly net profit', after, before, _direction(after, before)),
+                         headline_context=f"Quarter over quarter · {quarter['period_end']} · {_money('INR', after)}")
+        else:
+            extra['gap'] = 'Comparable prior-quarter net profit needs verification'
+    return dict(_card('financial', value, context, tuple(evidence), tuple(sources)), **extra)
 
 
 def _financial_answer(projection, financial):
     financial = financial if isinstance(financial, Mapping) else {}
     if projection.get('bank_interim'):
-        return _bank_interim_answer(projection['bank_interim'])
+        answer = _bank_interim_answer(projection['bank_interim'], projection.get('bank_interim_comparison'))
+        pending = financial.get('ibn_interim_comparison')
+        if not projection.get('bank_interim_comparison') and isinstance(pending, Mapping) and pending.get('reason') not in {None, 'ibn_prior_comparison_not_required'}:
+            answer['gap'] = 'June filing comparison needs verification'
+        return answer
     if projection.get('bank_annual'):
         return _bank_financial_answer(projection['bank_annual'])
     fact = projection.get('facts', {}).get('revenue')

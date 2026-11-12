@@ -23,8 +23,10 @@ from src.sec_online_native_quarter_evidence import (
 from src.sec_online_quarter_evidence import _REF_KEYS, _held
 
 SCHEMA = 'sec-online-ibn-interim-v1'
+COMPARISON_SCHEMA = 'sec-online-ibn-interim-comparison-v1'
 SOURCE_ID = 'sec_archive_ibn_interim_html'
 _RECEIPT_SOURCE = 'exact_ibn_interim_receipt'
+_PRIOR_RECEIPT_SOURCE = 'exact_ibn_prior_interim_receipt'
 _FORMS = frozenset({'6-K', '6-K/A'})
 _EVENT_KEYS = ('accession', 'form', 'filed', 'accepted_at', 'report_date', 'primary_document', 'source_url')
 _METADATA = (*_EVENT_KEYS, 'ticker', 'sec_cik', 'source_id', 'observed_at', 'payload_sha256',
@@ -33,6 +35,16 @@ _KINDS = {'quarterly': 'quarterly', 'cumulative': 'interim'}
 _FIELDS = frozenset(DEFINITIONS)
 _PACKET_KEYS = set(_METADATA) | set(_FLAGS) | {'schema_version', 'status', 'reason', 'period_end', 'periods',
     'source_receipts', 'archive_identity', 'reviewed_preceding', 'withheld_fields', 'basis_evidence', 'packet_digest'}
+_PAIR_KEYS = set(_FLAGS) | {'schema_version', 'status', 'reason', 'ticker', 'sec_cik', 'rights_status',
+                             'current_accession', 'current_period_end', 'baseline', 'packet_digest'}
+# One reviewed baseline, verified again against the current SEC catalog and exact primary document.
+_PRIOR_END = '2026-06-30'
+_CURRENT_END = '2026-09-30'
+_PRIOR_FILING = dict(accession='0000950103-26-011002', primary_document='dp250269_6k.htm',
+                     form='6-K', filed='2026-07-22', report_date='2026-07-18')
+# The later filings with the same July report date cover the presentation,
+# AGM/annual report, and call recordings. None replaces the results statement.
+_PRIOR_COMPANION_ACCESSIONS = frozenset({'0000950103-26-011003', '0000950103-26-011004', '0000950103-26-011006'})
 _ROW_KEYS = set(_METADATA) | {'kind', 'period_start', 'period_end', 'fields', 'withheld_fields',
                              'unaudited', 'status', 'reason'}
 _FIELD_KEYS = set(_METADATA) | {'field', 'label', 'definition', 'value', 'reported_text', 'reported_numeric_schema',
@@ -98,9 +110,8 @@ def _is_non_xbrl(event, submissions_receipt):
     return all(type(flag) is int and flag == 0 for flag in flags)
 
 
-def _event_matches(packet, verified, annual, now, *, historical):
-    anchor_time = _utc_timestamp(verified['observed_at'])
-    events = _candidate_events(verified, anchor_time)
+def _event_matches(packet, verified, annual, now, *, historical, prior_event=None):
+    events = [prior_event] if prior_event else _candidate_events(verified, _utc_timestamp(verified['observed_at']))
     index = next((i for i, item in enumerate(events[:MAX_PRIMARY_REQUESTS]) if item['accession'] == packet['accession']), None)
     if index is None:
         return False
@@ -167,7 +178,7 @@ def _valid_periods(packet):
     return True
 
 
-def _verified_packet(packet, verified, annual, now, *, historical=False):
+def _verified_packet(packet, verified, annual, now, *, historical=False, prior_event=None):
     return (isinstance(packet, Mapping) and set(packet) == _PACKET_KEYS
             and packet['schema_version'] == SCHEMA and packet['status'] == 'inspection_only' and packet['reason'] is None
             and packet['ticker'] == TICKER and packet['sec_cik'] == CIK and packet['form'] in _FORMS
@@ -176,7 +187,8 @@ def _verified_packet(packet, verified, annual, now, *, historical=False):
             and packet['source_scale'] == 'crore'
             and packet['period_kind'] == 'interim' and packet['withheld_fields'] == _WITHHELD
             and all(packet[key] is False for key in _FLAGS) and _sealed(packet)
-            and _event_matches(packet, verified, annual, now, historical=historical) and _valid_periods(packet))
+            and _event_matches(packet, verified, annual, now, historical=historical, prior_event=prior_event)
+            and _valid_periods(packet))
 
 
 def validated_ibn_archive_interim(financial, *, ticker=None, expected_cik=None, inventory=None, as_of=None):
@@ -221,6 +233,80 @@ def valid_saved_ibn_interim(archive, *, context):
                     or any(anchor.get(key) != row[key] for key in (*_EVENT_KEYS, 'period_start', 'period_end'))):
                 return False
         return True
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowError, RecursionError):
+        return False
+
+
+def _prior_selection(verified, current):
+    if not current or current['period_end'] != _CURRENT_END or current['periods'][0]['period_start'] != '2026-07-01':
+        return None, 'ibn_prior_comparison_not_required'
+    reports = verified['earnings_reports']
+    matches = [event for event in reports if event['accession'] == _PRIOR_FILING['accession']]
+    if len(matches) != 1:
+        return None, 'ibn_prior_filing_unverified'
+    event = matches[0]
+    accepted = _utc_timestamp(event['accepted_at'])
+    if (any(event.get(key) != value for key, value in _PRIOR_FILING.items())
+            or accepted >= _utc_timestamp(current['accepted_at'])
+            or not _valid_source_url(event['source_url'], CIK, event['accession'])):
+        return None, 'ibn_prior_filing_unverified'
+    for other in reports + verified.get('metadata_gaps', []):
+        if other['accession'] == event['accession'] or _utc_timestamp(other['accepted_at']) < accepted:
+            continue
+        if other['form'] == '6-K/A':
+            return None, 'ibn_prior_amendment_unresolved'
+        if (other['form'] == '6-K' and other['report_date'] in {_PRIOR_END, event['report_date']}
+                and other['accession'] not in _PRIOR_COMPANION_ACCESSIONS):
+            return None, 'ibn_prior_version_unresolved'
+    return event, None
+
+
+def _verified_pair(pair, verified, annual, current, now, *, historical=False):
+    if (not isinstance(pair, Mapping) or set(pair) != _PAIR_KEYS or pair['schema_version'] != COMPARISON_SCHEMA
+            or pair['status'] != 'inspection_only' or pair['reason'] is not None or pair['ticker'] != TICKER
+            or pair['sec_cik'] != CIK or pair['rights_status'] != RIGHTS or not current
+            or pair['current_accession'] != current['accession'] or pair['current_period_end'] != current['period_end']
+            or any(pair[key] is not False for key in _FLAGS) or not _sealed(pair)):
+        return False
+    event, _ = _prior_selection(verified, current)
+    baseline = pair['baseline']
+    return bool(event and _verified_packet(baseline, verified, annual, now, historical=historical, prior_event=event)
+                and baseline['period_end'] == _PRIOR_END and len(baseline['periods']) == 1
+                and baseline['periods'][0]['period_start'] == '2026-04-01'
+                and _utc_timestamp(baseline['observed_at']) >= _utc_timestamp(current['observed_at']))
+
+
+def validated_ibn_interim_comparison(financial, *, ticker=None, expected_cik=None, inventory=None, as_of=None):
+    """Return the independently filed June baseline alongside current September evidence."""
+    try:
+        if ticker not in {None, TICKER} or expected_cik not in {None, CIK} or _mode_reason('research'):
+            return None
+        now = _now(as_of)
+        verified = _verified_inventory(financial.get('filing_inventory') if inventory is None else inventory, as_of=now)
+        annual = validated_ibn_archive_annual(financial, inventory=verified, as_of=now) if verified else None
+        current = financial.get('ibn_archive_interim')
+        pair = financial.get('ibn_interim_comparison')
+        if annual and _verified_packet(current, verified, annual, now) and _verified_pair(pair, verified, annual, current, now):
+            return deepcopy(pair)
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowError, RecursionError):
+        return None
+    return None
+
+
+def valid_saved_ibn_interim_comparison(pair, *, context):
+    """Bind a saved prior filing to the same issuer, catalog, and verified current filing."""
+    try:
+        now = _utc_timestamp(context.get('observed_at'))
+        trend = context['business_trend']
+        annual, current = trend.get('bank_annual'), trend.get('bank_interim')
+        if not now or not valid_saved_ibn_interim(current, context=context):
+            return False
+        verified = _verified_inventory(context.get('filing_inventory'), as_of=now, historical=True)
+        if not verified or not _verified_pair(pair, verified, annual, current, now, historical=True):
+            return False
+        receipts = [ref for ref in context['source_receipts'] if isinstance(ref, Mapping) and ref.get('source') == _PRIOR_RECEIPT_SOURCE]
+        return receipts == [dict(ref, source=_PRIOR_RECEIPT_SOURCE, rights_status=RIGHTS)
+                            for ref in pair['baseline']['source_receipts']]
     except (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowError, RecursionError):
         return False
 
@@ -295,3 +381,46 @@ def fetch_ibn_archive_interim(financial, *, user_agent, ticker_map_receipt, subm
         return hold('sec_archive_access_limited' if exc.code in {403, 429, 503} else 'sec_archive_http_unavailable')
     except (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowError, RecursionError, OSError, RuntimeError):
         return hold('ibn_interim_exact_html_unavailable')
+
+
+def fetch_ibn_interim_comparison(financial, *, user_agent, ticker_map_receipt, submissions_receipt,
+                                 source_fetcher=None, observed_at=None):
+    """Fetch at most one independently reviewed prior 6-K after qualifying current evidence."""
+    def hold(reason):
+        return _held(TICKER, CIK, reason, schema=COMPARISON_SCHEMA)
+
+    try:
+        if _mode_reason('research') or (financial.get('ticker'), financial.get('sec_cik')) != (TICKER, CIK):
+            return hold('ibn_prior_comparison_not_required')
+        now = _now(observed_at)
+        verified = _verified_inventory(financial.get('filing_inventory'), as_of=now)
+        annual = validated_ibn_archive_annual(financial, inventory=verified, as_of=now) if verified else None
+        current = financial.get('ibn_archive_interim')
+        if not annual or not _verified_packet(current, verified, annual, now):
+            return hold('ibn_prior_comparison_not_required')
+        if not _matched_submissions(annual, verified, ticker_map_receipt, submissions_receipt, now):
+            return hold('ibn_prior_receipts_unverified')
+        if not isinstance(user_agent, str) or not user_agent.strip() or any(char in user_agent for char in '\r\n'):
+            return hold('ibn_prior_user_agent_required')
+        event, gap = _prior_selection(verified, current)
+        if gap or not _is_non_xbrl(event, submissions_receipt):
+            return hold(gap or 'ibn_prior_filing_unverified')
+        raw, receipt = _read_document(event['source_url'], user_agent=user_agent, source_fetcher=source_fetcher,
+                                       observed_at=observed_at)
+        if _classify(raw, event) != 'statement':
+            return hold('ibn_prior_reporting_basis_unverified')
+        from src.sec_ibn_interim_tables import parse_ibn_interim_tables
+
+        parsed = parse_ibn_interim_tables(raw, period_end=_PRIOR_END)
+        if parsed.get('status') != 'inspection_only' or parsed.get('accounting_basis') != ACCOUNTING_BASIS:
+            return hold('ibn_prior_reporting_basis_unverified')
+        baseline = _build_packet(parsed, event, annual, receipt, [])
+        pair = dict(schema_version=COMPARISON_SCHEMA, status='inspection_only', reason=None, ticker=TICKER, sec_cik=CIK,
+                    rights_status=RIGHTS, current_accession=current['accession'], current_period_end=current['period_end'],
+                    baseline=baseline, **_FLAGS)
+        pair['packet_digest'] = _digest(pair)
+        return pair if _verified_pair(pair, verified, annual, current, _now(observed_at)) else hold('ibn_prior_exact_html_unavailable')
+    except HTTPError as exc:
+        return hold('sec_archive_access_limited' if exc.code in {403, 429, 503} else 'sec_archive_http_unavailable')
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowError, RecursionError, OSError, RuntimeError):
+        return hold('ibn_prior_exact_html_unavailable')

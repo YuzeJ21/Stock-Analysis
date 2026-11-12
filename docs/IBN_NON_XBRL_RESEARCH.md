@@ -12,9 +12,17 @@ The Form 6-K filed October 22, 2026 supplies the unaudited consolidated AS 25 re
 
 ## Visible gaps
 
-Gross total income retains its bank definition. Generic revenue, generic operating income, directly reported consolidated net interest income, free cash flow and ADS valuation remain withheld in this evidence scope. Operating-company FCFF is excluded for the bank. Standalone figures have their own reporting scope. The interim rule currently qualifies the September quarter and first-half statement layout. Annual evidence remains available when an interim source cannot be verified.
+Gross total income retains its bank definition. Generic revenue, generic operating income, directly reported consolidated net interest income, free cash flow and ADS valuation remain withheld in this evidence scope. Operating-company FCFF is excluded for the bank. Standalone figures have their own reporting scope. Annual evidence remains available when an interim source cannot be verified.
 
 Saved research retains normalized annual and interim facts and source receipts for historical replay from Monitor. The filing archive remains personal inspection only, with commercial use and redistribution held. Public repository files contain the implementation, constructed tests and method summary.
+
+## June to September filing comparison
+
+Workbench compares the consolidated June 30 and September 30, 2026 quarters using both original SEC filings. The July 22 Form 6-K supplies the June baseline. The five direct June income fields also agree with the June comparison column printed in the October 22 Form 6-K. The comparison uses matching consolidated AS 25 definitions and INR units. A newer possible June amendment or competing version leaves the comparison withheld. [June filing](https://www.sec.gov/Archives/edgar/data/1103838/000095010326011002/dp250269_6k.htm) · [September filing](https://www.sec.gov/Archives/edgar/data/1103838/000095010326015987/dp255170_6k.htm)
+
+In Financial Trends, **Quarter-to-quarter filing comparison** shows the two dates, matching fields, changes and filing links. Save the research snapshot in Research Notes, then use **Reopen exact filing pair** in Monitor. One private snapshot holds both dated sources from the observation session. The June filing provides direct quarter figures, and September's six-month figures stay under **Year to date**. Quarterly operating cash flow and fixed-asset purchases stay withheld for both quarters.
+
+The comparison update passed 3,092 affected automated tests and all six research route renders. Captured SEC responses passed the full Workbench, save and Monitor route at 1440×1000 and 390×844. A fresh browser session reopened both filing references from the same saved snapshot with zero source requests. The full filing catalog remains stored once within existing snapshot limits. Previously released snapshots and all 89 protected files verified unchanged.
 
 ## Verification of the interim workflow
 

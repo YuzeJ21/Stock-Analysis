@@ -12,6 +12,7 @@ ACCOUNTING_BASIS = 'Indian GAAP (AS 25)'
 UNIT = 'INR'
 SCALE = 10_000_000
 UNIT_EVIDENCE = '(₹ in crore)'
+_JUNE_UNIT_EVIDENCE = '(Rs. in crore)'
 _INCOME = 'CONSOLIDATED FINANCIAL RESULTS'
 _CASH = 'CONSOLIDATED CASH FLOW STATEMENTS'
 _AS_25 = 'Accounting Standards 25 “Interim Financial Reporting”'
@@ -29,17 +30,18 @@ DEFINITIONS = {
 }
 _MARKERS = {'interest_earned': '1', 'other_income': '2', 'total_income': '3', 'interest_expended': '4',
             'net_profit_for_period': '17', 'cash_from_operations': '(A)', 'fixed_asset_purchases': ''}
+_INCOME_COLUMNS = (('Sr. No.', 1, '4'), ('Particulars', 2, '4'), ('Three months ended', 3, '1'))
 _HEADERS = {
-    _INCOME: (('Sr. No.', 1, '4'), ('Particulars', 2, '4'), ('Three months ended', 3, '1'),
-              ('Six months ended', 2, '1'), ('Year ended', 1, '1')),
-    _CASH: (('Particulars', 1, '4'), ('', 1, '4'), ('Period ended', 3, '1')),
+    (_INCOME, 1): (*_INCOME_COLUMNS, ('Year ended', 1, '1')),
+    (_INCOME, 2): (*_INCOME_COLUMNS, ('Six months ended', 2, '1'), ('Year ended', 1, '1')),
+    (_CASH, 2): (('Particulars', 1, '4'), ('', 1, '4'), ('Period ended', 3, '1')),
 }
 _PERIOD_COLUMNS = {(_INCOME, 'Three months ended'): (3, 'quarterly'),
                    (_INCOME, 'Six months ended'): (6, 'cumulative'),
                    (_CASH, 'Period ended'): (2, 'cumulative')}
 _DISCLOSURE = re.compile(
-    r'\bUnaudited financial results \(standalone and consolidated\) for the quarter and six months ended '
-    r'(September 30, [0-9]{4})\b', re.I,
+    r'\bUnaudited financial results \(standalone and consolidated\) for the (quarter(?: and six months)?) ended '
+    r'((?:June|September) 30, [0-9]{4})\b', re.I,
 )
 _BASIS = re.compile(
     r'^The consolidated financial results have been prepared in accordance with the recognition and '
@@ -68,10 +70,10 @@ class _InterimTables(_NativeTables):
             self.cell['source_rowspan'] = span
 
 
-def _year(text):
-    match = re.fullmatch(r'September 30, ([0-9]{4})', text)
-    if match and 1901 < int(match[1]) < 9999:
-        return int(match[1])
+def _reported_period(text):
+    match = re.fullmatch(r'(June|September) 30, ([0-9]{4})', text)
+    if match and 1901 < int(match[2]) < 9999:
+        return int(match[2]), 1 if match[1] == 'June' else 2
     return None
 
 
@@ -87,13 +89,16 @@ def _duration(caption, evidence):
         return None
     duration, filed_end, fiscal_label, audit = pieces
     selected = _PERIOD_COLUMNS.get((caption, duration))
-    year = _year(filed_end)
-    if not selected or not year or audit != _AUDIT:
+    period = _reported_period(filed_end)
+    if not selected or not period or audit != _AUDIT:
         return None
+    year, quarter = period
     column, kind = selected
-    if fiscal_label != f"({'Q2' if kind == 'quarterly' else 'H1'}-{year + 1})":
+    if (quarter == 1 and kind != 'quarterly'
+            or fiscal_label != f"({'Q' + str(quarter) if kind == 'quarterly' else 'H1'}-{year + 1})"):
         return None
-    return (column, kind, f"{year}-{'07' if kind == 'quarterly' else '04'}-01", f'{year}-09-30')
+    start_month = '07' if quarter == 2 and kind == 'quarterly' else '04'
+    return (column, kind, f'{year}-{start_month}-01', f"{year}-{'06' if quarter == 1 else '09'}-30")
 
 
 def valid_ibn_interim_number(field):
@@ -104,7 +109,7 @@ def valid_ibn_interim_number(field):
         caption, label, definition = DEFINITIONS[field['field']]
         if (not isinstance(field['label'], str) or len(field['label']) > 120 or _label_key(field['label']) != _label_key(label)
                 or field['definition'] != definition or field['table_caption'] != caption
-                or field['unit'] != UNIT or field['unit_evidence'] != UNIT_EVIDENCE
+                or field['unit'] != UNIT
                 or field['reported_numeric_schema'] != NUMBER_SCHEMA or type(field['scale']) is not int
                 or field['scale'] != SCALE or type(field['value']) is not int
                 or type(field['table_index']) is not int or not 0 <= field['table_index'] < 1000
@@ -118,17 +123,23 @@ def valid_ibn_interim_number(field):
             return False
         column, _, start, end = duration
         span = field['column_span']
+        unit_evidence = _JUNE_UNIT_EVIDENCE if end.endswith('-06-30') else UNIT_EVIDENCE
         return (isinstance(span, list) and len(span) == 2 and all(type(index) is int for index in span)
                 and span == [column, column + 1]
-                and field['period_start'] == start and field['period_end'] == end)
+                and field['period_start'] == start and field['period_end'] == end
+                and field['unit_evidence'] == unit_evidence)
     except (KeyError, TypeError, ValueError):
         return False
 
 
-def _expected_headers(caption, year):
+def _expected_headers(caption, year, quarter):
     september = f'September 30, {year}'
     prior = f'September 30, {year - 1}'
     annual = f'March 31, {year}'
+    if quarter == 1:
+        return ((f'June 30, {year}', annual, f'June 30, {year - 1}', annual),
+                (f'(Q1-{year + 1})', f'(Q4-{year})', f'(Q1-{year})', f'(FY{year})'),
+                (_AUDIT, '(Audited) 8', _AUDIT, '(Audited)'))
     if caption == _INCOME:
         return ((september, f'June 30, {year}', prior, september, prior, annual),
                 (f'(Q2-{year + 1})', f'(Q1-{year + 1})', f'(Q2-{year})', f'(H1-{year + 1})',
@@ -138,25 +149,27 @@ def _expected_headers(caption, year):
             (_AUDIT, '(Audited)', _AUDIT))
 
 
-def _table_has_verified_headers(table, caption, year):
+def _table_has_verified_headers(table, caption, year, quarter):
     rows = table['rows']
     if table['bad'] or not 5 <= len(rows) <= _MAX_ROWS:
         return False
-    if any(cell['bad'] for row in rows[:4] for cell in row):
+    # June's unselected March balancing column carries an audit footnote. The current header must be clean.
+    if any(cell['bad'] and not (quarter == 1 and (index, position) == (3, 1))
+           for index, row in enumerate(rows[:4]) for position, cell in enumerate(row)):
         return False
     first = tuple((cell['text'], cell['span'], cell['source_rowspan']) for cell in rows[0])
-    if first != _HEADERS[caption]:
+    if first != _HEADERS[(caption, quarter)]:
         return False
     if any(cell['span'] != 1 or cell['source_rowspan'] != '1' for row in rows[1:4] for cell in row):
         return False
     if any(cell['source_rowspan'] != '1' for row in rows[4:] for cell in row):
         return False
-    return tuple(tuple(cell['text'] for cell in row) for row in rows[1:4]) == _expected_headers(caption, year)
+    return tuple(tuple(cell['text'] for cell in row) for row in rows[1:4]) == _expected_headers(caption, year, quarter)
 
 
 def _selected_tables(tables, caption):
-    return [table for table in tables if table['context'][-2:] == [caption, UNIT_EVIDENCE]
-            and table['nearby'].endswith(caption + ' ' + UNIT_EVIDENCE)]
+    return [table for table in tables for unit in (UNIT_EVIDENCE, _JUNE_UNIT_EVIDENCE)
+            if table['context'][-2:] == [caption, unit] and table['nearby'].endswith(caption + ' ' + unit)]
 
 
 def _consolidated_basis(tables, income_index):
@@ -182,11 +195,11 @@ def _period_evidence(table, caption, duration):
     return ' | '.join([duration, *values])
 
 
-def _field_value(caption, row, label_index, column, key):
+def _field_value(caption, row, label_index, column, key, width):
     if len(row) <= label_index or row[label_index]['bad']:
         return None
     grid = _grid([row])
-    if not grid or grid[0][1] != (9 if caption == _INCOME else 5):
+    if not grid or grid[0][1] != width:
         return None
     cells = grid[0][0]
     label = cells[label_index]
@@ -210,6 +223,7 @@ def _field_value(caption, row, label_index, column, key):
 def _extract_fields(table, caption, duration):
     evidence = _period_evidence(table, caption, duration)
     column, _, start, end = _duration(caption, evidence)
+    width = sum(cell['span'] for cell in table['rows'][0])
     fields, gaps = {}, {}
     for key, (statement, expected_label, definition) in DEFINITIONS.items():
         if statement != caption:
@@ -226,7 +240,7 @@ def _extract_fields(table, caption, duration):
         if position != (1 if caption == _INCOME else 0):
             gaps[key] = 'direct_numeric_cell_unavailable'
             continue
-        result = _field_value(caption, row, position, column, key)
+        result = _field_value(caption, row, position, column, key, width)
         if result is None:
             gaps[key] = 'direct_numeric_cell_unavailable'
             continue
@@ -235,12 +249,12 @@ def _extract_fields(table, caption, duration):
                            reported_text=reported, reported_numeric_schema=NUMBER_SCHEMA, scale=SCALE, sign=sign,
                            table_index=table['index'], row_index=index, column_span=[column, column + 1],
                            table_caption=caption, period_start=start, period_end=end, period_evidence=evidence,
-                           unit_evidence=UNIT_EVIDENCE)
+                           unit_evidence=table['context'][-1])
     return fields, gaps
 
 
 def parse_ibn_interim_tables(raw: bytes, *, period_end: str | None = None) -> dict:
-    """Read the direct September quarter and April–September cash and income columns."""
+    """Read direct June/September quarters and separately printed September year-to-date columns."""
     held = {'status': 'withheld', 'reason': 'qualified_ibn_interim_source_unavailable', 'periods': []}
     if (not isinstance(raw, bytes) or not 0 < len(raw) <= _MAX_DOCUMENT_BYTES or b'\0' in raw
             or b'<!entity' in raw.lower()):
@@ -261,22 +275,33 @@ def parse_ibn_interim_tables(raw: bytes, *, period_end: str | None = None) -> di
         notes_index = _consolidated_basis(parser.tables, income['index'])
         if notes_index is None:
             return held
-        printed = {match[1] for match in _DISCLOSURE.finditer(prefix)}
+        printed = {(match[1].casefold(), match[2]) for match in _DISCLOSURE.finditer(prefix)}
         if len(printed) != 1:
             return held
-        year = _year(next(iter(printed)))
-        if not year or not _table_has_verified_headers(income, _INCOME, year):
+        cover_duration, cover_end = next(iter(printed))
+        period = _reported_period(cover_end)
+        if not period:
             return held
-        end = f'{year}-09-30'
+        year, quarter = period
+        june = quarter == 1
+        unit_evidence = _JUNE_UNIT_EVIDENCE if june else UNIT_EVIDENCE
+        if (cover_duration != ('quarter' if june else 'quarter and six months')
+                or income['context'][-1] != unit_evidence
+                or not _table_has_verified_headers(income, _INCOME, year, quarter)):
+            return held
+        end = f"{year}-{'06' if june else '09'}-30"
         if period_end is not None and period_end != end:
             return held
-        cash_tables = _selected_tables(parser.tables, _CASH)
+        cash_tables = [] if june else _selected_tables(parser.tables, _CASH)
         cash = cash_tables[0] if len(cash_tables) == 1 else None
         cash_verified = (cash and income['index'] < cash['index'] < notes_index
-                         and _table_has_verified_headers(cash, _CASH, year))
+                         and cash['context'][-1] == unit_evidence
+                         and _table_has_verified_headers(cash, _CASH, year, quarter))
         periods = []
-        for kind, duration, month in (('quarterly', 'Three months ended', '07'),
-                                      ('cumulative', 'Six months ended', '04')):
+        scopes = [('quarterly', 'Three months ended', '04' if june else '07')]
+        if not june:
+            scopes.append(('cumulative', 'Six months ended', '04'))
+        for kind, duration, month in scopes:
             fields, gaps = _extract_fields(income, _INCOME, duration)
             if kind == 'cumulative' and cash_verified:
                 cash_fields, cash_gaps = _extract_fields(cash, _CASH, 'Period ended')

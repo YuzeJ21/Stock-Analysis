@@ -28,7 +28,7 @@ def workbench_projection(ticker, financial_view, prices, expected_cik=None, *, a
                 facts={}, period_end=None, period_start=None, period_kind=None,
                 unit=None, identity_conflict=False, model_eligibility='independent',
                 readiness_promoted=False, withheld_periods=[], annual_archive=None, native_quarter_archive=None,
-                bank_annual=None, bank_interim=None,
+                bank_annual=None, bank_interim=None, bank_interim_comparison=None,
                 native_quarter_selected=False, native_ytd_missing=False, comparative=None,
                 withheld_fields={}, attempted=any(
                     isinstance(item,Mapping) and item.get('status') not in (None,'not_requested')
@@ -51,11 +51,12 @@ def workbench_projection(ticker, financial_view, prices, expected_cik=None, *, a
     from src.sec_online_ibn_evidence import validated_ibn_archive_annual
     bank=validated_ibn_archive_annual(view,ticker=ticker,expected_cik=expected_cik,as_of=as_of)
     if bank:
-        from src.sec_online_ibn_interim_evidence import validated_ibn_archive_interim
+        from src.sec_online_ibn_interim_evidence import validated_ibn_archive_interim, validated_ibn_interim_comparison
         interim=validated_ibn_archive_interim(view,ticker=ticker,expected_cik=expected_cik,as_of=as_of)
+        comparison=validated_ibn_interim_comparison(view,ticker=ticker,expected_cik=expected_cik,as_of=as_of) if interim else None
         selected=interim or bank
         current=selected['periods'][0]
-        result.update(bank_annual=bank,bank_interim=interim,quarter_count=int(bool(interim)),
+        result.update(bank_annual=bank,bank_interim=interim,bank_interim_comparison=comparison,quarter_count=int(bool(interim)),
                       annual_count=sum(row['status']=='available' for row in bank['periods']),
                       period_start=current['period_start'],period_end=current['period_end'],period_kind=current['kind'],
                       unit=selected['unit'],filed=selected['filed'])

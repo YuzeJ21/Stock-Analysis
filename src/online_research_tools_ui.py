@@ -239,6 +239,8 @@ def _forward_decision(st, context):
     with st.expander('Forward View and Decision Lab', expanded=False):
         st.caption('Reported trends, explicit hypotheses and your issuer-scoped research records. Filing detections are review triggers, not reviewed catalysts or earnings forecasts.')
         forward = context.get('forward_view') or {}
+        if 'review_triggers' not in forward and (context.get('business_trend') or {}).get('bank_interim_comparison'):
+            forward = {**forward, 'review_triggers': context['filing_inventory']['review_triggers']}
         decision = context.get('decision_lab') or {}
         if decision.get('next_process_step'):
             st.write('**Next research action:** ' + str(decision['next_process_step']))
@@ -276,9 +278,12 @@ def _snapshots(st, context, bundle):
                 st.info('Historical replay · ' + historical['observed_at'])
                 trend = historical['context'].get('business_trend') or {}
                 if trend.get('bank_annual'):
-                    from src.sec_exact_filing_view import bank_annual_html, bank_interim_html
+                    from src.sec_exact_filing_view import bank_annual_html, bank_interim_html, bank_quarter_comparison_html
                     interim = trend.get('bank_interim')
                     if interim:
+                        pair = trend.get('bank_interim_comparison')
+                        if pair:
+                            st.markdown(bank_quarter_comparison_html(interim, pair), unsafe_allow_html=True)
                         st.markdown(bank_interim_html(interim), unsafe_allow_html=True)
                     st.markdown(bank_annual_html(trend['bank_annual'], show_interim_gap=not interim), unsafe_allow_html=True)
                 comparisons = trend.get('comparative_periods') or []
@@ -303,9 +308,12 @@ def _snapshots(st, context, bundle):
                 comparison = compare_research_contexts(snapshots[1], snapshots[0])
                 st.write('**Latest saved comparison:** ' + _label(comparison.get('status')))
                 _evidence(st, comparison)
-            current = compare_research_contexts(snapshots[0], context)
-            st.caption('Current versus latest saved: ' + _label(current.get('status')))
-            _evidence(st, current)
+            latest_pair = (snapshots[0]['context'].get('business_trend') or {}).get('bank_interim_comparison')
+            live_pair = (context.get('business_trend') or {}).get('bank_interim_comparison')
+            if not latest_pair or live_pair:
+                current = compare_research_contexts(snapshots[0], context)
+                st.caption('Current versus latest saved: ' + _label(current.get('status')))
+                _evidence(st, current)
             from src.research_workspace import open_research_monitor
             st.button('Open Monitor', key='online-research-open-monitor',
                 on_click=open_research_monitor,args=(st,scope['ticker'],scope['profile_key']))
@@ -354,13 +362,19 @@ def render_online_research_monitor(st, *, profile_key):
             sec_cik=scope['sec_cik'], project_root=PROJECT_ROOT)
         latest = snapshots[0]
         st.caption('Latest observation: ' + latest['observed_at'])
+        trend = latest['context'].get('business_trend') or {}
+        pair = trend.get('bank_interim_comparison')
         if len(snapshots) >= 2:
-            st.write('Latest pair: ' + _label(compare_research_contexts(snapshots[1], latest)['status']))
+            label = 'Saved snapshot comparison' if pair else 'Latest pair'
+            st.write(label + ': ' + _label(compare_research_contexts(snapshots[1], latest)['status']))
+        if pair:
+            from src.sec_exact_filing_view import bank_quarter_comparison_html
+            st.markdown(bank_quarter_comparison_html(trend['bank_interim'], pair), unsafe_allow_html=True)
         for gap in latest['context'].get('gaps') or []:
             st.write(_label(gap))
         query = dict(mode='research', page='company-workbench', ticker=scope['ticker'],
             section='notes', research_cik=scope['sec_cik'], research_snapshot=latest['snapshot_id'])
-        st.button('Reopen exact saved research', key='online-research-monitor-open:' + profile_key,
+        st.button('Reopen exact filing pair' if pair else 'Reopen exact saved research', key='online-research-monitor-open:' + profile_key,
             on_click=st.query_params.from_dict, args=(query,))
     except (OSError, ValueError, TypeError, UnicodeError, IndexError):
         st.warning('Online research snapshots could not be verified. Existing SEC review and company notes remain separate.')
