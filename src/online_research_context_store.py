@@ -210,6 +210,10 @@ def _normalized(value):
             from src.sec_online_ibn_interim_evidence import valid_saved_ibn_interim_comparison
             if not valid_saved_ibn_interim_comparison(item, context=value):
                 raise ValueError('Normalized interim comparison evidence is invalid or outside its exact filing scope')
+        if path == ('business_trend', 'capital_purchase_evidence'):
+            from src.sec_online_quarter_evidence import valid_saved_capital_purchase_evidence
+            if not valid_saved_capital_purchase_evidence(item, context=value):
+                raise ValueError('Normalized capital purchase evidence is invalid or outside its exact filing scope')
         if item is None or isinstance(item, bool):
             return
         if isinstance(item, (int, float)) and not isinstance(item, bool):
@@ -240,9 +244,13 @@ def _normalized(value):
                     and path[2] == 'periods' and type(path[3]) is int and path[4] == 'fields' and isinstance(path[5], str))
                 bank_baseline = (len(path) == 7 and path[:5] == ('business_trend', 'bank_interim_comparison', 'baseline', 'periods', 0)
                     and path[5] == 'fields' and isinstance(path[6], str))
+                capital_field = (len(path) == 4 and path[:3] == ('business_trend', 'capital_purchase_evidence', 'fields')
+                    and isinstance(path[3], str))
                 row = value['business_trend']['periods'][path[2]] if typed else None
                 valid = False
-                if bank_field or bank_baseline:
+                if capital_field:
+                    valid = item.get('reported_numeric_schema') == 'sec-nee-capital-purchase-number-v1'
+                elif bank_field or bank_baseline:
                     marker = 'sec-ibn-bank-number-v1' if path[1] == 'bank_annual' else 'sec-ibn-interim-number-v1'
                     valid = item.get('reported_numeric_schema') == marker
                 elif comparative:

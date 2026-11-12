@@ -1,5 +1,6 @@
 """Strict entity/context/unit-bound Inline XBRL inspection, no financial derivation."""
 from collections import defaultdict
+from collections.abc import Mapping
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
 import hashlib
@@ -33,6 +34,27 @@ BANK_CATALOG={'us-gaap':{**CATALOG['us-gaap'],
  'noninterest_income':('NoninterestIncome',)}}
 
 
+_HTML = '{http://www.w3.org/1999/xhtml}'
+NEE_CAPITAL_PURCHASE_SCHEMA = 'sec-nee-capital-purchases-v1'
+_NEE_SOURCE = 'https://www.sec.gov/Archives/edgar/data/753308/000075330826000081/nee-20260930.htm'
+_NEE_NAMESPACE = 'http://www.nexteraenergy.com/20260930'
+_NEE_START, _NEE_END = '2026-01-01', '2026-09-30'
+_NEE_TOTAL = 'reported_capital_investment_total'
+NEE_CAPITAL_PURCHASE_FIELDS = {
+    _NEE_TOTAL: ('f-2280', 'issuer-extension', 'CapitalExpendituresIndependentPowerInvestmentsAndNuclearFuelPurchases',
+                 'Capital expenditures, independent power and other investments and nuclear fuel purchases'),
+    'fpl_capital_expenditures': ('f-347', 'issuer-extension', 'CapitalExpendituresOfFPL', 'Capital expenditures of FPL'),
+    'neer_independent_power_and_other_investments': ('f-349', 'issuer-extension', 'IndependentPowerInvestments',
+                                                    'Independent power and other investments of NEER'),
+    'nuclear_fuel_purchases': ('f-351', 'us-gaap', 'PaymentsForProceedsFromNuclearFuel', 'Nuclear fuel purchases'),
+    'other_capital_expenditures': ('f-353', 'issuer-extension', 'ProceedsPaymentsFromOtherCapitalExpenditures',
+                                   'Other capital expenditures'),
+}
+_NEE_EVIDENCE = dict(status='inspection_only', schema_version=NEE_CAPITAL_PURCHASE_SCHEMA, period_kind='cumulative',
+                     period_start=_NEE_START, period_end=_NEE_END, unit='USD',
+                     capital_expenditures_equivalent=False, cash_generation_eligible=False)
+
+
 def valid_numeric_proof(field):
     if not isinstance(field,dict) or not isinstance(field.get('raw_text'),str):return False
     if type(field.get('scale')) is not int or not isinstance(field.get('sign'),str) or field.get('sign') not in {'','-'} or not isinstance(field.get('decimals'),str):return False
@@ -43,6 +65,35 @@ def valid_numeric_proof(field):
     if transformation is not None:node.set('format','ixt:'+transformation)
     proof,_=_number(node,{'ixt':'http://www.xbrl.org/inlineXBRL/transformation/2020-02-12'})
     return proof is not None and all(field.get(k)==v for k,v in proof.items())
+
+
+def valid_nee_capital_purchase_evidence(evidence, *, source_url):
+    """Verify the filed nine-month investment disclosure without admitting a PP&E measure."""
+    if (source_url != _NEE_SOURCE or not isinstance(evidence, Mapping) or set(evidence) != {*_NEE_EVIDENCE, 'fields'}
+            or any(evidence[key] != value for key, value in _NEE_EVIDENCE.items())
+            or any(evidence[key] is not False for key in ('capital_expenditures_equivalent', 'cash_generation_eligible'))):
+        return False
+    fields = evidence['fields']
+    if not isinstance(fields, Mapping) or set(fields) != set(NEE_CAPITAL_PURCHASE_FIELDS):
+        return False
+    for key, (fact_id, taxonomy, concept, label) in NEE_CAPITAL_PURCHASE_FIELDS.items():
+        field = fields[key]
+        total = key == _NEE_TOTAL
+        if (not isinstance(field, Mapping) or not valid_numeric_proof(dict(field)) or type(field.get('value')) is not int
+                or field['value'] <= 0 or field.get('field') != key or field.get('label') != label
+                or field.get('taxonomy') != taxonomy or field.get('concept') != concept
+                or field.get('namespace_uri') != (_NEE_NAMESPACE if taxonomy == 'issuer-extension' else 'http://fasb.org/us-gaap/2026')
+                or field.get('source_ref') != source_url + '#' + fact_id or field.get('fact_id') != fact_id
+                or field.get('rights_status') != RIGHTS or field.get('unit') != 'USD' or field.get('unit_id') != 'usd'
+                or field.get('context_id') != 'c-1' or field.get('period_start') != _NEE_START or field.get('period_end') != _NEE_END
+                or field.get('scale') != 6 or field.get('decimals') != '-6' or field.get('sign') != ''
+                or field.get('presentation') != ('reported_total' if total else 'cash_outflow')
+                or field.get('statement') != ('segment_disclosure' if total else 'consolidated_cash_flows')):
+            return False
+        raw = field['raw_text']
+        if field.get('presentation_evidence') != (raw if total else '(' + raw + ')'):
+            return False
+    return fields[_NEE_TOTAL]['value'] == sum(field['value'] for key, field in fields.items() if key != _NEE_TOTAL)
 
 
 def _qname(value,namespaces):
@@ -126,6 +177,139 @@ def _tree(raw):
                 if identity in ids:raise ValueError('duplicate_document_id')
                 ids.add(identity)
     return parser.root,namespaces
+
+
+def _visible_text(node):
+    return ' '.join(''.join(node.itertext()).split())
+
+
+def _positioned_cells(row):
+    offset, result = 0, []
+    for cell in row:
+        span = cell.get('colspan', '1')
+        if (cell.tag not in {_HTML + 'td', _HTML + 'th'} or cell.get('rowspan', '1') != '1'
+                or not re.fullmatch(r'[1-9][0-9]?', span) or offset + int(span) > 64):
+            return []
+        result.append((cell, offset, offset + int(span)))
+        offset += int(span)
+    return result
+
+
+def _plain_header(row, label, start, end):
+    from src.sec_html_bank import _hidden
+
+    return not _hidden(row.attrib) and any((lo, hi) == (start, end) and _visible_text(cell) == label
+               and not any(_hidden(node.attrib) for node in cell.iter())
+               for cell, lo, hi in _positioned_cells(row))
+
+
+def _preceding_label(rows, pattern):
+    from src.sec_html_bank import _hidden
+
+    for row in reversed(rows):
+        for cell in row:
+            label = _visible_text(cell)
+            if pattern.fullmatch(label):
+                return None if _hidden(row.attrib) or any(_hidden(node.attrib) for node in cell.iter()) else label
+    return None
+
+
+def _nee_cash_statement(table, rows, parents):
+    wrapper = parents.get(table)
+    scope = parents.get(wrapper)
+    if scope is None:
+        return False
+    siblings = list(scope)
+    index = siblings.index(wrapper)
+    headings = siblings[max(index - 4, 0):index]
+    from src.sec_html_bank import _hidden
+
+    if ([_visible_text(node) for node in headings] != ['NEXTERA ENERGY, INC.',
+            'CONDENSED CONSOLIDATED STATEMENTS OF CASH FLOWS', '(millions)', '(unaudited)']
+            or any(_hidden(child.attrib) for node in headings for child in node.iter())):
+        return False
+    return (any(_plain_header(row, 'Nine Months Ended September 30,', 6, 15) for row in rows[:4])
+            and any(_plain_header(row, '2026', 6, 9) and _plain_header(row, '2025', 12, 15) for row in rows[:4]))
+
+
+def _nee_purchase_presentation(node, label, total, raw_text, parents):
+    from src.sec_html_bank import _hidden
+
+    ancestors = [node]
+    while ancestors[-1] in parents:
+        ancestors.append(parents[ancestors[-1]])
+    if any(element.tag == f'{{{IX}}}hidden' or _hidden(element.attrib) for element in ancestors):
+        return None
+    path = {element.tag: element for element in ancestors[1:]}
+    table, row, cell = (path.get(_HTML + name) for name in ('table', 'tr', 'td'))
+    if table is None or row is None or cell is None or parents.get(cell) != row:
+        return None
+    rows = list(table.iter(_HTML + 'tr'))
+    if row not in rows or len(rows) > 100 or len([part for part in ancestors if part.tag == _HTML + 'table']) != 1:
+        return None
+    prior = rows[:rows.index(row)]
+    if (not _plain_header(row, label, 0, 3)
+            or any(_hidden(child.attrib) for child in cell.iter())):
+        return None
+    span = (28, 29) if total else (6, 8)
+    if not any(part is cell and (start, stop) == span for part, start, stop in _positioned_cells(row)):
+        return None
+    if total:
+        # The segment table has a three-month section before this nine-month row.
+        duration = re.compile(r'(?:Three|Six|Nine|Twelve) Months Ended [A-Za-z]+ [0-9]{1,2}, [0-9]{4}')
+        if (_preceding_label(prior, duration) != 'Nine Months Ended September 30, 2026'
+                or not any(_plain_header(head, 'TotalConsolidated', 27, 30) or _plain_header(head, 'Total Consolidated', 27, 30)
+                           for head in prior[:5])
+                or not any(_plain_header(head, '(millions)', 3, 30) for head in prior[:5])):
+            return None
+        expected = raw_text
+    else:
+        investing = re.compile(r'CASH FLOWS FROM [A-Z ]+ ACTIVITIES')
+        if (_preceding_label(prior, investing) != 'CASH FLOWS FROM INVESTING ACTIVITIES'
+                or not _nee_cash_statement(table, rows, parents)):
+            return None
+        expected = '(' + raw_text + ')'
+    return (expected, table) if _visible_text(cell) == expected else None
+
+
+def _nee_capital_purchases(root, namespaces, contexts, units, selection):
+    if (any(selection.get(key) != value for key, value in {'ticker': 'NEE', 'sec_cik': '0000753308',
+            'accession': '0000753308-26-000081', 'form': '10-Q', 'period_kind': 'quarterly',
+            'period_end': _NEE_END, 'source_url': _NEE_SOURCE}.items())
+            or contexts.get('c-1') != {'start': _NEE_START, 'end': _NEE_END} or units.get('usd') != 'USD'):
+        return None
+    accepted = {_NEE_NAMESPACE, 'http://fasb.org/us-gaap/2026'}
+    nodes = defaultdict(list)
+    for node in root.iter(f'{{{IX}}}nonFraction'):
+        uri, concept = _qname(node.get('name'), namespaces)
+        if uri in accepted and node.get('contextRef') == 'c-1':
+            nodes[(uri, concept)].append(node)
+    parents = {child: parent for parent in root.iter() for child in parent}
+    fields = {}
+    cash_table = None
+    for key, (fact_id, taxonomy, concept, label) in NEE_CAPITAL_PURCHASE_FIELDS.items():
+        uri = _NEE_NAMESPACE if taxonomy == 'issuer-extension' else 'http://fasb.org/us-gaap/2026'
+        matches = nodes[(uri, concept)]
+        if len(matches) != 1 or matches[0].get('id') != fact_id or matches[0].get('unitRef') != 'usd':
+            return None
+        node = matches[0]
+        number, _ = _number(node, namespaces)
+        total = key == _NEE_TOTAL
+        presentation = _nee_purchase_presentation(node, label, total, number['raw_text'], parents) if number else None
+        if presentation is None:
+            return None
+        literal, table = presentation
+        if not total:
+            if cash_table is not None and cash_table is not table:
+                return None
+            cash_table = table
+        fields[key] = dict(field=key, label=label, taxonomy=taxonomy, concept=concept, namespace_uri=uri,
+                           unit='USD', unit_id='usd', context_id='c-1', period_start=_NEE_START, period_end=_NEE_END,
+                           fact_id=fact_id, source_ref=_NEE_SOURCE + '#' + fact_id, rights_status=RIGHTS,
+                           presentation='reported_total' if total else 'cash_outflow', presentation_evidence=literal,
+                           statement='segment_disclosure' if total else 'consolidated_cash_flows', **number)
+    evidence = dict(_NEE_EVIDENCE, fields=fields)
+    return evidence if valid_nee_capital_purchase_evidence(evidence, source_url=_NEE_SOURCE) else None
 
 
 def extract_inline_filing(raw,selection,receipt):
@@ -219,5 +403,8 @@ def extract_inline_filing(raw,selection,receipt):
         commercial_eligible=False,readiness_promoted=False,taxonomy=tax,unit=unit,periods=periods,
         observed_at=receipt['observed_at'],payload_sha256=receipt['payload_sha256'],
         source_receipts=[*selection['source_receipts'],{k:receipt[k] for k in ('source_url','observed_at','payload_sha256')}])
+    capital_purchases = _nee_capital_purchases(root, namespaces, contexts, units, selection)
+    if capital_purchases:
+        result['capital_purchase_evidence'] = capital_purchases
     result['packet_digest']=_digest(result)
     return result

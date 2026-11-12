@@ -277,6 +277,9 @@ def _snapshots(st, context, bundle):
                 historical = load_research_context(requested, **scope, project_root=PROJECT_ROOT)
                 st.info('Historical replay · ' + historical['observed_at'])
                 trend = historical['context'].get('business_trend') or {}
+                if trend.get('capital_purchase_evidence'):
+                    from src.sec_online_quarter_view import capital_purchase_html
+                    st.markdown(capital_purchase_html(trend['capital_purchase_evidence']), unsafe_allow_html=True)
                 if trend.get('bank_annual'):
                     from src.sec_exact_filing_view import bank_annual_html, bank_interim_html, bank_quarter_comparison_html
                     interim = trend.get('bank_interim')

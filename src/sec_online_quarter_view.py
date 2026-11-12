@@ -7,7 +7,8 @@ from src.sec_native_quarter_comparisons import BASES, REASONS, quarter_changes
 
 _STYLE = ('<style>.company-archive-quarter{min-width:0;overflow-wrap:anywhere;margin:16px 0;padding:16px;background:#fff;color:#172522;border:1px solid #dce3de;border-radius:8px}.archive-quarter-table{max-width:100%;overflow-x:auto}'
           '.company-archive-quarter p,.company-archive-quarter th,.company-archive-quarter td,.company-archive-quarter li,.company-archive-quarter summary{color:#172522!important}.company-archive-quarter a{color:#245842!important}'
-          '.archive-quarter-table table{width:100%;font-size:.86rem;border-collapse:collapse}.archive-quarter-table th,.archive-quarter-table td{padding:8px;text-align:left;border-bottom:1px solid #dce3de}'
+          '.archive-quarter-table table{width:100%;font-size:.86rem;border-collapse:collapse}.archive-quarter-table th,.archive-quarter-table td{padding:8px;text-align:left;border-bottom:1px solid #dce3de;overflow-wrap:normal}'
+          '.archive-quarter-table td:nth-child(2){white-space:nowrap;font-variant-numeric:tabular-nums}@media(max-width:480px){.archive-quarter-table th,.archive-quarter-table td{padding:6px}}'
           '.company-archive-quarter summary{cursor:pointer;min-height:44px;align-content:center}.company-archive-quarter summary:focus-visible{outline:3px solid #245842}</style>')
 
 
@@ -67,7 +68,38 @@ def archive_quarter_html(financial, *, as_of=None):
             + escape(archive['form'] + ' · filed ' + archive['filed'] + ' · accession ' + archive['accession'] + ' · CIK ' + archive['sec_cik']) + '</p>' + ''.join(panels)
             + '<details><summary>Source and reporting basis</summary><p>Directly reported parent-issuer facts from the exact SEC filing. Companyfacts coverage remains separate. No quarter is derived by subtraction; no missing component is inferred.</p>'
             + '<p>Personal inspection only · archive source rights are unregistered. Commercial use, redistribution and saved-model readiness remain unapproved.</p><p>'
-            + escape('Accepted ' + archive['accepted_at'] + ' · Observed ' + archive['observed_at']) + '</p><ul>' + refs + '</ul></details></section>')
+            + escape('Accepted ' + archive['accepted_at'] + ' · Observed ' + archive['observed_at']) + '</p><ul>' + refs
+            + '</ul></details></section>' + capital_purchase_html(archive.get('capital_purchase_evidence')))
+
+
+def capital_purchase_html(evidence):
+    """Display the exact issuer-specific year-to-date definition and cash-flow lines."""
+    if not evidence:
+        return ''
+    order = ('reported_capital_investment_total', 'fpl_capital_expenditures',
+             'neer_independent_power_and_other_investments', 'nuclear_fuel_purchases', 'other_capital_expenditures')
+    lines = []
+    for key in order:
+        field = evidence['fields'].get(key)
+        if not field:
+            continue
+        label = escape(field['label'])
+        amount = escape(f"{field['unit']} {field['value']:,}")
+        source = escape(field['source_ref'], quote=True)
+        basis = 'Reported consolidated total' if field['presentation'] == 'reported_total' else 'Consolidated cash-flow outlay'
+        lines.append(f'<li><strong>{label}</strong> · {amount} <small>({basis})</small> '
+                     f'<a href="{source}" target="_blank" rel="noopener noreferrer">SEC fact</a></li>')
+    dates = escape(evidence['period_start'] + ' to ' + evidence['period_end'])
+    url = escape(evidence['source_url'], quote=True)
+    filing = escape(f"Filed {evidence['filed']} · Accession {evidence['accession']} · Observed {evidence['observed_at']}")
+    return (_STYLE + '<section class="company-archive-quarter" aria-label="NEE capital investment evidence">'
+            '<h3>Year-to-date capital investments</h3><p>' + dates + ' · USD · NEE consolidated filing</p><ul>'
+            + ''.join(lines) + '</ul><p><strong>Consolidated PP&amp;E purchases need verification.</strong> '
+            'The reported total includes independent power and other investments and nuclear fuel.</p>'
+            '<p>Quarterly cash flow and capital purchases need direct-quarter evidence.</p>'
+            '<details><summary>Exact SEC filing and scope</summary><p><a href="' + url + '" target="_blank" '
+            'rel="noopener noreferrer">Exact SEC 10-Q</a> · ' + filing + '</p>'
+            '<p>Personal inspection only. Operating cash flow less PP&amp;E requires its own matched evidence.</p></details></section>')
 
 
 def native_quarter_comparisons_html(current, comparatives, gaps=None):

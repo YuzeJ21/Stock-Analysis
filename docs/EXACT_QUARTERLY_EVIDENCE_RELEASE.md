@@ -46,7 +46,7 @@ No full repository-suite, resulting-main hosted CI, independent human accessibil
 
 Independent review reproduced a stale-structured comparison defect: a new archive value could be compared using the older structured current value. The headline now uses the same merged, validated history and requires equal revenue definitions. Broader productive-asset purchases also remain distinct from PP&E spending and cannot qualify the PP&E cash-generation metric.
 
-Remaining work: current Companyfacts lag, the nine unsupported direct-quarter fields, C's operating-income definition and NEE's cumulative capital-purchase definition remain explicit. Remaining foreign-issuer identity, duration, non-XBRL and research-context capacity gaps are separate next-stage work. A meaningful subsequent-filing comparison requires an independently observed new source, not altered test data.
+The initial checks left Companyfacts lag, nine unsupported direct-quarter fields, C's operating-income definition and NEE's consolidated PP&E purchase definition visible. Later releases track foreign issuer and research-context work separately.
 
 [Online workflow](ONLINE_COMPANY_RESEARCH.md) · [Self-service method](SELF_SERVICE_COMPANY_RESEARCH.md) · [Prior bank snapshots](BANK_RESEARCH_SNAPSHOT_RELEASE.md) · [Roadmap](../ROADMAP.md)
 
@@ -55,3 +55,13 @@ Remaining work: current Companyfacts lag, the nine unsupported direct-quarter fi
 Verified implementation: [`5eba9e63713df9e51ef9aab475b159d4ff786bae`](https://github.com/YuzeJ21/Stock-Analysis/commit/5eba9e63713df9e51ef9aab475b159d4ff786bae). GitHub main accepted the fast-forward from the stated baseline. The remote Git ref and independent GitHub branch read matched the full commit; remote README and release-document blob IDs matched the local files. This documentation-only follow-up records those checks without changing tested runtime code, tests or protected inputs.
 
 The ignored local review packet is `outputs/local/releases/exact-quarterly-evidence-20261108/`: reduced source/date/digest results, unchanged-input manifest, exact private replay outcomes, regression/review logs, constructed browser screenshots and a held local PR draft. Full original sources and actual research contexts remain private temporary captures. No PR was opened and no user notes or evidence stores were written during verification. The owned local application is healthy on port 8536; unrelated worktrees were preserved.
+
+## NEE capital-investment review
+
+The October 21, 2026 10-Q reports a consolidated total for capital expenditures, independent power and other investments, and nuclear fuel purchases for January 1 to September 30. The filing separately reports cash outlays for FPL capital expenditures, NEER independent power and other investments, nuclear fuel, and other capital expenditures. Workbench shows the reported total and each tagged cash-flow line under **Year-to-date capital investments**, with links to the exact facts. The separate FPL registrant statement, accrued property additions and quarter-length disclosures do not supply NEE consolidated cash purchases of PP&E. [Exact SEC 10-Q](https://www.sec.gov/Archives/edgar/data/753308/000075330826000081/nee-20260930.htm)
+
+The supplemental evidence retains its nine-month duration and parent filing identity. The direct-quarter cash-flow and capital-purchase gaps stay visible. The nine-month consolidated PP&E field and PP&E-based cash-generation calculation remain withheld. Private snapshots retain the exact source definitions and receipt for offline replay. The source-rights registry and eligibility rules above also apply to this evidence.
+
+The November 11, 2026 Toronto-time verification used the current official ticker map, Companyfacts, submissions and one exact primary-document response. Desktop (1440 × 1000) and phone (390 × 844) checks replayed those responses through the normal Workbench workflow. Both verified the filing links, separate periods, withheld fields, unchanged saved evidence and return from Monitor with zero additional source requests. All 89 protected files matched the baseline.
+
+Affected regression tests recorded 3,108 passes and four UI timeouts in the broad run. The four timed-out cases passed when rerun together, for 3,112 verified cases. Exact source receipts and browser captures remain in the private local verification packet.

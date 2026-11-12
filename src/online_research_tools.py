@@ -503,6 +503,10 @@ def build_online_research_context(financial, prices, peers=None, association=Non
     trend = _trend(histories, coverage, comparative_periods, bank_annual=bank_annual, bank_interim=bank_interim)
     if bank_comparison:
         trend['bank_interim_comparison'] = bank_comparison
+    capital_evidence = archive.get('capital_purchase_evidence') if archive else None
+    if capital_evidence:
+        trend['capital_purchase_evidence'] = capital_evidence
+        trend['gaps'].append('Consolidated PP&E purchases and direct-quarter capital purchases need their own evidence.')
     if comparative_periods:
         trend['comparative_periods'] = [dict(
             kind='quarterly', currency=row['unit'], status=row['status'], current=False,
