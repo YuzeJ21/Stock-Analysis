@@ -42,7 +42,7 @@ from src.sec_foreign_financials import validated_foreign_financials
 from src.sec_exact_filing import get_company_filing_preview
 from src.sec_exact_filing_view import filing_preview_html
 from src.security_classification import get_company_security_context
-from src.security_classification_view import get_listing_classification,classification_html,company_security_html
+from src.security_classification_view import LISTING_OBSERVATION_SCOPES, get_listing_classification, classification_html, company_security_html
 from src.online_coverage_checkpoint import handle_coverage_checkpoint_action
 from src.online_research_expansion_view import quarterly_history_html, price_filing_association_html, coverage_study_html
 from src.artifact_freshness import generated_artifact_stale_warning
@@ -31395,10 +31395,21 @@ def render_online_coverage_study() -> None:
                     universe=get_online_us_universe(st.session_state,user_agent=os.getenv("SEC_USER_AGENT"),inspect_requested=True)
             st.markdown(universe_coverage_html(universe),unsafe_allow_html=True)
         with tabs[2]:
+            from src.listing_gap_review import listing_gap_review_markdown
+
             requested=st.button("Classify observed listings",key="security-classification-refresh")
             classified=get_listing_classification(st.session_state,refresh_requested=requested,user_agent=os.getenv("SEC_USER_AGENT"))
-            query=st.text_input("Filter classified listings",key="security-classification-query") if classified.get("status")=="inspection_only" else ""
-            st.markdown(classification_html(classified,query),unsafe_allow_html=True)
+            observation_scope = LISTING_OBSERVATION_SCOPES[0]
+            query = ""
+            if classified.get("status") == "inspection_only":
+                observation_scope = st.selectbox("Listing observations", LISTING_OBSERVATION_SCOPES, key="listing-observation-scope")
+                query = st.text_input("Filter classified listings", key="security-classification-query")
+            st.markdown(classification_html(classified, query, observation_scope=observation_scope), unsafe_allow_html=True)
+            gap_review = listing_gap_review_markdown()
+            if gap_review:
+                with st.container(key="listing-gap-review"):
+                    st.subheader("Listing gap review")
+                    st.markdown(gap_review)
         with tabs[3]:
             st.markdown("A bounded sample of " + str(len(DEFAULT_SAMPLE)) + " tickers across SEC industries. This is a field-availability study, not a market-wide census; prices are not queried.")
             requested=st.button("Run online coverage sample",key="online-coverage-sample-refresh")

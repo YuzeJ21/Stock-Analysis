@@ -109,6 +109,9 @@ def test_discover_places_dated_nasdaq_texas_evidence_inside_us_listings(monkeypa
         def expander(self, label, **_):
             return Scope(label)
 
+        def container(self, *, key):
+            return Scope(key)
+
         def tabs(self, labels):
             return [Scope(label) for label in labels]
 
@@ -126,6 +129,7 @@ def test_discover_places_dated_nasdaq_texas_evidence_inside_us_listings(monkeypa
             rendered.append((tuple(stack), value))
 
         caption = markdown
+        subheader = markdown
 
     monkeypatch.setattr(dashboard, 'st', StreamlitStub())
     monkeypatch.setattr(online_peer_coverage_ui, 'render_peer_coverage', lambda *_a, **_k: None)
@@ -134,7 +138,6 @@ def test_discover_places_dated_nasdaq_texas_evidence_inside_us_listings(monkeypa
     monkeypatch.setattr(dashboard, 'get_online_us_universe', lambda *_a, **_k: {'status': 'unavailable'})
     monkeypatch.setattr(dashboard, 'universe_coverage_html', lambda *_a: '')
     monkeypatch.setattr(dashboard, 'get_listing_classification', lambda *_a, **_k: {'status': 'unavailable'})
-    monkeypatch.setattr(dashboard, 'classification_html', lambda *_a: '')
     monkeypatch.setattr(dashboard, 'get_online_coverage_study', lambda *_a, **_k: {'status': 'unavailable'})
     monkeypatch.setattr(dashboard, 'coverage_study_html', lambda *_a: '')
 

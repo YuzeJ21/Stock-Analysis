@@ -10,6 +10,21 @@ def test_listing_counts_are_source_labels_and_unknowns_remain_inspectable():
  assert 'directory description' in h and 'financial eligibility' in h and '2026-10-30' in h
 
 
+def test_listing_gap_filters_keep_the_snapshot_denominator_and_use_distinct_populations():
+ from src.security_classification_view import classification_html
+
+ snapshot = packet()
+ sec_only = classification_html(snapshot, observation_scope='SEC-only')
+ unresolved = classification_html(snapshot, observation_scope='Unresolved directory types')
+ assert '6 listing records' in sec_only and '6 listing records' in unresolved
+ assert '1 SEC-only' in sec_only and '2 unresolved directory types' in sec_only
+ assert 'Matching listing observations (1)' in sec_only and '<strong>TEX</strong>' in sec_only
+ assert 'Matching listing observations (2)' in unresolved and '<strong>TEX</strong>' not in unresolved
+ assert '<strong>BANK</strong>' in unresolved and '<strong>UNMAP</strong>' in unresolved
+ assert '<strong>FICT</strong>' not in unresolved and '<strong>FICT.B</strong>' not in unresolved
+ assert 'Matching listing observations (0)' in classification_html(snapshot, 'FICT', observation_scope='SEC-only')
+
+
 def test_selected_company_profile_and_instrument_stay_independent():
  from src.security_classification import get_company_security_context
  from src.security_classification_view import company_security_html

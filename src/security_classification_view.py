@@ -6,6 +6,7 @@ from src.company_research_scope import research_scope,research_scope_html
 from src.security_classification import fetch_classification,validated_classification,validated_company_context
 
 SESSION_KEY='listing_classification_v1'
+LISTING_OBSERVATION_SCOPES = ('All observations', 'SEC-only', 'Unresolved directory types')
 LABELS={'etf':'ETF · declared flag','common_shares':'Common / ordinary shares','depositary_receipt':'Depositary receipt','preferred':'Preferred','debt':'Debt / note','unit':'Unit','warrant':'Warrant','right':'Right','unknown':'Unknown'}
 STYLE='<style>.security-classification,.security-context{margin:16px 0;padding:16px;border:1px solid #d9e0dc;border-radius:8px;box-sizing:border-box;min-width:0;overflow-wrap:anywhere}.security-type-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr));gap:8px}.security-type-grid div{padding:8px;border:1px solid #d9e0dc;border-radius:6px;min-width:0}.security-classification ul,.security-context ul{padding-left:20px}</style>'
 
@@ -18,15 +19,20 @@ def get_listing_classification(session_state,*,refresh_requested,user_agent,fetc
  if cached is None:return dict(status='not_requested')
  return validated_classification(cached) or dict(status='withheld',reason='classification_source_or_schema_unverified')
 
-def classification_html(packet,query=''):
+def classification_html(packet, query='', *, observation_scope='All observations'):
  if _mode_reason('research'):return '<p>Classification inspection is available only in Personal Research.</p>'
  if not isinstance(packet,Mapping) or packet.get('status')=='not_requested':return '<p>Classify the observed official listings online. Source labels and unresolved types remain separate from financial coverage.</p>'
  p=validated_classification(packet)
  if p is None:return '<p>Classification withheld · source or schema unverified.</p>'
  counts=''.join('<div>'+LABELS[k]+'<br><strong>'+str(p['counts'].get(k,0))+'</strong></div>' for k in LABELS)
- matches=[r for r in p['rows'] if not query or query.casefold() in (r['symbol']+' '+(r['description'] or '')).casefold()]
- rows=''.join('<li><strong>'+escape(r['symbol'])+'</strong> · '+LABELS[r['security_type']]+' · '+escape(r['description'] or 'No security description in SEC-only record')+' · '+escape(r['basis'].replace('_',' '))+((' · '+escape(r['reason'].replace('_',' '))) if r['reason'] else '')+'</li>' for r in matches[:50])
- return (STYLE+'<section class="security-classification" aria-label="Security types"><h3>Security types · observed listings</h3><p>'+str(len(p['rows']))+' listing records · observed '+escape(p['inventory']['observed_from'])+'.</p><div class="security-type-grid">'+counts+'</div><p>Types use a declared ETF flag or a directory description rule. Unknown and composite labels remain visible. Legal security type is not independently verified; depositary receipts may carry an underlying common-share directory label. These labels do not establish financial eligibility, issuer domicile, active status or point-in-time membership.</p><details><summary>Matching listing observations ('+str(len(matches))+')</summary><p>Showing '+str(min(50,len(matches)))+' matches; filter by symbol or description for another record.</p><ul>'+rows+'</ul></details><details><summary>Source dates, digests and rights</summary>'+_refs(p['inventory']['source_receipts'])+'<p>Unregistered personal inspection only. This independently dated snapshot does not change the saved coverage denominator or financial counters.</p></details></section>')
+ sec_only = [row for row in p['rows'] if row['source'] == 'sec']
+ unresolved = [row for row in p['rows'] if row['source'] != 'sec' and row['security_type'] == 'unknown']
+ candidates = dict(zip(LISTING_OBSERVATION_SCOPES, (p['rows'], sec_only, unresolved))).get(observation_scope, [])
+ term = query.strip().casefold()
+ matches = [row for row in candidates if term in (row['symbol'] + ' ' + (row['description'] or '')).casefold()]
+ rows=''.join('<li><strong>'+escape(r['symbol'])+'</strong> · '+escape(r['venue'])+' · '+LABELS[r['security_type']]+' · '+escape(r['description'] or 'No security description in SEC-only record')+' · '+escape(r['basis'].replace('_',' '))+((' · '+escape(r['reason'].replace('_',' '))) if r['reason'] else '')+'</li>' for r in matches[:50])
+ gap_counts = f'{len(sec_only)} SEC-only · {len(unresolved)} unresolved directory types'
+ return (STYLE+'<section class="security-classification" aria-label="Security types"><h3>Security types · observed listings</h3><p>'+str(len(p['rows']))+' listing records · observed '+escape(p['inventory']['observed_from'])+'.</p><p>'+gap_counts+'.</p><div class="security-type-grid">'+counts+'</div><p>Types use a declared ETF flag or a directory description rule. Unknown and composite labels remain visible. Legal security type is not independently verified; depositary receipts may carry an underlying common-share directory label. These labels do not establish financial eligibility, issuer domicile, active status or point-in-time membership.</p><details><summary>Matching listing observations ('+str(len(matches))+')</summary><p>Showing '+str(min(50,len(matches)))+' matches. Filter by symbol or description for another record.</p><ul>'+rows+'</ul></details><details><summary>Source dates, digests and rights</summary>'+_refs(p['inventory']['source_receipts'])+'<p>Unregistered personal inspection only. This independently dated snapshot does not change the saved coverage denominator or financial counters.</p></details></section>')
 
 def company_security_html(context,ticker):
  if _mode_reason('research'):return '<p>Security context is available only in Personal Research.</p>'
