@@ -534,11 +534,33 @@ def corroborate_online_financials(financial, inventory, *, as_of=None):
         result['gaps'] = [gap for gap in result['gaps'] if not gap.startswith(('annual:', 'native quarter:'))]
         if structured['status'] != 'corroborated':
             result['gaps'].append('Companyfacts annual: ' + structured['reason'])
+        from src.sec_online_ibn_interim_evidence import validated_ibn_archive_interim
+        bank_interim = validated_ibn_archive_interim(financial, inventory=verified, as_of=as_of)
+        if bank_interim:
+            source = next(event for event in events if event['accession'] == bank_interim['accession'])
+            for row in bank_interim['periods']:
+                kind = 'quarterly' if row['kind'] == 'quarterly' else 'interim'
+                result['structured_' + kind] = deepcopy(result['current'][kind])
+                anchor = dict(source, period_end=row['period_end'], period_start=row['period_start'],
+                              period_kind=kind, period_basis='exact_ibn_interim_table')
+                bank_state = _coverage_state('corroborated', 'exact_ibn_interim_table_and_filing', anchor)
+                bank_state.update(source_id=bank_interim['source_id'], rights_status=bank_interim['rights_status'])
+                result['current'][kind] = bank_state
+                result['periods'][kind][row['period_end']] = deepcopy(bank_state)
+                result['gaps'] = [gap for gap in result['gaps'] if not gap.startswith(kind + ':')]
+            quarter = next(row for row in bank_interim['periods'] if row['kind'] == 'quarterly')
+            if 'cash_from_operations' not in quarter['fields']:
+                result['gaps'].append('Quarterly operating cash flow needs directly reported quarter evidence.')
         for kind, label in (('quarterly', 'Quarterly bank results'), ('interim', 'Year-to-date bank results')):
             if result['current'][kind]['status'] == 'withheld':
                 result['current'][kind] = _coverage_state('withheld', 'ibn_6k_reporting_basis_unqualified')
                 result['gaps'] = [gap for gap in result['gaps'] if not gap.startswith(kind + ':')]
-                result['gaps'].append(label + ' require a separate 6-K reporting rule.')
+                result['gaps'].append(label + ' require a verified 6-K reporting period.')
+        if not bank_interim:
+            attempted = financial.get('ibn_archive_interim')
+            reason = attempted.get('reason') if isinstance(attempted, Mapping) else None
+            if isinstance(reason, str) and re.fullmatch(r'[a-z0-9_]{1,120}', reason):
+                result['gaps'].append('IBN interim filing: ' + reason)
         if 'interim' not in expected:
             expected.append('interim')
     states = [result['current'][kind]['status'] for kind in expected]

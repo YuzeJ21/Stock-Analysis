@@ -167,7 +167,10 @@ def _render_company_content(st_api,ticker,*,profile_scope,scope,candidate,expect
         if selected=='overview':
             if projection['attempted'] or projection['facts']:
                 foreign=validated_foreign_financials(financial)
-                if projection.get('bank_annual'):
+                if projection.get('bank_interim'):
+                    from src.sec_exact_filing_view import bank_interim_html
+                    st_api.markdown(bank_interim_html(projection['bank_interim']),unsafe_allow_html=True)
+                elif projection.get('bank_annual'):
                     from src.sec_exact_filing_view import bank_annual_html
                     st_api.markdown(bank_annual_html(projection['bank_annual'],show_history=False),unsafe_allow_html=True)
                 elif projection['native_quarter_selected']:
@@ -189,8 +192,11 @@ def _render_company_content(st_api,ticker,*,profile_scope,scope,candidate,expect
             if financial.get('status')=='not_requested':
                 st_api.info('Refresh financials and prices to load reported periods.')
             elif projection.get('bank_annual'):
-                from src.sec_exact_filing_view import bank_annual_html
-                st_api.markdown(bank_annual_html(projection['bank_annual']),unsafe_allow_html=True)
+                from src.sec_exact_filing_view import bank_annual_html, bank_interim_html
+                interim=projection.get('bank_interim')
+                if interim:
+                    st_api.markdown(bank_interim_html(interim),unsafe_allow_html=True)
+                st_api.markdown(bank_annual_html(projection['bank_annual'],show_interim_gap=not interim),unsafe_allow_html=True)
             else:
                 from src.sec_online_quarter_view import archive_quarter_html, native_quarter_html
                 st_api.markdown(archive_quarter_html(financial)+native_quarter_html(projection['native_quarter_archive']),unsafe_allow_html=True)

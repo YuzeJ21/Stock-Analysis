@@ -56,7 +56,7 @@ def filing_preview_html(packet,ticker,period_kind):
         '<p><strong>Archive source rights:</strong> unregistered personal inspection only; commercial use and raw redistribution remain held. Companyfacts coverage and saved readiness stay separate. This is an observed filing, not point-in-time research history or valuation.</p></section>')
 
 
-def bank_annual_html(view, *, show_history=True):
+def bank_annual_html(view, *, show_history=True, show_interim_gap=True):
     from src.sec_html_bank import DEFINITIONS
     cards=[]
     for row in view['periods']:
@@ -74,5 +74,48 @@ def bank_annual_html(view, *, show_history=True):
     history=('<details><summary>Earlier annual bank statements (2)</summary><div class="exact-filing-grid">'
              +''.join(cards[1:])+'</div></details>') if show_history else ''
     period_gap=('<p>Quarterly and year-to-date results need a separate check of the SEC 6-K reporting basis.</p>'
-                if view.get('schema_version')=='sec-online-ibn-annual-v1' else '')
+                if show_interim_gap and view.get('schema_version')=='sec-online-ibn-annual-v1' else '')
     return (_STYLE+'<section class="exact-sec-filing" aria-label="Exact SEC filing"><h3>Exact SEC filing · '+escape(view['form'])+' · Indian GAAP</h3><p>ICICI Bank consolidated annual statements. Direct source amounts in thousands of rupees are normalized to INR; purchase cash flows keep their reported negative sign.</p><div class="exact-filing-grid">'+cards[0]+'</div>'+history+period_gap+'<p>Generic revenue, operating income, net interest income, FCF and valuation remain withheld; bank total income retains its gross-interest definition.</p><details><summary>Filing identity and source receipts</summary><p>SEC CIK '+escape(view['sec_cik'])+' · accession '+escape(view['accession'])+' · filed '+escape(view['filed'])+' · accepted '+escape(view['accepted_at'])+'</p>'+registration_html+'<ul>'+refs+'</ul></details><p><strong>Archive source rights:</strong> unregistered personal inspection only; commercial use and raw redistribution remain held. Companyfacts coverage and saved readiness stay separate.</p></section>')
+
+
+def bank_interim_html(view):
+    """Display independently qualified three-month and cumulative bank results."""
+    from src.sec_ibn_interim_tables import DEFINITIONS
+
+    periods = {row['kind']: row for row in view['periods']}
+    cumulative_cash = periods.get('cumulative', {}).get('fields', {}).get('cash_from_operations')
+    cards = []
+    for kind, title in (('quarterly', 'Direct quarter'), ('cumulative', 'Year to date')):
+        row = periods.get(kind)
+        if row is None:
+            cards.append(f'<article><h4>{title}</h4><p>Directly reported amounts for this period need verification.</p></article>')
+            continue
+        values, evidence = [], []
+        for key, (_, _, label) in DEFINITIONS.items():
+            field = row['fields'].get(key)
+            reason = row['withheld_fields'].get(key)
+            if not field and not reason:
+                continue
+            shown = 'Withheld'
+            if field:
+                shown = 'INR ' + _amount(field['value'])
+                evidence.append(escape(f"{field['label']} · {field['reported_text']} crore INR · "
+                                       f"{field['period_evidence']} · table {field['table_index']}, "
+                                       f"row {field['row_index']}, columns {field['column_span']}"))
+            elif reason == 'direct_quarter_cash_statement_unavailable' and cumulative_cash:
+                shown += ' · Cash flow is reported for the six-month period only.'
+            else:
+                shown += ' · A matching amount is unavailable for this period.'
+            values.append('<div><dt>' + escape(label) + '</dt><dd>' + escape(shown) + '</dd></div>')
+        dates = escape(f"{row['period_start']} to {row['period_end']} · INR · Unaudited")
+        cards.append(f'<article aria-label="{title}"><h4>{title}</h4><p>{dates}</p><dl>' + ''.join(values)
+                     + '</dl><details><summary>Reported field definitions</summary><ul><li>'
+                     + '</li><li>'.join(evidence) + '</li></ul></details></article>')
+    source = '<a href="' + escape(view['source_url'], quote=True) + '" target="_blank" rel="noopener noreferrer">Exact SEC 6-K</a>'
+    dates = escape(f"Accession {view['accession']} · Filed {view['filed']} · SEC report date {view['report_date']} · "
+                   f"Accepted {view['accepted_at']} · Observed {view['observed_at']}")
+    return (_STYLE + '<section class="exact-sec-filing" aria-label="ICICI Bank interim results">'
+            '<h3>ICICI Bank interim results</h3><p>Consolidated ' + escape(view['accounting_basis'])
+            + ' · Amounts converted from crore to INR</p><div class="exact-filing-grid">' + ''.join(cards)
+            + '</div><details><summary>Interim filing source and dates</summary><p>' + source + '</p><p>' + dates
+            + '</p><p>Personal inspection only. ADS earnings, valuation and Companyfacts coverage use separate evidence.</p></details></section>')

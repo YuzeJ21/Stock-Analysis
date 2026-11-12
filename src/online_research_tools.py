@@ -177,7 +177,7 @@ def _cash_metric(period, fields):
         basis='Total reported CFO less positive PP&E spending; not issuer-defined FCF and not FCFF for DCF')
 
 
-def _trend(histories, coverage, comparative_periods=(), *, bank_annual=None):
+def _trend(histories, coverage, comparative_periods=(), *, bank_annual=None, bank_interim=None):
     periods, metrics, gaps = [], [], []
     for kind, history_rows, currency in histories:
         rows = []
@@ -252,14 +252,16 @@ def _trend(histories, coverage, comparative_periods=(), *, bank_annual=None):
                 [pr, pi, revenue, income], (margin-pi['value']/pr['value'])*100 if good else None,
                 None if good else 'compatible_operating_income_definitions_and_periods_required',
                 unit='percentage_points', prior=prior))
-    if not periods and not bank_annual:
+    if not periods and not (bank_annual or bank_interim):
         gaps.append('Validated financial history is unavailable; refresh source observations explicitly.')
     gaps.append('Reported EPS is not automatically comparable across stock splits; no EPS growth is inferred.')
-    trend = dict(status='inspection_only' if periods or bank_annual else 'withheld', periods=periods, metrics=metrics,
+    trend = dict(status='inspection_only' if periods or bank_annual or bank_interim else 'withheld', periods=periods, metrics=metrics,
         narrative=['Exact reported dates separate annual, direct-quarter and cumulative flows.',
                    'Derived observations do not promote saved readiness or source rights.'], gaps=gaps)
     if bank_annual:
         trend['bank_annual'] = bank_annual
+    if bank_interim:
+        trend['bank_interim'] = bank_interim
     return trend
 
 
@@ -466,6 +468,10 @@ def build_online_research_context(financial, prices, peers=None, association=Non
             coverage = dict(status='withheld', current={}, periods={}, gaps=['Financial filing coverage could not be verified.'])
     if coverage['current'].get('annual', {}).get('reason') != 'exact_ibn_annual_table_and_filing':
         bank_annual = None
+    bank_interim = None
+    if bank_annual and coverage['current'].get('quarterly', {}).get('reason') == 'exact_ibn_interim_table_and_filing':
+        from src.sec_online_ibn_interim_evidence import validated_ibn_archive_interim
+        bank_interim = validated_ibn_archive_interim(financial, ticker=ticker, expected_cik=cik, inventory=inventory, as_of=now)
     from src.sec_online_quarter_evidence import validated_archive_quarter
     from src.sec_online_quarter_view import merge_archive_quarter
     archive = validated_archive_quarter(financial, ticker=ticker, expected_cik=cik, inventory=inventory, as_of=now) if identity_valid else None
@@ -492,7 +498,7 @@ def build_online_research_context(financial, prices, peers=None, association=Non
         histories.append((kind, [*compatible, row], row['unit']))
     has_native_quarter = any(kind == 'quarterly' for kind, _ in native_periods)
     comparative_periods = native_quarter.get('comparative_periods', ()) if has_native_quarter else ()
-    trend = _trend(histories, coverage, comparative_periods, bank_annual=bank_annual)
+    trend = _trend(histories, coverage, comparative_periods, bank_annual=bank_annual, bank_interim=bank_interim)
     if comparative_periods:
         trend['comparative_periods'] = [dict(
             kind='quarterly', currency=row['unit'], status=row['status'], current=False,
@@ -541,6 +547,9 @@ def build_online_research_context(financial, prices, peers=None, association=Non
     if bank_annual:
         receipts.extend(dict(row, source='exact_ibn_annual_receipt', rights_status=bank_annual['rights_status'])
                         for row in bank_annual['source_receipts'])
+    if bank_interim:
+        receipts.extend(dict(row, source='exact_ibn_interim_receipt', rights_status=bank_interim['rights_status'])
+                        for row in bank_interim['source_receipts'])
     semantic_inputs = dict(ticker=ticker, sec_cik=cik, financial_identity_valid=identity_valid,
         financial_status=financial.get('status'), financial_reason=financial.get('reason'),
         filing_inventory=inventory, filing_coverage=coverage, earnings_components=earnings,
@@ -582,7 +591,8 @@ def build_online_research_context(financial, prices, peers=None, association=Non
         gaps.append(peer.get('reason') or 'Observed industry references are unavailable.')
     observation_times = []
     for source in (identity if identity_valid else {}, annual or {}, quarterly or {}, foreign or {},
-                   archive or {}, native_annual or {}, native_quarter if native_periods else {}, bank_annual or {}, inventory, price):
+                   archive or {}, native_annual or {}, native_quarter if native_periods else {}, bank_annual or {},
+                   bank_interim or {}, inventory, price):
         stamp = source.get('observed_at')
         if _fresh(stamp, now):
             observation_times.append(_utc_timestamp(stamp))

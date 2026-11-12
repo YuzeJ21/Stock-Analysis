@@ -181,8 +181,25 @@ def _bank_financial_answer(bank):
     return dict(answer, native_archive_annual=True, headline=headline, headline_context=f'Year over year · {context}')
 
 
+def _bank_interim_answer(bank):
+    quarter = next(row for row in bank['periods'] if row['kind'] == 'quarterly')
+    profit = quarter['fields'].get('net_profit_for_period')
+    context = f"Quarter ended {quarter['period_end']} · Consolidated, unaudited"
+    evidence = [f"Direct quarter {quarter['period_start']} to {quarter['period_end']}",
+                f"{bank['accounting_basis']} · Filed {bank['filed']} · Observed {bank['observed_at']}"]
+    value = 'Reported quarterly bank income'
+    if profit:
+        value = f"Quarterly net profit {_money(profit['unit'], profit['value'])}"
+        evidence.append(f"{profit['label']} · {profit['unit']} {profit['value']:,}")
+    answer = _card('financial', value, context, tuple(evidence), (('Exact SEC 6-K', bank['source_url']),))
+    return dict(answer, native_quarter_end=quarter['period_end'],
+                gap=None if profit else 'Quarterly net profit needs verification')
+
+
 def _financial_answer(projection, financial):
     financial = financial if isinstance(financial, Mapping) else {}
+    if projection.get('bank_interim'):
+        return _bank_interim_answer(projection['bank_interim'])
     if projection.get('bank_annual'):
         return _bank_financial_answer(projection['bank_annual'])
     fact = projection.get('facts', {}).get('revenue')

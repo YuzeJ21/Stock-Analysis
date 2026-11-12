@@ -199,6 +199,11 @@ def fetch_sec_online_research_view(ticker: str, *, user_agent: str, ticker_map_r
                 view, user_agent=user_agent, ticker_map_receipt=captured.get('map_receipt'),
                 submissions_receipt=profile_receipt, source_fetcher=source_fetcher, observed_at=observed_at,
             )
+            from src.sec_online_ibn_interim_evidence import fetch_ibn_archive_interim
+            view['ibn_archive_interim'] = fetch_ibn_archive_interim(
+                view, user_agent=user_agent, ticker_map_receipt=captured.get('map_receipt'),
+                submissions_receipt=profile_receipt, source_fetcher=source_fetcher, observed_at=observed_at,
+            )
         view['filing_coverage'] = corroborate_online_financials(view, view['filing_inventory'], as_of=observed_at)
         from src.sec_online_quarter_evidence import fetch_archive_quarter
         view['archive_quarterly'] = fetch_archive_quarter(

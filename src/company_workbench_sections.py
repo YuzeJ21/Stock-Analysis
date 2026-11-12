@@ -27,7 +27,8 @@ def workbench_projection(ticker, financial_view, prices, expected_cik=None, *, a
     result=dict(ticker=ticker, annual_count=0, quarter_count=0, price_count=0,
                 facts={}, period_end=None, period_start=None, period_kind=None,
                 unit=None, identity_conflict=False, model_eligibility='independent',
-                readiness_promoted=False, withheld_periods=[], annual_archive=None, native_quarter_archive=None, bank_annual=None,
+                readiness_promoted=False, withheld_periods=[], annual_archive=None, native_quarter_archive=None,
+                bank_annual=None, bank_interim=None,
                 native_quarter_selected=False, native_ytd_missing=False, comparative=None,
                 withheld_fields={}, attempted=any(
                     isinstance(item,Mapping) and item.get('status') not in (None,'not_requested')
@@ -50,10 +51,14 @@ def workbench_projection(ticker, financial_view, prices, expected_cik=None, *, a
     from src.sec_online_ibn_evidence import validated_ibn_archive_annual
     bank=validated_ibn_archive_annual(view,ticker=ticker,expected_cik=expected_cik,as_of=as_of)
     if bank:
-        current=bank['periods'][0]
-        result.update(bank_annual=bank,annual_count=sum(row['status']=='available' for row in bank['periods']),
-                      period_start=current['period_start'],period_end=current['period_end'],period_kind='annual',
-                      unit=bank['unit'],filed=bank['filed'])
+        from src.sec_online_ibn_interim_evidence import validated_ibn_archive_interim
+        interim=validated_ibn_archive_interim(view,ticker=ticker,expected_cik=expected_cik,as_of=as_of)
+        selected=interim or bank
+        current=selected['periods'][0]
+        result.update(bank_annual=bank,bank_interim=interim,quarter_count=int(bool(interim)),
+                      annual_count=sum(row['status']=='available' for row in bank['periods']),
+                      period_start=current['period_start'],period_end=current['period_end'],period_kind=current['kind'],
+                      unit=selected['unit'],filed=selected['filed'])
         return result
     annual=validated_annual_history(view) if view.get('status')=='inspection_only' else None
     quarter=validated_quarterly_history(view)

@@ -78,7 +78,8 @@ def filing_status_html(context):
         state = current.get(kind) or {}
         anchor = state.get('anchor') or latest.get(kind)
         if anchor:
-            label = ('Year to date' if kind == 'interim' else 'Direct quarter') if anchor.get('period_basis') == 'exact_native_quarter_table' else kind.title()
+            exact_table = anchor.get('period_basis') in {'exact_native_quarter_table', 'exact_ibn_interim_table'}
+            label = ('Year to date' if kind == 'interim' else 'Direct quarter') if exact_table else kind.title()
             rows.append(f"{label} {anchor.get('period_end') or 'period unverified'}: {_label(state.get('status'))}")
     if not rows:
         return '<p class="company-scope-note">Latest filing status has not been verified. Use Research company to check SEC reports and structured facts.</p>'
@@ -275,8 +276,11 @@ def _snapshots(st, context, bundle):
                 st.info('Historical replay · ' + historical['observed_at'])
                 trend = historical['context'].get('business_trend') or {}
                 if trend.get('bank_annual'):
-                    from src.sec_exact_filing_view import bank_annual_html
-                    st.markdown(bank_annual_html(trend['bank_annual']), unsafe_allow_html=True)
+                    from src.sec_exact_filing_view import bank_annual_html, bank_interim_html
+                    interim = trend.get('bank_interim')
+                    if interim:
+                        st.markdown(bank_interim_html(interim), unsafe_allow_html=True)
+                    st.markdown(bank_annual_html(trend['bank_annual'], show_interim_gap=not interim), unsafe_allow_html=True)
                 comparisons = trend.get('comparative_periods') or []
                 if comparisons:
                     from src.sec_online_quarter_view import native_quarter_comparisons_html

@@ -240,7 +240,15 @@ def _overview_gaps(financial, projection, research_context):
         gaps.extend(financial.get('native_comparison_gaps') or ())
     if (projection or {}).get('native_ytd_missing'):
         gaps.append('Year-to-date evidence needs verification')
-    if (projection or {}).get('bank_annual'):
+    bank = (projection or {}).get('bank_interim')
+    if bank:
+        rows = {row['kind']: row for row in bank['periods']}
+        if 'cash_from_operations' not in rows['quarterly']['fields']:
+            gaps.append('Quarterly operating cash flow needs verification')
+        if 'cumulative' not in rows:
+            gaps.append('Year-to-date results need verification')
+        gaps.append('Traded ADS earnings need verification')
+    elif (projection or {}).get('bank_annual'):
         gaps.extend(('Quarterly and year-to-date results need verification', 'Traded ADS earnings need verification'))
     withheld = (projection or {}).get('withheld_fields') or {}
     for field, label in METRICS.items():

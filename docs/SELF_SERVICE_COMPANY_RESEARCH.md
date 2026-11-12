@@ -38,7 +38,7 @@ An eligible IFRS issuer with a verified native currency can supply directly repo
 
 8-K and 6-K observations also serve as research review triggers. Event dates are tracked separately from financial period ends. Other non-XBRL layouts, issuer extensions, segment interpretation, source-specific tax bridges and unsupported units require qualified definitions.
 
-ICICI Bank's online research uses the SEC ticker map, submissions and latest eligible non-XBRL 20-F when the structured source is unavailable. Workbench shows Indian GAAP consolidated bank fields in INR, keeps gross total income separate from generic revenue, and records the ADS disclosure as filed. Quarterly and year-to-date figures retain their own verification gap. [IBN scope and evidence](IBN_NON_XBRL_RESEARCH.md)
+ICICI Bank's online research uses the SEC ticker map, submissions and eligible non-XBRL filings when the structured source is unavailable. Workbench separates audited annual bank statements from the consolidated AS 25 interim results. Three-month and fiscal year-to-date amounts retain distinct periods and sources, with quarterly cash flow withheld when only cumulative cash flow is reported. Gross total income and the as-filed ADS disclosure retain their original definitions. [IBN scope and evidence](IBN_NON_XBRL_RESEARCH.md)
 
 ## Calculation and source boundaries
 
