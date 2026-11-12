@@ -31338,29 +31338,15 @@ def render_online_company_search(*, saved_tickers: Iterable[str] = ()) -> None:
 
 
 def render_online_coverage_study() -> None:
-    """Run a declared SEC industry sample only after an explicit Personal action."""
+    """Show dated studies and run coverage checks on explicit request."""
     from src.online_peer_coverage_ui import render_peer_coverage
+    from src.venue_coverage_summary import venue_coverage_summary_html
     with st.expander("Coverage studies", expanded=False):
         tabs = st.tabs(("Peer valuation", "U.S. listings", "Security types", "Industry financials", "Self-service"))
         with tabs[0]:
             render_peer_coverage(st, embedded=True)
         with tabs[1]:
-            st.markdown("Load the full observed official listing inventory, then check financial coverage by issuer. Unprobed and unmatched records remain visible.")
-            load_requested=st.button("Load U.S. listing inventory",key="online-us-universe-load")
-            restore_requested=st.button("Restore saved coverage",key="online-us-universe-restore")
-            save_requested=st.button("Save coverage progress",key="online-us-universe-save")
-            checkpoint_action=handle_coverage_checkpoint_action(st.session_state,save_requested=save_requested,restore_requested=restore_requested,new_run_requested=load_requested)
-            if checkpoint_action['status']=="saved":st.caption("Coverage progress saved on this computer; the previous checkpoint is backed up.")
-            elif checkpoint_action['status']=="restored":st.caption("Saved coverage restored. Its original source dates still apply.")
-            elif checkpoint_action['status']=="unavailable":st.caption("Coverage checkpoint unavailable: "+str(checkpoint_action.get("reason","validation required")).replace("_"," "))
-            with st.spinner("Loading dated listing inventory…"):
-                universe=get_online_us_universe(st.session_state,user_agent=os.getenv("SEC_USER_AGENT"),load_requested=load_requested)
-            can_inspect=universe.get("status")=="inspection_only" and universe.get("coverage",{}).get("unprobed_issuer_count",0)>0
-            inspect_requested=st.button("Check next 20 issuers",key="online-us-universe-inspect",disabled=not can_inspect)
-            if inspect_requested:
-                with st.spinner("Checking the next issuer batch…"):
-                    universe=get_online_us_universe(st.session_state,user_agent=os.getenv("SEC_USER_AGENT"),inspect_requested=True)
-            st.markdown(universe_coverage_html(universe),unsafe_allow_html=True)
+            st.markdown(venue_coverage_summary_html(), unsafe_allow_html=True)
             with st.expander("Nasdaq Texas (NTX) listing check", expanded=False):
                 from src.nasdaq_texas_reconciliation import nasdaq_texas_detail_markdown, nasdaq_texas_review_markdown
                 st.markdown(nasdaq_texas_review_markdown())
@@ -31392,6 +31378,22 @@ def render_online_coverage_study() -> None:
             with st.expander("Green Impact Exchange (GIX) listing check", expanded=False):
                 from src.gix_reconciliation import gix_review_markdown
                 st.markdown(gix_review_markdown())
+            st.markdown("### U.S. listing inventory\n\nLoad the observed inventory from the official directories, then check financial coverage by issuer. Unprobed and unmatched records remain visible.")
+            load_requested=st.button("Load U.S. listing inventory",key="online-us-universe-load")
+            restore_requested=st.button("Restore saved coverage",key="online-us-universe-restore")
+            save_requested=st.button("Save coverage progress",key="online-us-universe-save")
+            checkpoint_action=handle_coverage_checkpoint_action(st.session_state,save_requested=save_requested,restore_requested=restore_requested,new_run_requested=load_requested)
+            if checkpoint_action['status']=="saved":st.caption("Coverage progress saved on this computer; the previous checkpoint is backed up.")
+            elif checkpoint_action['status']=="restored":st.caption("Saved coverage restored. Its original source dates still apply.")
+            elif checkpoint_action['status']=="unavailable":st.caption("Coverage checkpoint unavailable: "+str(checkpoint_action.get("reason","validation required")).replace("_"," "))
+            with st.spinner("Loading dated listing inventory…"):
+                universe=get_online_us_universe(st.session_state,user_agent=os.getenv("SEC_USER_AGENT"),load_requested=load_requested)
+            can_inspect=universe.get("status")=="inspection_only" and universe.get("coverage",{}).get("unprobed_issuer_count",0)>0
+            inspect_requested=st.button("Check next 20 issuers",key="online-us-universe-inspect",disabled=not can_inspect)
+            if inspect_requested:
+                with st.spinner("Checking the next issuer batch…"):
+                    universe=get_online_us_universe(st.session_state,user_agent=os.getenv("SEC_USER_AGENT"),inspect_requested=True)
+            st.markdown(universe_coverage_html(universe),unsafe_allow_html=True)
         with tabs[2]:
             requested=st.button("Classify observed listings",key="security-classification-refresh")
             classified=get_listing_classification(st.session_state,refresh_requested=requested,user_agent=os.getenv("SEC_USER_AGENT"))

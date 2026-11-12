@@ -10,6 +10,14 @@ Listing records, resolved CIKs, financial-probe issuer candidates, attempted, fa
 
 The **observed inventory** covers the source union above. The dated Nasdaq Texas, NYSE Texas, Texas Stock Exchange, LTSE and Green Impact Exchange reviews below have their own scopes. Remaining registered-venue membership is tracked separately. Presence establishes neither U.S. domicile, current listing activity, legal security type, analysis eligibility nor historical point-in-time membership.
 
+## Dated venue reviews
+
+Open **Discover → Coverage studies → U.S. listings** for the five-venue summary. Each row gives the review date, the count supported for that sample or directory and the open gaps. Expand the individual checks below for filings and exchange sources. The NYSE Texas and LTSE rows show the completed November 12 filing reviews. Results from a new session check appear in the respective detail panel.
+
+The venue reviews cover different dates and populations, and a security can be listed on multiple venues. The U.S. listing inventory below the reviews has its own sources, loading controls and coverage counts. Full U.S. coverage remains unverified.
+
+The summary passed 149 affected tests, six research route checks and automated desktop and phone checks. Both browser runs confirmed that opening the summary made no source requests and that the dated counts stayed visible through the filing checks and an unavailable inventory response. All 89 protected files matched the baseline.
+
 ## Nasdaq Texas dated review
 
 Open **Discover → Coverage studies → U.S. listings** and expand **Show Nasdaq Texas security evidence**. The panel is a dated source review. Opening it needs no source requests, and its counts stay separate from the online listing inventory and financial coverage denominators.
