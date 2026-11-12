@@ -8,7 +8,7 @@ All non-test directory rows are retained, including known ETFs, unknown venues a
 
 Listing records, resolved CIKs, financial-probe issuer candidates, attempted, failed and unprobed counts remain separate. Known ETF records are excluded from the financial queue; non-ETF and SEC-only status does not prove operating-company eligibility. Unprobed and unknown-industry candidates remain in their denominator. Field coverage uses the latest observed reporting period found in Companyfacts and compatible submissions metadata; older supported values never replace a newer gap.
 
-The **observed inventory** covers the source union above. It leaves Green Impact Exchange and remaining registered-venue membership to separate reconciliation. The dated Nasdaq Texas, NYSE Texas, Texas Stock Exchange and LTSE reviews below have their own scopes. Presence establishes neither U.S. domicile, current listing activity, legal security type, analysis eligibility nor historical point-in-time membership.
+The **observed inventory** covers the source union above. The dated Nasdaq Texas, NYSE Texas, Texas Stock Exchange, LTSE and Green Impact Exchange reviews below have their own scopes. Remaining registered-venue membership is tracked separately. Presence establishes neither U.S. domicile, current listing activity, legal security type, analysis eligibility nor historical point-in-time membership.
 
 ## Nasdaq Texas dated review
 
@@ -71,6 +71,18 @@ The November 12 review found no matching registration or removal notice in the r
 The audit keeps reduced evidence in the session. It leaves the live inventory, financial coverage and analysis eligibility separate.
 
 The integration replayed seven captured SEC responses and verified all three dated covers. It passed 203 affected tests, six research route checks, and both desktop and phone browser journeys. The browser checks exercised the explicit SEC action and confirmed request-free disclosure and navigation. All 89 protected files matched the baseline.
+
+## Green Impact Exchange launch and listing review
+
+Open **Discover → Coverage studies → U.S. listings → Green Impact Exchange (GIX) listing check**. The review is dated November 12, 2026. The SEC granted Green Impact Exchange, LLC national securities exchange registration on April 11, 2025, subject to conditions before operations could begin. The approved rules described dual listings and trading under unlisted trading privileges. Those activities require separate evidence. [SEC registration order](https://www.sec.gov/files/rules/other/2025/34-102853.pdf)
+
+**Trading start and first execution remain unverified.** The June 10 SEC notice records that GIX had yet to begin trading as of its May 28 filing. On July 1, GIX targeted Q1 2027 for its trading platform. The undated homepage still showed H2 2026 on November 12. The reviewed SEC rulemaking index and GIX news, trading and regulatory pages supplied no actual opening confirmation or execution record. [SEC trading-rule notice, footnote 17](https://www.sec.gov/files/rules/sro/gix/2026/34-105650.pdf#page=4) · [SEC GIX rulemaking index](https://www.sec.gov/rules-regulations/self-regulatory-organization-rulemaking/national-securities-exchanges/all-years?sro_organization=345326) · [July 1 GIX release](https://www.tradegix.com/news/gix-appoints-sara-dillon-as-chief-technology-officer) · [GIX homepage](https://www.tradegix.com/) · [GIX news](https://www.tradegix.com/news) · [GIX trading](https://www.tradegix.com/trading) · [GIX regulatory](https://www.tradegix.com/regulatory)
+
+**Current listing count is unknown.** The review verified zero specific GIX security identities and added zero inventory records. The May 9, 2024 Exhibit N reported that no securities traded on GIX at that time. On November 12, the exchange listing page described eligibility and application materials. It supplied no complete dated roster or issuer, ticker and class tied to an effective GIX listing. [SEC Exhibit N](https://www.sec.gov/files/rules/other/2024/exhibit-n-green-impact-exchange-llc.pdf) · [GIX listing page](https://www.tradegix.com/listing)
+
+An exact-name EDGAR search returned zero matches in Forms 8-A12B, CERT, 25 and 25-NSE and their amendments, from April 11, 2025 through November 12, 2026. Alternate names, paper filings and unindexed exhibits can fall outside that search. The review stays separate from the live listing inventory and financial coverage denominators. [EDGAR search result](https://efts.sec.gov/LATEST/search-index?q=%22Green+Impact+Exchange%22&dateRange=custom&startdt=2025-04-11&enddt=2026-11-12&forms=8-A12B%2C8-A12B%2FA%2CCERT%2CCERT%2FA%2C25%2C25-NSE%2C25%2FA%2C25-NSE%2FA)
+
+The integration passed 148 affected tests, six research route checks and two automated browser journeys at desktop and phone sizes. The browser checks verified source links, visible gaps and request-free opening of the GIX panel. All 89 protected files matched the baseline.
 
 ## Financial definitions
 
