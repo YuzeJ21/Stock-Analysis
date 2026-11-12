@@ -150,10 +150,10 @@ def select_sec_filing(ticker,cik,submissions_receipt,*,period_kind,allow_non_inl
         filed=filed,accepted_at=r['acceptanceDateTime'],accession=accession,primary_document=document,source_url=url,source_receipts=[ref],**adapter,**bank)
 
 
-def _fetch_html(url,user_agent):
+def _fetch_html(url,user_agent,*,max_bytes=MAX_FILING_BYTES,accept='text/html'):
     try:
-        with urlopen(Request(url,headers={'User-Agent':user_agent,'Accept':'text/html'}),timeout=30) as response:
-            return response.read(MAX_FILING_BYTES+1),dict(response.headers.items()),response.geturl()
+        with urlopen(Request(url,headers={'User-Agent':user_agent,'Accept':accept}),timeout=30) as response:
+            return response.read(max_bytes+1),dict(response.headers.items()),response.geturl()
     finally:
         time.sleep(0.2)
 

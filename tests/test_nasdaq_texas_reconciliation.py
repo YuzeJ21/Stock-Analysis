@@ -125,6 +125,8 @@ def test_discover_places_dated_nasdaq_texas_evidence_inside_us_listings(monkeypa
         def markdown(self, value, **_):
             rendered.append((tuple(stack), value))
 
+        caption = markdown
+
     monkeypatch.setattr(dashboard, 'st', StreamlitStub())
     monkeypatch.setattr(online_peer_coverage_ui, 'render_peer_coverage', lambda *_a, **_k: None)
     monkeypatch.setattr(self_service_research_coverage_ui, 'render_self_service_coverage', lambda *_a: None)
@@ -142,3 +144,6 @@ def test_discover_places_dated_nasdaq_texas_evidence_inside_us_listings(monkeypa
     assert (path, 'Show Nasdaq Texas security evidence') in rendered
     assert any(scope == path and 'BWIN admission remains open' in content for scope, content in rendered)
     assert any(scope == path and 'November 9 Form 10-Q' in content for scope, content in rendered)
+    nyse_path = ('Coverage studies', 'U.S. listings', 'NYSE Texas listing check')
+    assert any(scope == nyse_path and 'first NYSE Texas trade remains unverified' in content
+               for scope, content in rendered)

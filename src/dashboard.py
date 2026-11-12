@@ -31366,6 +31366,14 @@ def render_online_coverage_study() -> None:
                 st.markdown(nasdaq_texas_review_markdown())
                 if st.checkbox("Show Nasdaq Texas security evidence", key="nasdaq-texas-security-evidence"):
                     st.markdown(nasdaq_texas_detail_markdown())
+            with st.expander("NYSE Texas listing check", expanded=False):
+                from src.nyse_texas_reconciliation import get_nyse_texas, reconciliation_html
+                from src.online_research_tools_ui import sec_request_identification
+                st.caption("Check five selected securities using SEC filing covers or a registration and exchange certification pair. DIT’s first NYSE Texas trade remains unverified.")
+                requested = st.button("Check NYSE Texas filings", key="nyse-texas-filing-check")
+                with st.spinner("Checking dated SEC filings…"):
+                    audit = get_nyse_texas(st.session_state, refresh=requested, user_agent=sec_request_identification(st))
+                st.markdown(reconciliation_html(audit), unsafe_allow_html=True)
         with tabs[2]:
             requested=st.button("Classify observed listings",key="security-classification-refresh")
             classified=get_listing_classification(st.session_state,refresh_requested=requested,user_agent=os.getenv("SEC_USER_AGENT"))
