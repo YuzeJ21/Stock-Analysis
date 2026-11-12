@@ -8,7 +8,7 @@ All non-test directory rows are retained, including known ETFs, unknown venues a
 
 Listing records, resolved CIKs, financial-probe issuer candidates, attempted, failed and unprobed counts remain separate. Known ETF records are excluded from the financial queue; non-ETF and SEC-only status does not prove operating-company eligibility. Unprobed and unknown-industry candidates remain in their denominator. Field coverage uses the latest observed reporting period found in Companyfacts and compatible submissions metadata; older supported values never replace a newer gap.
 
-The **observed inventory** covers the source union above. It leaves LTSE, Green Impact Exchange and remaining registered-venue membership to separate reconciliation. The dated Nasdaq Texas, NYSE Texas and Texas Stock Exchange reviews below have their own scopes. Presence establishes neither U.S. domicile, current listing activity, legal security type, analysis eligibility nor historical point-in-time membership.
+The **observed inventory** covers the source union above. It leaves Green Impact Exchange and remaining registered-venue membership to separate reconciliation. The dated Nasdaq Texas, NYSE Texas, Texas Stock Exchange and LTSE reviews below have their own scopes. Presence establishes neither U.S. domicile, current listing activity, legal security type, analysis eligibility nor historical point-in-time membership.
 
 ## Nasdaq Texas dated review
 
@@ -51,6 +51,26 @@ The two additional classes are **CFR common stock** and **CFR-PRB depositary sha
 The Discover review opens without source requests and stays separate from the live inventory. It keeps the two listing dates, exact security classes and source links visible. Later roster changes, continuous membership and the first venue execution require their own evidence.
 
 The integration passed 130 affected tests, six research route checks, and automated desktop and phone journeys. The browser checks opened both TXSE disclosures and verified the retained Nasdaq Texas and NYSE Texas workflows. All 89 protected files matched the baseline.
+
+## LTSE filing reconciliation
+
+Open **Discover → Coverage studies → U.S. listings → LTSE listing check** and select **Check LTSE filings**. The check binds each issuer's CIK, accession, form, date and primary document to SEC submissions metadata. It verifies the exact ticker, common-stock class and both venues in the filing's visible registration grid. Evidence is scoped to the filing date.
+
+| Security | Class | Companion exchange | Exact SEC cover |
+| --- | --- | --- | --- |
+| ASAN | Class A common stock | NYSE | [November 10, 2026 Form 8-K](https://www.sec.gov/Archives/edgar/data/1477720/000162828026072757/asan-20261106.htm), report date November 6 |
+| TDUP | Class A common stock | Nasdaq | [November 4, 2026 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1484778/000148477826000033/tdup-20260930.htm) |
+| BLX | Class E common stock | NYSE | [April 20, 2026 Form 20-F](https://www.sec.gov/Archives/edgar/data/890541/000162828026026056/blx-20251231.htm) |
+
+Bladex's June 8 Form 6-K records the issuer's name change to Bladex, Inc., effective June 4, and says the outstanding securities were unaffected. The October earnings Form 6-K uses the NYSE ticker label in narrative. The November 12 interim statements have no venue designation. Both later forms lack a Section 12(b) exchange grid. Discover keeps the name change and venue evidence separate. [June Form 6-K](https://www.sec.gov/Archives/edgar/data/890541/000162828026041363/a6knamechancebladexinc.htm) · [October Form 6-K](https://www.sec.gov/Archives/edgar/data/890541/000162828026067951/bancolatinoamericano6-k.htm) · [November Form 6-K](https://www.sec.gov/Archives/edgar/data/890541/000162828026073340/blxefstrimestralinglswdata.htm)
+
+On November 12, the exchange's spotlight featured the three companies. The October 19 SEC notice describes LTSE's dual-listing model, and the filed Exhibit N says the listing schedule is available on request. The reviewed public material leaves current venue status for each security and the complete dated roster unverified. [LTSE spotlight](https://ltse.com/listings/listed-companies) · [SEC dual-listing notice](https://www.sec.gov/files/rules/sro/ltse/2026/34-106695.pdf) · [Exhibit N](https://www.sec.gov/Archives/edgar/vprr/2401/24010775.pdf#page=46)
+
+The November 12 review found no matching registration or removal notice in the reviewed exchange indexes or SEC full-text search. The exchange indexes extended through November 6 for market announcements and August 31 for regulatory circulars. The SEC search covered selected registration and removal forms dated April 20 through November 12. Discover separately screens issuer submissions after each cover's acceptance. The captured screen found zero later filings for ASAN, one for TDUP, and 18 for BLX, with zero registration or removal form candidates. Any future candidate still requires security-class and venue review. [LTSE notices](https://ltse.com/trading/customer-notices) · [SEC full-text search](https://www.sec.gov/edgar/search/)
+
+The audit keeps reduced evidence in the session. It leaves the live inventory, financial coverage and analysis eligibility separate.
+
+The integration replayed seven captured SEC responses and verified all three dated covers. It passed 203 affected tests, six research route checks, and both desktop and phone browser journeys. The browser checks exercised the explicit SEC action and confirmed request-free disclosure and navigation. All 89 protected files matched the baseline.
 
 ## Financial definitions
 

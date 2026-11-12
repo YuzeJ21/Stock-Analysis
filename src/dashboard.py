@@ -31381,6 +31381,14 @@ def render_online_coverage_study() -> None:
                     st.markdown(txse_first_trade_markdown())
                 if st.checkbox("Show verified TXSE security identities", key="txse-identity-details"):
                     st.markdown(txse_identity_markdown())
+            with st.expander("LTSE listing check", expanded=False):
+                from src.ltse_reconciliation import get_ltse, ltse_html
+                from src.online_research_tools_ui import sec_request_identification
+                st.caption("Check exact share classes and both filing venues for three LTSE spotlight companies. The full LTSE roster and current status remain unverified.")
+                requested = st.button("Check LTSE filings", key="ltse-filing-check")
+                with st.spinner("Checking dated LTSE listing evidence…"):
+                    audit = get_ltse(st.session_state, refresh=requested, user_agent=sec_request_identification(st))
+                st.markdown(ltse_html(audit), unsafe_allow_html=True)
         with tabs[2]:
             requested=st.button("Classify observed listings",key="security-classification-refresh")
             classified=get_listing_classification(st.session_state,refresh_requested=requested,user_agent=os.getenv("SEC_USER_AGENT"))
