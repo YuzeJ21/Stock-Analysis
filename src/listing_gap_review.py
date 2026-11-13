@@ -27,6 +27,9 @@ BAC_SERIES_SS_NYSE = 'https://www.sec.gov/Archives/edgar/data/70858/000087666122
 USB_COVER = 'https://www.sec.gov/Archives/edgar/data/36104/000119312526450781/d172862d8k.htm'
 USB_QUARTER = 'https://www.sec.gov/Archives/edgar/data/36104/000003610426000058/usb-20260930.htm'
 USB_SERIES_P_TERMS = 'https://www.sec.gov/Archives/edgar/data/36104/000119312526441737/d20659dex43.htm'
+PSA_COVER = 'https://www.sec.gov/Archives/edgar/data/1393311/000119312526456624/d158518d8k.htm'
+PSA_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1393311/000162828026067286/psa-20260930.htm'
+PSA_SERIES_T_U_NYSE = 'https://www.sec.gov/Archives/edgar/data/1393311/000087666126000633/PSAPRTPRU.pdf'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -44,11 +47,28 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 61 were reviewed, with 483 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 77 were reviewed, with 467 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Eight now have dated class evidence, with 274 still unreviewed.
 
 **Dated findings**
 
+- **Public Storage · Sixteen NYSE preferred-linked listings matched.** The Form 8-K filed November 12, September-quarter Form 10-Q and November 12 exchange records support the matches. Series F through S are depositary shares, each representing 1/1,000 of one preferred share. Series T and U are direct preferred shares covered by the July 21 NYSE certification. Each row gives the SEC map, filing cover and directory symbols. [Public Storage Form 8-K]({PSA_COVER}) · [Public Storage Form 10-Q]({PSA_QUARTER}) · [NYSE Series T and U certification]({PSA_SERIES_T_U_NYSE}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report, F–R]({NOV12_NYSE_VOLUME}#page=139) · [November 12 NYSE report, S–U]({NOV12_NYSE_VOLUME}#page=140)
+  - `PSA-PF` / `PSAPrF` / `PSA$F` · Series F
+  - `PSA-PG` / `PSAPrG` / `PSA$G` · Series G
+  - `PSA-PH` / `PSAPrH` / `PSA$H` · Series H
+  - `PSA-PI` / `PSAPrI` / `PSA$I` · Series I
+  - `PSA-PJ` / `PSAPrJ` / `PSA$J` · Series J
+  - `PSA-PK` / `PSAPrK` / `PSA$K` · Series K
+  - `PSA-PL` / `PSAPrL` / `PSA$L` · Series L
+  - `PSA-PM` / `PSAPrM` / `PSA$M` · Series M
+  - `PSA-PN` / `PSAPrN` / `PSA$N` · Series N
+  - `PSA-PO` / `PSAPrO` / `PSA$O` · Series O
+  - `PSA-PP` / `PSAPrP` / `PSA$P` · Series P
+  - `PSA-PQ` / `PSAPrQ` / `PSA$Q` · Series Q
+  - `PSA-PR` / `PSAPrR` / `PSA$R` · Series R
+  - `PSA-PS` / `PSAPrS` / `PSA$S` · Series S
+  - `PSA-PT` / `PSAPrT` / `PSA$T` · Series T · Direct preferred shares
+  - `PSA-PU` / `PSAPrU` / `PSA$U` · Series U · Direct preferred shares
 - **U.S. Bancorp · Six NYSE depositary share listings matched.** The November 6 Form 8-K and November 5 Form 10-Q identify the underlying preferred shares. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the dated matches. Each row gives the SEC map, filing cover and directory symbols, followed by the underlying series and share fraction. [U.S. Bancorp Form 8-K]({USB_COVER}) · [U.S. Bancorp Form 10-Q]({USB_QUARTER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=179)
   - `USB-PA` / `USB PrA` / `USB$A` · Series A · 1/100
   - `USB-PH` / `USB PrH` / `USB$H` · Series B · 1/1,000

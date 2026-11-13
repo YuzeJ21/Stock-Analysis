@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '61 were reviewed, with 483 still unreviewed' in review and '274 still unreviewed' in review
+    assert '77 were reviewed, with 467 still unreviewed' in review and '274 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -149,6 +149,22 @@ def test_us_bancorp_review_matches_depositary_ratios_and_distinguishes_series_p(
     assert 'https://www.sec.gov/Archives/edgar/data/36104/000119312526450781/d172862d8k.htm' in review
     assert 'https://www.sec.gov/Archives/edgar/data/36104/000119312526441737/d20659dex43.htm' in review
     assert 'https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=179' in review
+
+
+def test_public_storage_review_distinguishes_depositary_and_direct_preferred_shares():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    assert 'Public Storage · Sixteen NYSE preferred-linked listings matched' in review
+    assert 'Series F through S are depositary shares' in review and '1/1,000' in review
+    for series in 'FGHIJKLMNOPQRSTU':
+        instrument = ' · Direct preferred shares' if series in 'TU' else ''
+        assert f'`PSA-P{series}` / `PSAPr{series}` / `PSA${series}` · Series {series}{instrument}\n' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/1393311/000119312526456624/d158518d8k.htm' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/1393311/000162828026067286/psa-20260930.htm' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/1393311/000087666126000633/PSAPRTPRU.pdf' in review
+    for page in (139, 140):
+        assert f'NYSEshvol20261112.pdf#page={page}' in review
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):

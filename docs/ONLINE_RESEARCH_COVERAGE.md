@@ -326,9 +326,49 @@ SEC submissions bind the Form 8-K to accession `0001193125-26-450781`, accepted 
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**61 of the original 544 SEC-only records have been reviewed, with 483 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The U.S. Bancorp follow-up brought the reviewed count to 61 of the original 544 SEC-only records, leaving 483 unreviewed at that stage. Eight of the original 282 directory-type gaps had dated class evidence. PFBC's IRS number remained unreconciled.
 
 The integration passed 254 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the six mappings, five source links, Series P distinction and prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### Public Storage preferred-share follow-up
+
+Public Storage (CIK `0001393311`) lists 16 NYSE preferred-linked securities on the November 12 Form 8-K cover for a November 11 event. The October 26 Form 10-Q cover and Note 11 corroborate the classes. Series F through S each represent 1/1,000 of a cumulative preferred share. Series T and U are two distinct direct cumulative preferred shares. The July 21 NYSE certification approved both classes. Public Storage issued T and U on July 22 in exchange for National Storage Affiliates Trust Series A and B, respectively. The operating partnership's separate Series T-1 units fall outside this batch. [November 12 Form 8-K](https://www.sec.gov/Archives/edgar/data/1393311/000119312526456624/d158518d8k.htm) · [September-quarter Form 10-Q](https://www.sec.gov/Archives/edgar/data/1393311/000162828026067286/psa-20260930.htm) · [NYSE Series T and U certification](https://www.sec.gov/Archives/edgar/data/1393311/000087666126000633/PSAPRTPRU.pdf) · [July 22 merger closing Form 8-K](https://www.sec.gov/Archives/edgar/data/1393311/000119312526312563/d137665d8k.htm)
+
+| Series | SEC map | Filing cover | Directory ACT symbol | NYSE report symbol | Listed security |
+| --- | --- | --- | --- | --- | --- |
+| F | `PSA-PF` | `PSAPrF` | `PSA$F` | `PSA PRF` | Depositary share |
+| G | `PSA-PG` | `PSAPrG` | `PSA$G` | `PSA PRG` | Depositary share |
+| H | `PSA-PH` | `PSAPrH` | `PSA$H` | `PSA PRH` | Depositary share |
+| I | `PSA-PI` | `PSAPrI` | `PSA$I` | `PSA PRI` | Depositary share |
+| J | `PSA-PJ` | `PSAPrJ` | `PSA$J` | `PSA PRJ` | Depositary share |
+| K | `PSA-PK` | `PSAPrK` | `PSA$K` | `PSA PRK` | Depositary share |
+| L | `PSA-PL` | `PSAPrL` | `PSA$L` | `PSA PRL` | Depositary share |
+| M | `PSA-PM` | `PSAPrM` | `PSA$M` | `PSA PRM` | Depositary share |
+| N | `PSA-PN` | `PSAPrN` | `PSA$N` | `PSA PRN` | Depositary share |
+| O | `PSA-PO` | `PSAPrO` | `PSA$O` | `PSA PRO` | Depositary share |
+| P | `PSA-PP` | `PSAPrP` | `PSA$P` | `PSA PRP` | Depositary share |
+| Q | `PSA-PQ` | `PSAPrQ` | `PSA$Q` | `PSA PRQ` | Depositary share |
+| R | `PSA-PR` | `PSAPrR` | `PSA$R` | `PSA PRR` | Depositary share |
+| S | `PSA-PS` | `PSAPrS` | `PSA$S` | `PSA PRS` | Depositary share |
+| T | `PSA-PT` | `PSAPrT` | `PSA$T` | `PSA PRT` | Direct preferred share |
+| U | `PSA-PU` | `PSAPrU` | `PSA$U` | `PSA PRU` | Direct preferred share |
+
+The November 12 Nasdaq Trader snapshot has all 16 counterpart rows with exchange code `N` and test and ETF flags `N`. Its existing description rules classify F through S as depositary receipts and T and U as preferred shares. The November 12 NYSE short-sale volume report contains one market-`N` row with positive total volume for each symbol on pages 139 and 140. The report covers limited activity for that date. Continuous listing and current trading status require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [NYSE report, F through R](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=139) · [NYSE report, S through U](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=140)
+
+SEC submissions bind the November 12 Form 8-K to accession `0001193125-26-456624`, accepted at 11:03:57 UTC, and the October 26 Form 10-Q to `0001628280-26-067286`, accepted at 20:14:59 UTC. The July 21 NYSE certification is accession `0000876661-26-000633`. The filings and certification below were observed November 13 from 04:05:44 to 04:05:47 UTC, November 12 in Toronto. [SEC submissions](https://data.sec.gov/submissions/CIK0001393311.json)
+
+| Captured source | Raw SHA-256 |
+| --- | --- |
+| November 12 Form 8-K | `91862dc342b87bbfedd44df5e09ae3d9a285ea3bdb4e2be928faca924f48f986` |
+| October 26 Form 10-Q | `ec9ba37b3eca86a4e2108b124f8a370e2519ef10b5321621defb5e250ab519f5` |
+| July 21 NYSE Series T and U certification | `377df5ee90a48b2cff520fd8f5a4f862129fccdae7ada8e94c57afe093666be3` |
+| July 22 merger closing Form 8-K | `6058c6127f0db75b26678134b193013947f173e3ce95405c22d6fd8b39b58f80` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**77 of the original 544 SEC-only records have been reviewed, with 467 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 255 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the 16 mappings, six source links, depositary and direct share distinctions, and prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 
