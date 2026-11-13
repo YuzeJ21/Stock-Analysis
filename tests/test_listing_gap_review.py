@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '158 were reviewed, with 386 still unreviewed' in review and '273 still unreviewed' in review
+    assert '161 were reviewed, with 383 still unreviewed' in review and '273 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -523,6 +523,25 @@ def test_citizens_review_preserves_listed_classes_and_separate_g_redemption():
         assert certification in batch
     for page in (33, 34):
         assert f'NYSEshvol20261112.pdf#page={page}' in batch
+
+
+def test_first_horizon_review_keeps_current_depositary_shares_and_redeemed_series_distinct():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    start = '**First Horizon · Three NYSE depositary share listings matched.**'
+    assert start in review
+    batch = review.split(start, 1)[1].split('\n- **', 1)[0]
+    for series, rate in zip('EFH', ('6.500%', '4.700%', '6.750%'), strict=True):
+        assert f'`FHN-P{series}` / `FHN PR {series}` / `FHN${series}` · Series {series} · {rate}\n' in batch
+    assert '1/4,000 of its underlying preferred share' in batch
+    assert 'Series C was fully redeemed on May 1, 2026' in batch
+    assert 'Series H was issued on March 12, 2026' in batch
+    assert '000003696626000199/fhn-20260930.htm' in batch
+    assert '000003696626000184/fhn-20261026.htm' in batch
+    for certification in ('FHN8A061120.pdf', 'FHNPRF051021.pdf', 'FHNPRH031626.pdf'):
+        assert certification in batch
+    assert 'NYSEshvol20261112.pdf#page=64' in batch
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):

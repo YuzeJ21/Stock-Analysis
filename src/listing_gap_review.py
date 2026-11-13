@@ -122,6 +122,11 @@ CFG_SERIES_E_NYSE = 'https://www.sec.gov/Archives/edgar/data/759944/000087666119
 CFG_SERIES_H_NYSE = 'https://www.sec.gov/Archives/edgar/data/759944/000087666124000387/CFGPRH052324.pdf'
 CFG_SERIES_I_NYSE = 'https://www.sec.gov/Archives/edgar/data/759944/000087666125000536/CFGPRI073025.pdf'
 CFG_SERIES_G_REDEMPTION = 'https://www.sec.gov/Archives/edgar/data/759944/000075994426000192/cfg-20261006.htm'
+FHN_QUARTER = 'https://www.sec.gov/Archives/edgar/data/36966/000003696626000199/fhn-20260930.htm'
+FHN_COVER = 'https://www.sec.gov/Archives/edgar/data/36966/000003696626000184/fhn-20261026.htm'
+FHN_SERIES_E_NYSE = 'https://www.sec.gov/Archives/edgar/data/36966/000087666120000496/FHN8A061120.pdf'
+FHN_SERIES_F_NYSE = 'https://www.sec.gov/Archives/edgar/data/36966/000087666121000699/FHNPRF051021.pdf'
+FHN_SERIES_H_NYSE = 'https://www.sec.gov/Archives/edgar/data/36966/000087666126000232/FHNPRH031626.pdf'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -139,11 +144,16 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 158 were reviewed, with 386 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 161 were reviewed, with 383 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Nine now have dated class evidence, with 273 still unreviewed.
 
 **Dated findings**
 
+- **First Horizon · Three NYSE depositary share listings matched.** The November 5 Form 10-Q and October 27 Form 8-K identify the three listings. Each depositary share represents 1/4,000 of its underlying preferred share. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, SEC cover and directory symbols, followed by the stated class rate. [First Horizon Form 10-Q]({FHN_QUARTER}) · [First Horizon Form 8-K]({FHN_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=64)
+  - `FHN-PE` / `FHN PR E` / `FHN$E` · Series E · 6.500%
+  - `FHN-PF` / `FHN PR F` / `FHN$F` · Series F · 4.700%
+  - `FHN-PH` / `FHN PR H` / `FHN$H` · Series H · 6.750%
+  - Series H was issued on March 12, 2026. Series C was fully redeemed on May 1, 2026 and falls outside this batch. NYSE certifications for [Series E]({FHN_SERIES_E_NYSE}), [Series F]({FHN_SERIES_F_NYSE}) and [Series H]({FHN_SERIES_H_NYSE}).
 - **Citizens Financial Group · Three NYSE depositary share listings matched.** The October 28 Form 10-Q and October 30 Form 8-K identify the three listings. Each depositary share represents 1/40 of its underlying preferred share. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, SEC cover and directory symbols, followed by the rate terms. [Citizens Form 10-Q]({CFG_QUARTER}) · [Citizens Form 8-K]({CFG_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report, Series E]({NOV12_NYSE_VOLUME}#page=33) · [November 12 NYSE report, Series H and I]({NOV12_NYSE_VOLUME}#page=34)
   - `CFG-PE` / `CFG PrE` / `CFG$E` · Series E · 5.000% fixed
   - `CFG-PH` / `CFG PrH` / `CFG$H` · Series H · 7.375% fixed

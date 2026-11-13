@@ -1008,9 +1008,43 @@ SEC submissions bind the September 30 Form 10-Q to accession `0000759944-26-0002
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**158 of the original 544 SEC-only records have been reviewed, with 386 unreviewed.** Nine of the 282 directory-type gaps have dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The Citizens Financial Group batch brought the SEC-only review to 158 of the original 544 records, with 386 unreviewed at that stage. Nine of the 282 directory-type gaps had dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
 
 The integration passed 275 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, nine source links, the rate terms, the separate Series G and J events, and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### First Horizon preferred-share follow-up
+
+The November 5 Form 10-Q and October 27 Form 8-K for First Horizon Corporation (CIK `0000036966`) identify three NYSE depositary share listings. Each listed security represents 1/4,000 of an underlying non-cumulative perpetual preferred share. The Form 8-K reports an October 26 director election and bylaw change and supplies a dated listing cover. The November 12 Nasdaq Trader directory already classifies all three as depositary shares, with NYSE code `N` and test and ETF flags `N`. [November 5 Form 10-Q](https://www.sec.gov/Archives/edgar/data/36966/000003696626000199/fhn-20260930.htm) · [October 27 Form 8-K](https://www.sec.gov/Archives/edgar/data/36966/000003696626000184/fhn-20261026.htm) · [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt)
+
+| Series | Stated rate | SEC map | SEC cover | Nasdaq Trader ACT symbol | NYSE certification |
+| --- | --- | --- | --- | --- | --- |
+| E | 6.500% | `FHN-PE` | `FHN PR E` | `FHN$E` | [June 11, 2020, First Horizon National Corporation](https://www.sec.gov/Archives/edgar/data/36966/000087666120000496/FHN8A061120.pdf) |
+| F | 4.700% | `FHN-PF` | `FHN PR F` | `FHN$F` | [May 10, 2021](https://www.sec.gov/Archives/edgar/data/36966/000087666121000699/FHNPRF051021.pdf) |
+| H | 6.750% | `FHN-PH` | `FHN PR H` | `FHN$H` | [March 16, 2026](https://www.sec.gov/Archives/edgar/data/36966/000087666126000232/FHNPRH031626.pdf) |
+
+Note 7 reports all three underlying series outstanding on September 30, after Series E and F became optionally redeemable. First Horizon issued Series H on March 12, 2026. The exchange certification is dated March 16. The separate Series C preferred stock and its 1/400 depositary shares were fully redeemed on May 1, 2026. The subsidiary First Horizon Bank Class A shares are also outside this batch. [Form 10-Q, Note 7](https://www.sec.gov/Archives/edgar/data/36966/000003696626000199/fhn-20260930.htm) · [Series H prospectus](https://www.sec.gov/Archives/edgar/data/36966/000093041326000705/c115733_424b2.htm) · [Series C redemption, Form 10-Q Note 17](https://www.sec.gov/Archives/edgar/data/36966/000003696626000112/fhn-20260331.htm)
+
+Page 64 of the November 12 NYSE report shows positive total volume for `FHN PRE`, `FHN PRF` and `FHN PRH`. This corroborates exchange activity on that date. First trade, continuous listing history, current yield and analysis eligibility require separate evidence. [November 12 NYSE report, page 64](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=64)
+
+SEC submissions bind the September 30 Form 10-Q to accession `0000036966-26-000199`, accepted November 5 at 21:17:27 UTC, and the October 26 report on Form 8-K to `0000036966-26-000184`, accepted October 27 at 10:17:15 UTC. The nine submissions, filing and exchange receipts below were observed November 13 from 15:18:05 to 15:19:57 UTC. [SEC submissions](https://data.sec.gov/submissions/CIK0000036966.json) · [NYSE Series C removal notice](https://www.sec.gov/Archives/edgar/data/876661/000087666126000382/primary_doc.xml)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `b14a8654c0486346bca2b3bdf02d954c078ab28c3f45359b1f3dac3c05e3f9e4` |
+| November 5 Form 10-Q | `55f0949a244e23db8e391c358bdb7562b1141d2488928249feeaf278e3d5469f` |
+| October 27 Form 8-K | `bf54656d946133664987f610efdc0b77e1be2eecaad2280930d2de6178381fee` |
+| NYSE Series E certification | `6878ea1d4547ad40c3c732be661e6f9b0bdaf85ea2ae9b1e9412944e529ea393` |
+| NYSE Series F certification | `0b37d0ee58ffcec64dc776ce8d7fe8adc344f19ef34839000399f96f26b108ea` |
+| NYSE Series H certification | `738a578b151f06db6270db25d23e3fc9bdcbb453bdadaa1ac77ddc6b3a8336ca` |
+| Series H prospectus | `ab7d5d2eddd8e899557b6ff449c3903f65200749e1374e824b35f76e254fc745` |
+| Series C redemption, Form 10-Q Note 17 | `5f52dc1d09a9adb81e810b8ca8f21604f33fc50a5f13454ea64875074941b43c` |
+| NYSE Series C Form 25 | `02562de5198311956a31127550eb790e4f92cf5c0ae7a89eb360be287d3771b1` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**161 of the original 544 SEC-only records have been reviewed, with 383 unreviewed.** Nine of the 282 directory-type gaps have dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 276 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, seven source links, the depositary fractions and rates, the Series H issuance, the separate Series C redemption and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 
