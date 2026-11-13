@@ -1222,9 +1222,38 @@ SEC submissions bind the September 30 Form 10-Q to accession `0001193125-26-4462
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**177 of the original 544 SEC-only records have been reviewed, with 367 unreviewed.** Fourteen of the 282 directory-type gaps have dated evidence, with 268 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+This batch brought the review to 177 of the original 544 SEC-only records, with 367 unreviewed. Fourteen of the 282 directory-type gaps had dated evidence, with 268 unreviewed.
 
 The integration passed 229 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, eight source links, the Series D filing discrepancy, the separate Series A redemption and the prior PFBC finding. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
+
+#### TPG Mortgage Investment Trust preferred-share follow-up
+
+The November 6 Form 10-Q and November 4 Form 8-K identify three NYSE-listed cumulative redeemable preferred stock classes for TPG Mortgage Investment Trust, Inc. (CIK `0001514281`). The charter amendment changed the legal name from AG Mortgage Investment Trust, Inc. effective December 16, 2025. The name change Form 8-K gives December 26, 2025 as the NYSE effective date and says all three preferred symbols would continue. The two 2026 filings identify `MITN` and `MITP` separately as senior notes. [November 6 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1514281/000162828026071791/mitt-20260930.htm) · [November 4 Form 8-K](https://www.sec.gov/Archives/edgar/data/1514281/000162828026069770/mitt-20261104.htm) · [Charter amendment](https://www.sec.gov/Archives/edgar/data/1514281/000162828025057427/a8k-121625xexhibit31.htm) · [Name change Form 8-K](https://www.sec.gov/Archives/edgar/data/1514281/000162828025057427/mitt-20251215.htm)
+
+| Series | SEC map | SEC cover | Nasdaq Trader ACT symbol | NYSE report | Dividend terms |
+| --- | --- | --- | --- | --- | --- |
+| A | `MITT-PA` | `MITT PrA` | `MITT$A` | `MITT PRA` | 8.25% fixed |
+| B | `MITT-PB` | `MITT PrB` | `MITT$B` | `MITT PRB` | 8.00% fixed |
+| C | `MITT-PC` | `MITT PrC` | `MITT$C` | `MITT PRC` | 8.000% original fixed rate, floating since September 17, 2024 |
+
+The 10-Q describes the Series C dividend rate as three-month CME Term SOFR plus a 0.26161 percentage point tenor adjustment and a 6.476 percentage point spread. The November 12 directory already classified all three preferred rows and identifies the venue as NYSE. The NYSE report shows positive volume for all three on November 12. The review establishes class identity and trading activity on that date. First execution, continuous listing, market yields and analysis eligibility require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 112](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=112)
+
+SEC submissions bind the September 30 Form 10-Q to accession `0001628280-26-071791`, accepted November 6 at 22:23:15 UTC, and the November 4 Form 8-K to accession `0001628280-26-069770`, accepted November 4 at 11:30:35 UTC. The SEC filings and charter amendment were observed November 13 at 23:11:19–56 UTC. The exchange files use the preserved November 12 receipts. [SEC submissions](https://data.sec.gov/submissions/CIK0001514281.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `190c5829686c8da6a5754fd03173761dc5e9e0c77e55155758b53a90f60cdced` |
+| November 6 Form 10-Q | `700e568a09426241b9edf3d7cf59cf59dc98413382ffa246e94683adc0a3b84f` |
+| November 4 Form 8-K | `e23494dd803a008460257d5b08d7aaca0c5c21e4b88e212dbed74e0b24a32149` |
+| Charter amendment | `d0f8e3a6d9d1a933e291df6a6a6e47042b6bf3609cb5869ea442143702a51a60` |
+| Name change Form 8-K | `43243584850a277da25fc0c3f0cac58513acc7c9351a622dadbda8e05682ec6e` |
+| November 12 SEC exchange map | `98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**180 of the original 544 SEC-only records have been reviewed, with 364 unreviewed.** Fourteen of the 282 directory-type gaps have dated evidence, with 268 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 230 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs checked the three symbol mappings, 189 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

@@ -146,6 +146,9 @@ SF_DIVIDENDS = 'https://www.stifel.com/docs/pdf/pressreleases/2026/SF-4Q26-Divid
 SF_SERIES_A_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666121001211/primary_doc.xml'
 SF_SERIES_D_REGISTRATION = 'https://www.sec.gov/Archives/edgar/data/720672/000119312521221582/d46382d8a12b.htm'
 SF_SERIES_D_DESIGNATION = 'https://www.sec.gov/Archives/edgar/data/720672/000119312521221582/d46382dex998.htm'
+MITT_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1514281/000162828026071791/mitt-20260930.htm'
+MITT_COVER = 'https://www.sec.gov/Archives/edgar/data/1514281/000162828026069770/mitt-20261104.htm'
+MITT_NAME_AMENDMENT = 'https://www.sec.gov/Archives/edgar/data/1514281/000162828025057427/a8k-121625xexhibit31.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -163,11 +166,17 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 177 were reviewed, with 367 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 180 were reviewed, with 364 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Fourteen now have dated class evidence, with 268 still unreviewed.
 
 **Dated findings**
 
+- **TPG Mortgage Investment Trust · Three NYSE preferred share listings matched.** The November 6 Form 10-Q and November 4 Form 8-K identify all three classes as cumulative redeemable preferred stock. Each row lists the SEC map, SEC cover and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows activity in each class. [TPG Mortgage Form 10-Q]({MITT_QUARTER}) · [TPG Mortgage Form 8-K]({MITT_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=112)
+  - `MITT-PA` / `MITT PrA` / `MITT$A` · Series A · 8.25% fixed
+  - `MITT-PB` / `MITT PrB` / `MITT$B` · Series B · 8.00% fixed
+  - `MITT-PC` / `MITT PrC` / `MITT$C` · Series C · 8.000% original fixed rate, now floating
+  - Series C has used a floating rate based on three-month CME Term SOFR since September 17, 2024. `MITN` and `MITP` are separate senior notes.
+  - The same issuer changed its legal name from AG Mortgage Investment Trust, Inc. on December 16, 2025. [Charter amendment]({MITT_NAME_AMENDMENT})
 - **Stifel Financial · Three NYSE depositary share listings matched.** The November 4 Form 10-Q and October 21 Form 8-K identify three listings. Each depositary share represents 1/1,000 of a non-cumulative perpetual preferred share. Each row gives the SEC map and cover symbol, the trading symbol from Stifel's November 2 announcement, and the November 12 directory symbol. The same-day NYSE report corroborates activity. [Stifel Form 10-Q]({SF_QUARTER}) · [Stifel Form 8-K]({SF_COVER}) · [Stifel dividend declaration]({SF_DIVIDENDS}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=155)
   - `SF-PB` / `SF PrB` / `SF$B` · Series B · 6.25%
   - `SF-PC` / `SF PrC` / `SF$C` · Series C · 6.125%

@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '177 were reviewed, with 367 still unreviewed' in review
+    assert '180 were reviewed, with 364 still unreviewed' in review
     assert 'Fourteen now have dated class evidence, with 268 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
@@ -636,6 +636,25 @@ def test_stifel_review_distinguishes_listed_depositary_shares_from_notes_and_red
     for source in ('000119312526446268/sf-20260930.htm', '000119312526427189/d182962d8k.htm',
                    'd46382d8a12b.htm', 'd46382dex998.htm', '000087666121001211/primary_doc.xml',
                    'SF-4Q26-Dividend-Announcement.pdf', 'NYSEshvol20261112.pdf#page=155'):
+        assert source in batch
+
+
+def test_tpg_mortgage_review_distinguishes_fixed_and_floating_preferred_shares_from_notes():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    start = '**TPG Mortgage Investment Trust · Three NYSE preferred share listings matched.**'
+    assert start in review
+    batch = review.split(start, 1)[1].split('\n- **', 1)[0]
+    terms = ('8.25% fixed', '8.00% fixed', '8.000% original fixed rate, now floating')
+    for series, term in zip('ABC', terms, strict=True):
+        assert f'`MITT-P{series}` / `MITT Pr{series}` / `MITT${series}` · Series {series} · {term}\n' in batch
+    assert 'cumulative redeemable preferred stock' in batch
+    assert 'December 16, 2025' in batch and 'AG Mortgage Investment Trust' in batch
+    assert 'September 17, 2024' in batch and 'CME Term SOFR' in batch
+    assert '`MITN` and `MITP` are separate senior notes' in batch
+    for source in ('000162828026071791/mitt-20260930.htm', '000162828026069770/mitt-20261104.htm',
+                   '000162828025057427/a8k-121625xexhibit31.htm', 'NYSEshvol20261112.pdf#page=112'):
         assert source in batch
 
 
