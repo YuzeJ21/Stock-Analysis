@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '493 still unreviewed' in review and '274 still unreviewed' in review
+    assert '489 still unreviewed' in review and '274 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -119,8 +119,21 @@ def test_bank_of_america_review_distinguishes_direct_preferred_and_depositary_sh
         assert f'`BAC-P{suffix}` / `BAC Pr{suffix}` / `BAC${suffix}` · Series {series}' in review
     assert 'Series L · Direct convertible preferred stock' in review
     assert '`BAC$E` and `BAC$L` unknown' in review
-    assert 'Four `BML`-prefixed listings remain outside this batch' in review
+    assert 'The four `BML`-prefixed listings are reviewed separately below' in review
     assert 'https://www.sec.gov/Archives/edgar/data/70858/000007085826000548/bac-20260930.htm' in review
+
+
+def test_bml_review_maps_four_depositary_symbols_to_numbered_preferred_series():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    assert 'Bank of America BML · Four NYSE depositary share listings matched' in review
+    assert '1/1,200 of a share of Bank of America floating-rate non-cumulative preferred stock' in review
+    for suffix, series in zip('GHJL', '1245'):
+        assert f'`BML-P{suffix}` / `BML Pr{suffix}` / `BML${suffix}` · Series {series}' in review
+    assert '`BML-PL` represents Series 5' in review and '`BAC-PL` is direct Series L' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/70858/000119312526430566/d176604d8k.htm' in review
+    assert 'https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=24' in review
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):

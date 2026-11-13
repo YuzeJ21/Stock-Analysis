@@ -274,13 +274,32 @@ The next batch matched the ten `BAC`-prefixed NYSE preferred-linked rows for Ban
 | QQ | Depositary share | `BAC-PQ` | `BAC PrQ` | `BAC$Q` | `BAC PRQ` |
 | SS | Depositary share | `BAC-PS` | `BAC PrS` | `BAC$S` | `BAC PRS` |
 
-The original classifier still returns unknown for the abbreviated `BAC$E` and `BAC$L` descriptions. The exact cover and symbol matches supply dated class evidence for both. The charter exhibit specifies the 7.25% Series L convertible preferred terms, and the Form 10-Q reports a holder conversion of 28 Series L shares on September 25. The full first-quarter redemption involved separate Series DD. The NYSE separately certified the Series SS depositary shares on January 31, 2022. Four `BML`-prefixed depositary rows with a `1/1,200` ratio remain outside this batch. [Series L charter exhibit](https://www.sec.gov/Archives/edgar/data/70858/000007085826000548/bac-0930202610xqex31.htm) · [NYSE Series SS certification](https://www.sec.gov/Archives/edgar/data/70858/000087666122000107/BACPRS013122.pdf)
+The original classifier still returns unknown for the abbreviated `BAC$E` and `BAC$L` descriptions. The exact cover and symbol matches supply dated class evidence for both. The charter exhibit specifies the 7.25% Series L convertible preferred terms, and the Form 10-Q reports a holder conversion of 28 Series L shares on September 25. The full first-quarter redemption involved separate Series DD. The NYSE separately certified the Series SS depositary shares on January 31, 2022. The four `BML`-prefixed depositary rows are reviewed separately below. [Series L charter exhibit](https://www.sec.gov/Archives/edgar/data/70858/000007085826000548/bac-0930202610xqex31.htm) · [NYSE Series SS certification](https://www.sec.gov/Archives/edgar/data/70858/000087666122000107/BACPRS013122.pdf)
 
 SEC submissions bind the Form 10-Q to accession `0000070858-26-000548`, accepted October 30 at 21:04:27 UTC. The cover was captured November 13 at 03:26:51 UTC, November 12 in Toronto, with raw SHA-256 `d028a28859783d6f956062bf18919edfbf5b56fa75442cc5fcd44dde25de5e86`. The November 12 NYSE report has raw digest `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0`, and the Series SS certificate has raw digest `5d4bc8e5184cc6a6c3a196cd9cf98d09055cbb0390afdd28c99b2844b877ef44`. [SEC submissions](https://data.sec.gov/submissions/CIK0000070858.json)
 
-**51 of the original 544 SEC-only records have been reviewed, with 493 unreviewed.** Of 282 original directory-type gaps, eight have dated class evidence and 274 remain unreviewed. These are source-row counts. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The BAC-prefixed follow-up brought the reviewed count to 51 of the original 544 SEC-only records. The two abbreviated directory rows brought the number with dated class evidence to eight of the original 282 directory-type gaps.
 
 The integration passed 252 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the ten mappings, source links, remaining gaps and prior PFBC finding. The dated review made zero source requests. All 89 protected files matched the baseline.
+
+#### BML depositary-share follow-up
+
+The four `BML`-prefixed SEC-only records map to Bank of America Corporation (CIK `0000070858`). The October 30 Form 10-Q for September 30 and the October 23 Form 8-K identify each listed depositary share as a `1/1,200` interest in a share of the named floating-rate non-cumulative preferred series. The 2025 annual securities exhibit identifies these as the legacy Merrill Lynch preferred series. All four match the November 12 Nasdaq Trader directory, with venue code `N` and test and ETF flags `N`. The same-day NYSE short-sale volume report contains one market-`N` row for each exchange symbol and covers a limited set of activity on that date. [Form 10-Q](https://www.sec.gov/Archives/edgar/data/70858/000007085826000548/bac-20260930.htm) · [Form 8-K](https://www.sec.gov/Archives/edgar/data/70858/000119312526430566/d176604d8k.htm) · [Annual securities exhibit](https://www.sec.gov/Archives/edgar/data/70858/000007085826000157/bac-1231202510xkex432.htm) · [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 24](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=24)
+
+| Underlying preferred series | SEC map | Filing cover | Directory ACT symbol | NYSE report symbol |
+| --- | --- | --- | --- | --- |
+| 1 | `BML-PG` | `BML PrG` | `BML$G` | `BML PRG` |
+| 2 | `BML-PH` | `BML PrH` | `BML$H` | `BML PRH` |
+| 4 | `BML-PJ` | `BML PrJ` | `BML$J` | `BML PRJ` |
+| 5 | `BML-PL` | `BML PrL` | `BML$L` | `BML PRL` |
+
+`BML-PL` represents Series 5. `BAC-PL` is the distinct direct Series L convertible preferred stock. All four BML directory counterparts already carried the depositary-receipt classification. Continuous listing and current trading status require separate evidence. The batch makes no determination about the history of Series 3.
+
+SEC submissions bind the October 23 Form 8-K to accession `0001193125-26-430566`, accepted at 20:41:47 UTC. Its raw SHA-256 was `70e51266cf2cba675a3ac32e065f6627bb9708aad9fce1ba6f662708541f7246`. The October 30 cover and November 12 NYSE report retain the raw digests recorded in the BAC review above. [SEC submissions](https://data.sec.gov/submissions/CIK0000070858.json)
+
+**55 of the original 544 SEC-only records have been reviewed, with 489 unreviewed.** Of 282 original directory-type gaps, eight have dated class evidence and 274 remain unreviewed. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 253 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the four mappings, source links, Series 5 distinction and prior PFBC finding. The dated review made zero source requests. All 89 protected files matched the baseline.
 
 #### Preferred Bank FDIC filing follow-up
 
