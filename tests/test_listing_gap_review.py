@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '168 were reviewed, with 376 still unreviewed' in review
+    assert '171 were reviewed, with 373 still unreviewed' in review
     assert 'Thirteen now have dated class evidence, with 269 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
@@ -580,6 +580,25 @@ def test_sce_review_distinguishes_trust_issuers_from_utility_guarantor():
                    'tmb-20240514x8a12b.htm', 'eix-20260930.htm', '000087666126000238/primary_doc.xml',
                    'NYSEshvol20261112.pdf#page=153'):
         assert source in batch
+
+
+def test_pennymac_review_preserves_both_filed_symbols_and_dividend_dispute():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    start = '**PennyMac Mortgage Investment Trust · Three NYSE preferred share listings matched.**'
+    assert start in review
+    batch = review.split(start, 1)[1].split('\n- **', 1)[0]
+    for series, rate in zip('ABC', ('8.125%', '8.00%', '6.75%'), strict=True):
+        assert f'`PMT-P{series}` / `PMT/PR{series}` / `PMT/P{series}` / `PMT${series}` · Series {series} · {rate}\n' in batch
+    assert 'cumulative redeemable preferred shares of beneficial interest' in batch
+    assert 'PennyMac reports that Series A and B retained their prior dividend rates' in batch
+    assert 'The dispute remains pending as reported in the 10-Q' in batch
+    assert 'no preferred shares were redeemed through September 30, 2026' in batch
+    assert 'PMTU`, `PMTV` and `PMTW` are senior notes' in batch
+    assert '000119312526445330/pmt-20260930.htm' in batch
+    assert '000119312526437878/d179622d8k.htm' in batch
+    assert 'NYSEshvol20261112.pdf#page=137' in batch
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):

@@ -135,6 +135,8 @@ SCE_TRUST_VI_REGISTRATION = 'https://www.sec.gov/Archives/edgar/data/1709317/000
 SCE_TRUST_VII_REGISTRATION = 'https://www.sec.gov/Archives/edgar/data/1709318/000009210323000027/tmb-20231122x8a12b.htm'
 SCE_TRUST_VIII_REGISTRATION = 'https://www.sec.gov/Archives/edgar/data/92103/000009210324000023/tmb-20240514x8a12b.htm'
 SCE_SERIES_K_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000238/primary_doc.xml'
+PMT_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1464423/000119312526445330/pmt-20260930.htm'
+PMT_COVER = 'https://www.sec.gov/Archives/edgar/data/1464423/000119312526437878/d179622d8k.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -152,11 +154,17 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 168 were reviewed, with 376 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 171 were reviewed, with 373 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Thirteen now have dated class evidence, with 269 still unreviewed.
 
 **Dated findings**
 
+- **PennyMac Mortgage Investment Trust · Three NYSE preferred share listings matched.** The November 3 Form 10-Q and October 29 Form 8-K identify the cumulative redeemable preferred shares of beneficial interest. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, 10-Q cover, 8-K cover and directory symbols, followed by the stated class rate. [PennyMac Form 10-Q]({PMT_QUARTER}) · [PennyMac Form 8-K]({PMT_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=137)
+  - `PMT-PA` / `PMT/PRA` / `PMT/PA` / `PMT$A` · Series A · 8.125%
+  - `PMT-PB` / `PMT/PRB` / `PMT/PB` / `PMT$B` · Series B · 8.00%
+  - `PMT-PC` / `PMT/PRC` / `PMT/PC` / `PMT$C` · Series C · 6.75%
+  - PennyMac reports that Series A and B retained their prior dividend rates under its reading of the LIBOR fallback. The dispute remains pending as reported in the 10-Q.
+  - Series A, B and C became optionally redeemable on March 15, 2024, June 15, 2024 and August 24, 2026, respectively. The filing reports that no preferred shares were redeemed through September 30, 2026. `PMTU`, `PMTV` and `PMTW` are senior notes and fall outside this batch.
 - **Southern California Edison · Four NYSE trust preference securities matched.** The trusts issue the listed securities. SCE is the guarantor and issues the underlying preference stock. The October 29 joint Form 10-Q reports no Section 12(b) securities for SCE on its cover. The trust registrations, November 12 Nasdaq Trader directory and same-day NYSE report support the matches below. Each row gives the SEC map, NYSE and directory symbols, followed by the underlying series, trust issuer and stated rate. [Joint Form 10-Q]({SCE_QUARTER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=153)
   - `SCE-PG` / `SCE PR G` / `SCE$G` · Series G · SCE Trust II · 5.10%
   - `SCE-PL` / `SCE PR L` / `SCE$L` · Series L · SCE Trust VI · 5.00%

@@ -1115,9 +1115,42 @@ SEC submissions bind the September 30 Form 10-Q to accession `0000827052-26-0000
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**168 of the original 544 SEC-only records have been reviewed, with 376 unreviewed.** Thirteen of the 282 directory-type gaps have dated class evidence, with 269 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The Southern California Edison batch brought the SEC-only review to 168 of the original 544 records, with 376 unreviewed at that stage. Thirteen of the 282 directory-type gaps had dated class evidence, with 269 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
 
 The integration passed 226 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the four mappings, eight source links, the trust and guarantor roles, the separate Series K redemption and the prior PFBC finding. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
+
+#### PennyMac Mortgage Investment Trust preferred-share follow-up
+
+The November 3 Form 10-Q and October 29 Form 8-K identify three NYSE-listed cumulative redeemable preferred shares of beneficial interest issued directly by PennyMac Mortgage Investment Trust (CIK `0001464423`). The Form 10-Q displays the Series B and C entries in one visual row with separate title, symbol and exchange values. The Form 8-K lists those entries separately and uses a shorter ticker format. The common shares and three senior-note listings `PMTU`, `PMTV` and `PMTW` fall outside this batch. [November 3 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1464423/000119312526445330/pmt-20260930.htm) · [October 29 Form 8-K](https://www.sec.gov/Archives/edgar/data/1464423/000119312526437878/d179622d8k.htm)
+
+| Series | SEC map | 10-Q cover | 8-K cover | Nasdaq Trader ACT symbol | Stated class rate | First optionally redeemable | NYSE registration |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| A | `PMT-PA` | `PMT/PRA` | `PMT/PA` | `PMT$A` | 8.125% | March 15, 2024 | [March 7, 2017 Form 8-A](https://www.sec.gov/Archives/edgar/data/1464423/000110465917014482/a15-19086_38a12b.htm) |
+| B | `PMT-PB` | `PMT/PRB` | `PMT/PB` | `PMT$B` | 8.00% | June 15, 2024 | [June 30, 2017 Form 8-A](https://www.sec.gov/Archives/edgar/data/1464423/000110465917042971/a17-15725_58a12b.htm) |
+| C | `PMT-PC` | `PMT/PRC` | `PMT/PC` | `PMT$C` | 6.75% | August 24, 2026 | [August 20, 2021 Form 8-A](https://www.sec.gov/Archives/edgar/data/1464423/000119312521252737/d220030d8a12b.htm) |
+
+The original Series A and B terms described a transition to a floating rate. PennyMac reports in Note 18 that its interpretation of the LIBOR fallback retained the preceding dividend rate on each applicable 2024 transition date. Note 17 reports the dispute remained pending in district court after the Ninth Circuit's August 19, 2026 reversal and remand. Note 18 reports no preferred redemptions in the nine months through September 30, 2026, and specifies an optional redemption price of $25 per share plus accumulated and unpaid dividends through the applicable cutoff. The stated class rates and optional redemption dates are distinct from market yield and completed redemptions. [Form 10-Q, Notes 17 and 18](https://www.sec.gov/Archives/edgar/data/1464423/000119312526445330/pmt-20260930.htm) · [August 19 appellate opinion](https://cdn.ca9.uscourts.gov/datastore/opinions/2026/08/19/25-4458.pdf)
+
+The November 12 Nasdaq Trader directory lists all three with NYSE venue code `N`, ETF and test flags `N`, and a recognized preferred security type. The November 12 NYSE report shows positive total volume for `PMT PRA`, `PMT PRB` and `PMT PRC`, which corroborates activity for that report date. First trades, continuous listings, current yields and analysis eligibility require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 137](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=137)
+
+SEC submissions bind the September 30 Form 10-Q to accession `0001193125-26-445330`, accepted November 3 at 21:06:47 UTC, and the October 26 report on Form 8-K to accession `0001193125-26-437878`, accepted October 29 at 20:32:14 UTC. The SEC documents and court opinion listed below were observed November 13 from 22:43:28 to 22:44:31 UTC. The exchange map, directory and report use the preserved November 12 receipts. [SEC submissions](https://data.sec.gov/submissions/CIK0001464423.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `02c307277725aec59018f9b840b59081bce125b0edb2e36353fa47f3aa56468e` |
+| November 3 Form 10-Q | `9dba215d5a62e2fcc918e0d1f38a653770884448f1c68a171b9f1ba04d337bb5` |
+| October 29 Form 8-K | `f96c0c25c41a3583434ec673d25e480ac60c4c784d9e41258c958a5d69fabcba` |
+| Series A Form 8-A | `eeb72725b11ff14a01e1a08c21e90a5ad16869a6aa7f54e14d23679fb16ae776` |
+| Series B Form 8-A | `2e1adf672d7ac9f0575d9941719d2c64d616746549347fea4f6b88524eecf0ab` |
+| Series C Form 8-A | `d3a63dbc9f3c4a30f837ebf5e36f91ec84cd9a48410721d89ee5264e09c104ed` |
+| August 19 appellate opinion | `bfa6e26a092af5bbef00e1883507790e1b6ef650084118df025863b9d6b096a5` |
+| November 12 SEC exchange map | `98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**171 of the original 544 SEC-only records have been reviewed, with 373 unreviewed.** Thirteen of the 282 directory-type gaps have dated evidence, with 269 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 227 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, four source links, the dividend dispute and redemption disclosures, and the prior PFBC finding. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 
