@@ -208,9 +208,30 @@ Annaly redeemed Series I on October 1. The NYSE Form 25 notice reports suspensio
 
 SEC submissions bind the Rithm Form 10-Q to accession `0001556593-26-000035`, accepted October 31 at 00:02:09 UTC, and the Annaly Form 10-Q to `0001043219-26-000083`, accepted October 28 at 20:06:15 UTC. The covers were captured November 13 at 02:09:42 and 02:08:58 UTC, respectively, November 12 in Toronto. Their raw SHA-256 digests were `990c0cd66f5b53275064eff230b34ada90b462190437271fa6179211d6307254` and `1189fb0d19d7fab55f20e30a62cbfb67f22afcc83894a51899ce3159caab15d9`. [Rithm submissions](https://data.sec.gov/submissions/CIK0001556593.json) · [Annaly submissions](https://data.sec.gov/submissions/CIK0001043219.json)
 
-**26 of 544 SEC-only records have been reviewed, with 518 unreviewed.** The original 282 directory-type gaps now include four with dated class evidence and 278 unreviewed. The SEC-only and directory counts measure separate source rows. The two Annaly Series F rows describe one security. PFBC's IRS number remains unreconciled.
+The Rithm and Annaly follow-up brought the reviewed count to 26 of 544 SEC-only records. The original 282 directory-type gaps include four with dated class evidence and 278 unreviewed. The SEC-only and directory counts measure separate source rows. The two Annaly Series F rows describe one security. PFBC's IRS number remains unreconciled.
 
 The integration passed 249 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the nine new class matches, source links, Series I exclusion and prior PFBC finding. The dated review made zero source requests. All 89 protected files matched the baseline.
+
+#### JPMorgan depositary-share follow-up
+
+The next batch matched six NYSE depositary-share records for JPMorgan Chase & Co. (CIK `0000019617`). The November 3 Form 10-Q cover for September 30 and the November 12 Nasdaq Trader directory tie each listed depositary share to a `1/400` interest in a share of the named non-cumulative preferred series. The directory rows carry NYSE code `N` and `N` in the test and ETF fields. The ticker suffix and underlying series are distinct. The listed securities are the depositary shares. [JPMorgan Form 10-Q](https://www.sec.gov/Archives/edgar/data/19617/000162828026069523/jpm-20260930.htm) · [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt)
+
+| Underlying preferred series | Title rate | SEC map | Filing cover | Directory ACT symbol |
+| --- | --- | --- | --- | --- |
+| EE | 6.00% | `JPM-PC` | `JPM PR C` | `JPM$C` |
+| DD | 5.75% | `JPM-PD` | `JPM PR D` | `JPM$D` |
+| GG | 4.75% | `JPM-PJ` | `JPM PR J` | `JPM$J` |
+| JJ | 4.55% | `JPM-PK` | `JPM PR K` | `JPM$K` |
+| LL | 4.625% | `JPM-PL` | `JPM PR L` | `JPM$L` |
+| MM | 4.20% | `JPM-PM` | `JPM PR M` | `JPM$M` |
+
+NYSE separately certified the Series JJ depositary shares on March 18, 2021 and the Series MM depositary shares on July 29, 2021. Note 17 of the Form 10-Q records the June 1, 2026 redemption of the separate Series KK depositary shares, which each represented a `1/10` interest. `JPM-PK` maps to Series JJ. The October 15 issuer release includes Series MM among the outstanding series. The review leaves current trading and future redemption status open. [NYSE Series JJ certification](https://www.sec.gov/Archives/edgar/data/19617/000087666121000413/JPM031821.pdf) · [NYSE Series MM certification](https://www.sec.gov/Archives/edgar/data/19617/000087666121001134/JPMPRM072921.pdf) · [October 15 issuer release](https://www.jpmorganchase.com/ir/news/2026/jpmc-declares-preferred-stock-dividends-10-15)
+
+SEC submissions bind the Form 10-Q to accession `0001628280-26-069523`, accepted November 3 at 21:17:12 UTC. The exact filing was captured November 13 at 02:18:27 UTC, November 12 in Toronto, with raw SHA-256 `2d3dadea07c09ab8d535867a6d1b9cfa2c833b0ea8abcce4dccfb9a25695045b`. The raw Series JJ and MM certificate digests were `fe26ea214690d7ede55b493212ea006be5b3d093c9ec2b88f882959153b1f79a` and `729578f2115a3672bf4b8e43af333ac6e29488a88e6e7aa6e83b1163ade250b3`, respectively. [SEC submissions](https://data.sec.gov/submissions/CIK0000019617.json)
+
+**32 of the original 544 SEC-only records have now been reviewed, with 512 unreviewed.** The six directory counterparts already carried the depositary-receipt classification, leaving 278 directory-type gaps unreviewed. The findings apply to these exact dated records and do not establish full U.S. coverage. PFBC's IRS number remains unreconciled.
+
+The integration passed 250 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the six exact mappings, source links, previous filters and PFBC finding. Opening the dated review made zero source requests. All 89 protected files matched the baseline.
 
 #### Preferred Bank FDIC filing follow-up
 

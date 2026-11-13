@@ -16,6 +16,8 @@ ANNALY_COVER = 'https://www.sec.gov/Archives/edgar/data/1043219/0001043219260000
 ANNALY_SERIES_F_TERMS = 'https://www.sec.gov/Archives/edgar/data/1043219/000119312517235069/d417558dfwp.htm'
 ANNALY_SERIES_I_REDEMPTION = 'https://www.sec.gov/Archives/edgar/data/1043219/000104321926000070/nly-20261002.htm'
 ANNALY_SERIES_I_NYSE = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000807/ruleprovisionnotice.htm'
+JPM_COVER = 'https://www.sec.gov/Archives/edgar/data/19617/000162828026069523/jpm-20260930.htm'
+JPM_SERIES_MM_NYSE = 'https://www.sec.gov/Archives/edgar/data/19617/000087666121001134/JPMPRM072921.pdf'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -33,11 +35,18 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 26 were reviewed, with 518 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 32 were reviewed, with 512 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Four now have dated class evidence, with 278 still unreviewed.
 
 **Dated findings**
 
+- **JPMorgan Chase · Six NYSE depositary share listings matched.** The November 3 Form 10-Q and November 12 Nasdaq Trader directory identify each listed depositary share as a 1/400 interest in one underlying preferred share. Each line gives the SEC map, filing cover and directory symbols, followed by the underlying series. [JPMorgan Form 10-Q]({JPM_COVER}) · [NYSE Series MM certification]({JPM_SERIES_MM_NYSE}) · [Nasdaq Trader directory]({_SOURCES[1][2]})
+  - `JPM-PC` / `JPM PR C` / `JPM$C` · Series EE
+  - `JPM-PD` / `JPM PR D` / `JPM$D` · Series DD
+  - `JPM-PJ` / `JPM PR J` / `JPM$J` · Series GG
+  - `JPM-PK` / `JPM PR K` / `JPM$K` · Series JJ
+  - `JPM-PL` / `JPM PR L` / `JPM$L` · Series LL
+  - `JPM-PM` / `JPM PR M` / `JPM$M` · Series MM
 - **Rithm Capital Series A–F · Six NYSE preferred share classes matched.** The November 2 Form 10-Q and November 12 Nasdaq Trader directory agree on six direct preferred stock classes. The percentages in the class titles identify the securities. Current yields are outside this review. [Rithm Form 10-Q]({RITHM_COVER}) · [NYSE Series F certification]({RITHM_SERIES_F_NYSE}) · [Nasdaq Trader directory]({_SOURCES[1][2]})
   - SEC map · `RITM-PA`, `RITM-PB`, `RITM-PC`, `RITM-PD`, `RITM-PE`, `RITM-PF`
   - Filing cover · `RITM PR A`, `RITM PR B`, `RITM PR C`, `RITM PR D`, `RITM PR E`, `RITM PR F`

@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '518 still unreviewed' in review and '278 still unreviewed' in review
+    assert '512 still unreviewed' in review and '278 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -71,6 +71,18 @@ def test_pfbc_common_stock_is_dated_to_the_fdic_covers():
     assert 'PFBC · Type remains unresolved' not in review
     assert 'https://securitiesfilings.fdicconnect.fdic.gov/api/instflng/12041/attachment/1' in review
     assert 'https://securitiesfilings.fdicconnect.fdic.gov/api/instflng/11872/attachment/1' in review
+
+
+def test_jpm_review_matches_listed_depositary_shares_to_underlying_series():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    assert 'JPMorgan Chase · Six NYSE depositary share listings matched' in review
+    assert '1/400' in review
+    for suffix, series in zip('CDJKLM', ('EE', 'DD', 'GG', 'JJ', 'LL', 'MM')):
+        assert f'`JPM-P{suffix}` / `JPM PR {suffix}` / `JPM${suffix}` · Series {series}' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/19617/000162828026069523/jpm-20260930.htm' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/19617/000087666121001134/JPMPRM072921.pdf' in review
 
 
 def test_pfbc_filing_patterns_keep_the_irs_number_unreconciled():
