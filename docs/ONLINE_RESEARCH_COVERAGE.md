@@ -621,9 +621,41 @@ SEC submissions bind the November 3 Form 10-Q for September 30 to accession `000
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**117 of the original 544 SEC-only records have been reviewed, with 427 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The Fifth Third follow-up brought the reviewed count to 117 of the original 544 SEC-only records, leaving 427 unreviewed at that stage. Eight of the original 282 directory-type gaps had dated class evidence. PFBC's IRS number remained unreconciled.
 
 The integration passed 263 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the four mappings, six source links, the Nasdaq withdrawal and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### Global Net Lease preferred-share follow-up
+
+The November 5 Form 8-K and November 4 Form 10-Q for Global Net Lease, Inc. (CIK `0001526113`) identify four direct cumulative redeemable preferred stock classes on NYSE. The Form 10-Q shows all four outstanding at September 30. The September 11, 2023 NYSE certification independently confirms approval to list and register Series D and E. [November 5 Form 8-K](https://www.sec.gov/Archives/edgar/data/1526113/000110465926123343/tm2628765d1_8k.htm) · [September-quarter Form 10-Q](https://www.sec.gov/Archives/edgar/data/1526113/000162828026070177/gnl-20260930.htm) · [NYSE Series D and E certification](https://www.sec.gov/Archives/edgar/data/1526113/000087666123000715/GNLPRDGNLPRE091123.pdf)
+
+| SEC map | Filing cover | Directory ACT symbol | NYSE report symbol | Series | Stated class rate |
+| --- | --- | --- | --- | --- | --- |
+| `GNL-PA` | `GNL PR A` | `GNL$A` | `GNL PRA` | A | 7.25% |
+| `GNL-PB` | `GNL PR B` | `GNL$B` | `GNL PRB` | B | 6.875% |
+| `GNL-PD` | `GNL PR D` | `GNL$D` | `GNL PRD` | D | 7.50% |
+| `GNL-PE` | `GNL PR E` | `GNL$E` | `GNL PRE` | E | 7.375% |
+
+The September 12, 2023 merger closing filing records the conversion of The Necessity Retail REIT Series A and C shares into Global Net Lease Series D and E, respectively. It reports both successor classes listed on NYSE as of the closing date. In the separate August 2026 Modiv merger, Modiv Series A holders received cash. The Modiv class falls outside these four matches. [2023 merger closing Form 8-K](https://www.sec.gov/Archives/edgar/data/1526113/000110465923100026/tm2325830d1_8k.htm) · [2026 Modiv merger closing Form 8-K](https://www.sec.gov/Archives/edgar/data/1526113/000110465926095323/tm2622741d1_8k.htm)
+
+The November 12 Nasdaq Trader snapshot gives each counterpart venue code `N`, test and ETF flags `N`, and an existing preferred-stock classification. The same-day NYSE short-sale volume report has one market-`N` row with positive total volume per class on page 76. The report covers limited activity for that date. Continuous listing and current trading status require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 76](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=76)
+
+SEC submissions bind the November 5 Form 8-K to accession `0001104659-26-123343`, accepted at 21:15:56 UTC, and the November 4 Form 10-Q for September 30 to `0001628280-26-070177`, accepted at 21:19:24 UTC. The Series D and E certification is accession `0000876661-23-000715`. The SEC sources below were observed November 13 from 12:51:28 to 12:52:39 UTC. [SEC submissions](https://data.sec.gov/submissions/CIK0001526113.json)
+
+| Captured source | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `4e485168740ea81628a5ad5c3f9f6ea6a76c051104963bef09add28bedc29616` |
+| November 5 Form 8-K | `2b56a889409edaa97a8f656e996db6f876eab7b38709c333fa0969ad1a6dcf42` |
+| November 4 Form 10-Q | `cfd79c4b9f86067e8bf65b9ae67f6915ae6fe46661715f82bb748afd2aa16b88` |
+| NYSE Series D and E certification | `4d79652c53d9cee169061f438ea1b63b3be9c48bf01b3b1e2130eb160db1d3a0` |
+| 2023 merger closing Form 8-K | `8429af6bcb0cfdeed020285296645894db36a53732bdd91c17a7a59c38029839` |
+| 2026 Modiv merger closing Form 8-K | `965f20228a2b87f14452c221bfd30cb5b775f4e394437d7f3f3dae7ab1ae64b4` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**121 of the original 544 SEC-only records have been reviewed, with 423 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 264 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the four mappings, six source links, the Series D and E predecessor classes and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

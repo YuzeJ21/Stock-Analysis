@@ -61,6 +61,10 @@ FITB_QUARTER = 'https://www.sec.gov/Archives/edgar/data/35527/000003552726000243
 FITB_TRANSFER = 'https://www.sec.gov/Archives/edgar/data/35527/000119312526263043/d145237d8a12b.htm'
 FITB_NYSE_CERT = 'https://www.sec.gov/Archives/edgar/data/35527/000087666126000519/FITB060926.pdf'
 FITB_NASDAQ_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/35527/000119312526267509/d132955d25.htm'
+GNL_COVER = 'https://www.sec.gov/Archives/edgar/data/1526113/000110465926123343/tm2628765d1_8k.htm'
+GNL_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1526113/000162828026070177/gnl-20260930.htm'
+GNL_SERIES_D_E_NYSE = 'https://www.sec.gov/Archives/edgar/data/1526113/000087666123000715/GNLPRDGNLPRE091123.pdf'
+GNL_RTL_MERGER = 'https://www.sec.gov/Archives/edgar/data/1526113/000110465923100026/tm2325830d1_8k.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -78,11 +82,17 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 117 were reviewed, with 427 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 121 were reviewed, with 423 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Eight now have dated class evidence, with 274 still unreviewed.
 
 **Dated findings**
 
+- **Global Net Lease · Four NYSE preferred share listings matched.** The November 5 Form 8-K and November 4 Form 10-Q identify four direct cumulative redeemable preferred stock classes. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, filing cover and directory symbols, followed by the series and stated class rate. [Global Net Lease Form 8-K]({GNL_COVER}) · [Global Net Lease Form 10-Q]({GNL_QUARTER}) · [NYSE Series D and E certification]({GNL_SERIES_D_E_NYSE}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=76)
+  - `GNL-PA` / `GNL PR A` / `GNL$A` · Series A · 7.25%
+  - `GNL-PB` / `GNL PR B` / `GNL$B` · Series B · 6.875%
+  - `GNL-PD` / `GNL PR D` / `GNL$D` · Series D · 7.50%
+  - `GNL-PE` / `GNL PR E` / `GNL$E` · Series E · 7.375%
+  - Series D and E succeeded The Necessity Retail REIT’s Series A and C, respectively, in the September 12, 2023 merger. [Merger closing Form 8-K]({GNL_RTL_MERGER})
 - **Fifth Third · Four NYSE depositary share listings matched.** The November 3 Form 10-Q lists all four on NYSE. The June 9 Form 8-A and NYSE certification document the transfer from Nasdaq. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, filing cover and directory symbols, followed by the underlying series and share fraction. [Fifth Third Form 10-Q]({FITB_QUARTER}) · [Transfer Form 8-A]({FITB_TRANSFER}) · [NYSE certification]({FITB_NYSE_CERT}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=65)
   - `FITB-PA` / `FITB PrA` / `FITB$A` · Series A · 1/40
   - `FITB-PI` / `FITB PrI` / `FITB$I` · Series I · 1/1,000

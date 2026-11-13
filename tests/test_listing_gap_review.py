@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '117 were reviewed, with 427 still unreviewed' in review and '274 still unreviewed' in review
+    assert '121 were reviewed, with 423 still unreviewed' in review and '274 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -303,6 +303,21 @@ def test_fifth_third_review_keeps_share_fractions_and_exchange_transfer_distinct
     assert 'https://www.sec.gov/Archives/edgar/data/35527/000087666126000519/FITB060926.pdf' in review
     assert 'https://www.sec.gov/Archives/edgar/data/35527/000119312526267509/d132955d25.htm' in review
     assert 'NYSEshvol20261112.pdf#page=65' in review
+
+
+def test_global_net_lease_review_matches_four_direct_classes_and_their_lineage():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    assert 'Global Net Lease · Four NYSE preferred share listings matched' in review
+    for series, rate in zip('ABDE', ('7.25%', '6.875%', '7.50%', '7.375%'), strict=True):
+        assert f'`GNL-P{series}` / `GNL PR {series}` / `GNL${series}` · Series {series} · {rate}\n' in review
+    assert 'Series D and E succeeded The Necessity Retail REIT’s Series A and C, respectively' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/1526113/000110465926123343/tm2628765d1_8k.htm' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/1526113/000162828026070177/gnl-20260930.htm' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/1526113/000087666123000715/GNLPRDGNLPRE091123.pdf' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/1526113/000110465923100026/tm2325830d1_8k.htm' in review
+    assert 'NYSEshvol20261112.pdf#page=76' in review
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):
