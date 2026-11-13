@@ -1186,9 +1186,45 @@ SEC submissions bind the September 30 Form 10-Q to accession `0001045450-26-0000
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**174 of the original 544 SEC-only records have been reviewed, with 370 unreviewed.** Fourteen of the 282 directory-type gaps have dated evidence, with 268 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The EPR Properties batch brought the SEC-only review to 174 of the original 544 records, with 370 unreviewed at that stage. Fourteen of the 282 directory-type gaps had dated evidence, with 268 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
 
 The integration passed 228 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, five source links, the conversion ratios, the separate senior notes and the prior PFBC finding. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
+
+#### Stifel Financial preferred-share follow-up
+
+The November 4 Form 10-Q and October 21 Form 8-K identify three NYSE-listed Stifel Financial Corp. depositary shares (CIK `0000720672`). Each represents 1/1,000 of the corresponding non-cumulative perpetual preferred share. Stifel's November 2 dividend announcement supplies the spaced trading symbols and declares dividends payable December 15, 2026 to holders of record December 1. The quarterly filing separately identifies `SFB` as 5.20% senior notes due 2047. [November 4 Form 10-Q](https://www.sec.gov/Archives/edgar/data/720672/000119312526446268/sf-20260930.htm) · [October 21 Form 8-K](https://www.sec.gov/Archives/edgar/data/720672/000119312526427189/d182962d8k.htm) · [November 2 dividend announcement](https://www.stifel.com/docs/pdf/pressreleases/2026/SF-4Q26-Dividend-Announcement.pdf)
+
+| Series | SEC map and covers | Issuer trading symbol | Nasdaq Trader ACT symbol | Stated rate | NYSE listing approval |
+| --- | --- | --- | --- | --- | --- |
+| B | `SF-PB` | `SF PrB` | `SF$B` | 6.25% | [March 5, 2019 certification](https://www.sec.gov/Archives/edgar/data/720672/000087666119000178/SFPRB8A030519.pdf) |
+| C | `SF-PC` | `SF PrC` | `SF$C` | 6.125% | [May 19, 2020 certification](https://www.sec.gov/Archives/edgar/data/720672/000087666120000419/SF8A051920.pdf) |
+| D | `SF-PD` | `SF PrD` | `SF$D` | 4.50% | [July 23, 2021 certification](https://www.sec.gov/Archives/edgar/data/720672/000087666121001106/SFPRD072321.pdf) |
+
+The Series D Form 8-A registration table identifies the 4.50% Series D depositary shares. Item 1 includes a conflicting reference to Series C. The separate certificate of designations and NYSE approval identify the 4.50% class as Series D, as do the later SEC covers. The November Form 10-Q reports that Series D was optionally redeemable from August 15, 2026, subject to regulatory approval, and remained outstanding at September 30. The separately redeemed Series A depositary shares fall outside the batch. Stifel reports full redemption on August 20, 2021, and NYSE filed the corresponding removal notice. [Series D Form 8-A](https://www.sec.gov/Archives/edgar/data/720672/000119312521221582/d46382d8a12b.htm) · [Series D designation](https://www.sec.gov/Archives/edgar/data/720672/000119312521221582/d46382dex998.htm) · [2021 Form 10-K](https://www.sec.gov/Archives/edgar/data/720672/000095017022001451/sf-20211231.htm) · [NYSE Series A Form 25](https://www.sec.gov/Archives/edgar/data/876661/000087666121001211/primary_doc.xml)
+
+The November 12 Nasdaq Trader directory lists all three with NYSE venue code `N`, ETF and test flags `N`, and an existing depositary-share classification. Page 155 of the same-day NYSE report shows positive volume for `SF PRB`, `SF PRC` and `SF PRD`. The reported class rates and declared dividends are distinct from market yields. First trades, continuous listings and analysis eligibility require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 155](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=155)
+
+SEC submissions bind the September 30 Form 10-Q to accession `0001193125-26-446268`, accepted November 4 at 13:29:27 UTC, and the October 21 Form 8-K to accession `0001193125-26-427189`, accepted October 21 at 11:00:17 UTC. The SEC and issuer sources in the receipt table were observed November 13 from 22:53:11 to 22:53:43 UTC. The exchange map, directory and report use the preserved November 12 receipts. [SEC submissions](https://data.sec.gov/submissions/CIK0000720672.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `9fc2edce04c1de375f128a448451b236477ea1fb81527c943c42048ee43064f3` |
+| November 4 Form 10-Q | `09a032048acf08b0452d7c805af6c62aa795b6ec595f96b327ddaed367ea8ac1` |
+| October 21 Form 8-K | `06123b3131a4545a19cf3983db83938343b69a4c98efbb7a790d77d50de3a1c8` |
+| November 2 issuer dividend announcement | `844419759dba70b54c43f8209130f1cb6a35f9f26a82a5f8f30b0423bf67d996` |
+| Series B NYSE certification | `fffb91097bd8e5edde12422186e0ffdf8f9eb26d1b8c0181cba1e8f6fa607cdc` |
+| Series C NYSE certification | `f3385fc76fd675868d3a6d99642ac37b3a7489a2539a91c8533774318f2019ca` |
+| Series D NYSE certification | `73f019778e4692710073d807ee4a66772feb798cdabe82594a37592e9cf14ae9` |
+| Series D Form 8-A | `c8c7c7bbaee2a200b5dc83484707276333fae79a2f3df9dc532e570377bf28f4` |
+| Series D designation | `59cbe681df4f3735915b2dbdabaec0eb69c62c34ddbd9ee5a64dc3a5e79904c6` |
+| NYSE Series A Form 25 | `a3182cf03f6c0f25cd095f8e8368cef482c71405c170a06992e5612467c26319` |
+| November 12 SEC exchange map | `98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**177 of the original 544 SEC-only records have been reviewed, with 367 unreviewed.** Fourteen of the 282 directory-type gaps have dated evidence, with 268 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 229 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, eight source links, the Series D filing discrepancy, the separate Series A redemption and the prior PFBC finding. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

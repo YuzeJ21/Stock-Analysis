@@ -140,6 +140,12 @@ PMT_COVER = 'https://www.sec.gov/Archives/edgar/data/1464423/000119312526437878/
 EPR_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1045450/000104545026000051/epr-20260930.htm'
 EPR_COVER = 'https://www.sec.gov/Archives/edgar/data/1045450/000119312526456657/d488669d8k.htm'
 EPR_Q3_SUPPLEMENT = 'https://www.sec.gov/Archives/edgar/data/1045450/000104545026000050/ex993-eprx9302026supplemen.htm'
+SF_QUARTER = 'https://www.sec.gov/Archives/edgar/data/720672/000119312526446268/sf-20260930.htm'
+SF_COVER = 'https://www.sec.gov/Archives/edgar/data/720672/000119312526427189/d182962d8k.htm'
+SF_DIVIDENDS = 'https://www.stifel.com/docs/pdf/pressreleases/2026/SF-4Q26-Dividend-Announcement.pdf'
+SF_SERIES_A_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666121001211/primary_doc.xml'
+SF_SERIES_D_REGISTRATION = 'https://www.sec.gov/Archives/edgar/data/720672/000119312521221582/d46382d8a12b.htm'
+SF_SERIES_D_DESIGNATION = 'https://www.sec.gov/Archives/edgar/data/720672/000119312521221582/d46382dex998.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -157,11 +163,17 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 174 were reviewed, with 370 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 177 were reviewed, with 367 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Fourteen now have dated class evidence, with 268 still unreviewed.
 
 **Dated findings**
 
+- **Stifel Financial · Three NYSE depositary share listings matched.** The November 4 Form 10-Q and October 21 Form 8-K identify three listings. Each depositary share represents 1/1,000 of a non-cumulative perpetual preferred share. Each row gives the SEC map and cover symbol, the trading symbol from Stifel's November 2 announcement, and the November 12 directory symbol. The same-day NYSE report corroborates activity. [Stifel Form 10-Q]({SF_QUARTER}) · [Stifel Form 8-K]({SF_COVER}) · [Stifel dividend declaration]({SF_DIVIDENDS}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=155)
+  - `SF-PB` / `SF PrB` / `SF$B` · Series B · 6.25%
+  - `SF-PC` / `SF PrC` / `SF$C` · Series C · 6.125%
+  - `SF-PD` / `SF PrD` / `SF$D` · Series D · 4.50%
+  - Item 1 of the Series D Form 8-A says Series C once. Its registration table, designation and later SEC covers identify the 4.50% security as Series D. Stifel could redeem Series D from August 15, 2026, subject to regulatory approval, and reported it outstanding at September 30. [Series D Form 8-A]({SF_SERIES_D_REGISTRATION}) · [Series D designation]({SF_SERIES_D_DESIGNATION})
+  - Series A was redeemed on August 20, 2021. `SFB` is the 5.20% senior notes listing. Both fall outside this batch. [NYSE Series A Form 25]({SF_SERIES_A_REMOVAL})
 - **EPR Properties · Three NYSE preferred share listings matched.** The October 29 Form 10-Q and November 12 Form 8-K identify all three classes. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, SEC cover and directory symbols, followed by the stated class terms. [EPR Form 10-Q]({EPR_QUARTER}) · [EPR Form 8-K]({EPR_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=57)
   - `EPR-PC` / `EPR PrC` / `EPR$C` · Series C · 5.75% cumulative convertible
   - `EPR-PE` / `EPR PrE` / `EPR$E` · Series E · 9.00% cumulative convertible

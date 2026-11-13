@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '174 were reviewed, with 370 still unreviewed' in review
+    assert '177 were reviewed, with 367 still unreviewed' in review
     assert 'Fourteen now have dated class evidence, with 268 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
@@ -616,6 +616,26 @@ def test_epr_review_distinguishes_convertible_preferred_shares_from_redeemable_s
     assert 'convertible senior notes fall outside this batch' in batch
     for source in ('000104545026000051/epr-20260930.htm', '000119312526456657/d488669d8k.htm',
                    '000104545026000050/ex993-eprx9302026supplemen.htm', 'NYSEshvol20261112.pdf#page=57'):
+        assert source in batch
+
+
+def test_stifel_review_distinguishes_listed_depositary_shares_from_notes_and_redeemed_series():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    start = '**Stifel Financial · Three NYSE depositary share listings matched.**'
+    assert start in review
+    batch = review.split(start, 1)[1].split('\n- **', 1)[0]
+    for series, rate in zip('BCD', ('6.25%', '6.125%', '4.50%'), strict=True):
+        assert f'`SF-P{series}` / `SF Pr{series}` / `SF${series}` · Series {series} · {rate}\n' in batch
+    assert '1/1,000 of a non-cumulative perpetual preferred share' in batch
+    assert 'Series A was redeemed on August 20, 2021' in batch
+    assert '`SFB` is the 5.20% senior notes listing' in batch
+    assert 'from August 15, 2026, subject to regulatory approval' in batch
+    assert 'Item 1 of the Series D Form 8-A says Series C once' in batch
+    for source in ('000119312526446268/sf-20260930.htm', '000119312526427189/d182962d8k.htm',
+                   'd46382d8a12b.htm', 'd46382dex998.htm', '000087666121001211/primary_doc.xml',
+                   'SF-4Q26-Dividend-Announcement.pdf', 'NYSEshvol20261112.pdf#page=155'):
         assert source in batch
 
 
