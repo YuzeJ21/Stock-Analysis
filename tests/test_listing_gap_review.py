@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '512 still unreviewed' in review and '278 still unreviewed' in review
+    assert '503 still unreviewed' in review and '276 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -94,6 +94,19 @@ def test_pfbc_filing_patterns_keep_the_irs_number_unreconciled():
     assert 'October 27 Form 8-K show `95-4340199`' in review
     assert 'https://securitiesfilings.fdicconnect.fdic.gov/api/instflng/11687/attachment/1' in review
     assert 'https://securitiesfilings.fdicconnect.fdic.gov/api/instflng/cert/33539' in review
+
+
+def test_morgan_stanley_review_matches_depositary_shares_and_retains_directory_discrepancy():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    assert 'Morgan Stanley · Nine NYSE depositary share listings matched' in review
+    assert '1/1,000' in review and 'November 5 Form 10-Q' in review
+    for series in 'AEFIKLOPQ':
+        assert f'`MS-P{series}` / `MS/P{series}` / `MS${series}`' in review
+    assert '`Series 1`' in review and '`MS PRI`' in review
+    assert '`MS$A` and `MS$F`' in review and 'original description rule' in review
+    assert 'https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf' in review
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):

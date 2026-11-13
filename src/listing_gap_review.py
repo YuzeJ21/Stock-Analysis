@@ -18,6 +18,9 @@ ANNALY_SERIES_I_REDEMPTION = 'https://www.sec.gov/Archives/edgar/data/1043219/00
 ANNALY_SERIES_I_NYSE = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000807/ruleprovisionnotice.htm'
 JPM_COVER = 'https://www.sec.gov/Archives/edgar/data/19617/000162828026069523/jpm-20260930.htm'
 JPM_SERIES_MM_NYSE = 'https://www.sec.gov/Archives/edgar/data/19617/000087666121001134/JPMPRM072921.pdf'
+MS_COVER = 'https://www.sec.gov/Archives/edgar/data/895421/000089542126000293/ms-20260930.htm'
+MS_SECURITIES = 'https://www.sec.gov/Archives/edgar/data/895421/000089542126000086/exhibit41q42025_10k.htm'
+MS_NYSE_VOLUME = 'https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -35,11 +38,22 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 32 were reviewed, with 512 still unreviewed.
-- **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Four now have dated class evidence, with 278 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 41 were reviewed, with 503 still unreviewed.
+- **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Six now have dated class evidence, with 276 still unreviewed.
 
 **Dated findings**
 
+- **Morgan Stanley · Nine NYSE depositary share listings matched.** The November 5 Form 10-Q lists each depositary share as a 1/1,000 interest in the named preferred series. The November 12 Nasdaq Trader directory and NYSE short-sale volume report corroborate the dated symbol matches. Each row gives the SEC map, filing cover and directory symbols in that order. [Morgan Stanley Form 10-Q]({MS_COVER}) · [SEC securities description]({MS_SECURITIES}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({MS_NYSE_VOLUME})
+  - `MS-PA` / `MS/PA` / `MS$A` · Series A
+  - `MS-PE` / `MS/PE` / `MS$E` · Series E
+  - `MS-PF` / `MS/PF` / `MS$F` · Series F
+  - `MS-PI` / `MS/PI` / `MS$I` · Series I
+  - `MS-PK` / `MS/PK` / `MS$K` · Series K
+  - `MS-PL` / `MS/PL` / `MS$L` · Series L
+  - `MS-PO` / `MS/PO` / `MS$O` · Series O
+  - `MS-PP` / `MS/PP` / `MS$P` · Series P
+  - `MS-PQ` / `MS/PQ` / `MS$Q` · Series Q
+  - The original description rule leaves the abbreviated `MS$A` and `MS$F` rows unknown. The `MS$I` directory description says `Series 1`. The SEC filings identify Series I, and the NYSE report uses `MS PRI` with the letter I. The source wording remains visible.
 - **JPMorgan Chase · Six NYSE depositary share listings matched.** The November 3 Form 10-Q and November 12 Nasdaq Trader directory identify each listed depositary share as a 1/400 interest in one underlying preferred share. Each line gives the SEC map, filing cover and directory symbols, followed by the underlying series. [JPMorgan Form 10-Q]({JPM_COVER}) · [NYSE Series MM certification]({JPM_SERIES_MM_NYSE}) · [Nasdaq Trader directory]({_SOURCES[1][2]})
   - `JPM-PC` / `JPM PR C` / `JPM$C` · Series EE
   - `JPM-PD` / `JPM PR D` / `JPM$D` · Series DD

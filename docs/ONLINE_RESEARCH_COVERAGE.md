@@ -229,9 +229,33 @@ NYSE separately certified the Series JJ depositary shares on March 18, 2021 and 
 
 SEC submissions bind the Form 10-Q to accession `0001628280-26-069523`, accepted November 3 at 21:17:12 UTC. The exact filing was captured November 13 at 02:18:27 UTC, November 12 in Toronto, with raw SHA-256 `2d3dadea07c09ab8d535867a6d1b9cfa2c833b0ea8abcce4dccfb9a25695045b`. The raw Series JJ and MM certificate digests were `fe26ea214690d7ede55b493212ea006be5b3d093c9ec2b88f882959153b1f79a` and `729578f2115a3672bf4b8e43af333ac6e29488a88e6e7aa6e83b1163ade250b3`, respectively. [SEC submissions](https://data.sec.gov/submissions/CIK0000019617.json)
 
-**32 of the original 544 SEC-only records have now been reviewed, with 512 unreviewed.** The six directory counterparts already carried the depositary-receipt classification, leaving 278 directory-type gaps unreviewed. The findings apply to these exact dated records and do not establish full U.S. coverage. PFBC's IRS number remains unreconciled.
+The JPMorgan follow-up brought the reviewed count to 32 of the original 544 SEC-only records. The six directory counterparts already carried the depositary-receipt classification. The findings apply to these exact dated records. PFBC's IRS number remains unreconciled.
 
 The integration passed 250 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the six exact mappings, source links, previous filters and PFBC finding. Opening the dated review made zero source requests. All 89 protected files matched the baseline.
+
+#### Morgan Stanley depositary-share follow-up
+
+The next batch matched nine NYSE depositary-share records for Morgan Stanley (CIK `0000895421`). The November 5 Form 10-Q cover for the quarter ended September 30 identifies each listed depositary share as a `1/1,000` interest in the named non-cumulative preferred series. The October 14 Form 8-K and 2025 Form 10-K securities description corroborate the nine classes. The fixed November 12 Nasdaq Trader records all have exchange code `N` and `N` in the ETF and test-issue fields. The November 12 NYSE short-sale volume report contains all nine exchange symbols for that session. The report covers a limited set of market activity and supplies no evidence of continuous listing or trading. [November 5 Form 10-Q](https://www.sec.gov/Archives/edgar/data/895421/000089542126000293/ms-20260930.htm) · [October 14 Form 8-K](https://www.sec.gov/Archives/edgar/data/895421/000089542126000288/ms-20261014.htm) · [Securities description](https://www.sec.gov/Archives/edgar/data/895421/000089542126000086/exhibit41q42025_10k.htm) · [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 115](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=115)
+
+| Underlying series | SEC map | Filing cover | Directory ACT symbol | NYSE report symbol |
+| --- | --- | --- | --- | --- |
+| A | `MS-PA` | `MS/PA` | `MS$A` | `MS PRA` |
+| E | `MS-PE` | `MS/PE` | `MS$E` | `MS PRE` |
+| F | `MS-PF` | `MS/PF` | `MS$F` | `MS PRF` |
+| I | `MS-PI` | `MS/PI` | `MS$I` | `MS PRI` |
+| K | `MS-PK` | `MS/PK` | `MS$K` | `MS PRK` |
+| L | `MS-PL` | `MS/PL` | `MS$L` | `MS PRL` |
+| O | `MS-PO` | `MS/PO` | `MS$O` | `MS PRO` |
+| P | `MS-PP` | `MS/PP` | `MS$P` | `MS PRP` |
+| Q | `MS-PQ` | `MS/PQ` | `MS$Q` | `MS PRQ` |
+
+The abbreviated `MS$A` and `MS$F` descriptions still return unknown in the original classifier. Both have dated class evidence through the specific symbol matches above. The `MS$I` directory row says `Series 1` and has CQS symbol `MSpI`. The original wording is retained. The SEC cover, registered Series I terms and NYSE symbol `MS PRI` corroborate the letter I for the dated match. The NYSE also issued separate historical certifications for the Series P and Q depositary shares. [Series I Form 8-A](https://www.sec.gov/Archives/edgar/data/895421/000095010314006466/dp49485_8a12b-seriesi.htm) · [NYSE Series P certification](https://www.sec.gov/Archives/edgar/data/895421/000087666122000610/MSPRP080322.pdf) · [NYSE Series Q certification](https://www.sec.gov/Archives/edgar/data/895421/000087666124000612/MSPRQ073024.pdf)
+
+SEC submissions bind the Form 10-Q to accession `0000895421-26-000293`, accepted November 5 at 21:21:51 UTC. Its raw SHA-256 was `ebaa1b40987fc219ea2512c1259dcdc7b8d4d6a2770788672bf12c982b18e92b`. The raw November 12 NYSE report digest was `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0`. The SEC and NYSE records were captured November 12 in Toronto. [SEC submissions](https://data.sec.gov/submissions/CIK0000895421.json)
+
+**41 of the original 544 SEC-only records have been reviewed, with 503 unreviewed.** Of the original 282 directory-type gaps, six have dated class evidence and 276 remain unreviewed. SEC-only rows and their directory counterparts can describe the same security. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 251 affected tests, six research route checks and automated desktop and phone checks. The browser checks verified the nine exact mappings, source links, directory gaps and prior PFBC finding. The dated review made zero source requests. All 89 protected files matched the baseline.
 
 #### Preferred Bank FDIC filing follow-up
 
