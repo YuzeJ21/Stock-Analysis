@@ -105,6 +105,12 @@ MET_COVER = 'https://www.sec.gov/Archives/edgar/data/1099219/000119312526454038/
 MET_SERIES_A_REGISTRATION = 'https://www.sec.gov/Archives/edgar/data/1099219/000095012305007232/y09784e8va12b.txt'
 MET_SERIES_E_NYSE = 'https://www.sec.gov/Archives/edgar/data/1099219/000087666118000657/METPRE.8A.06.06.18.pdf'
 MET_SERIES_F_NYSE = 'https://www.sec.gov/Archives/edgar/data/1099219/000087666120000035/MET8A011620.pdf'
+RF_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1281761/000128176126000073/rf-20260930.htm'
+RF_COVER = 'https://www.sec.gov/Archives/edgar/data/1281761/000128176126000066/rf-20261104.htm'
+RF_SERIES_C_NYSE = 'https://www.sec.gov/Archives/edgar/data/1281761/000087666119000435/RFPRC8A043019.pdf'
+RF_SERIES_E_NYSE = 'https://www.sec.gov/Archives/edgar/data/1281761/000087666121000626/RFPRE050321.pdf'
+RF_SERIES_F_NYSE = 'https://www.sec.gov/Archives/edgar/data/1281761/000087666124000605/RFPRF072624.pdf'
+RF_SERIES_D_ELIMINATION = 'https://www.sec.gov/Archives/edgar/data/1281761/000128176125000053/rf_seriesdcertificateofe.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -122,11 +128,16 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 149 were reviewed, with 395 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 152 were reviewed, with 392 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Nine now have dated class evidence, with 273 still unreviewed.
 
 **Dated findings**
 
+- **Regions Financial · Three NYSE depositary share listings matched.** The November 9 Form 10-Q and November 4 Form 8-K identify the three listings. Each depositary share represents 1/40 of its underlying preferred share. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, SEC cover and directory symbols, followed by the rate terms. [Regions Form 10-Q]({RF_QUARTER}) · [Regions Form 8-K]({RF_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=146)
+  - `RF-PC` / `RF PRC` / `RF$C` · Series C · 5.700% fixed-to-floating
+  - `RF-PE` / `RF PRE` / `RF$E` · Series E · 4.450% fixed
+  - `RF-PF` / `RF PRF` / `RF$F` · Series F · 6.950% fixed-rate reset
+  - Series C is scheduled to switch to a floating rate on August 15, 2029. Series F is scheduled for its first fixed-rate reset on September 15, 2029. Series D was fully redeemed in the second quarter of 2025 and falls outside this batch. NYSE certifications for [Series C]({RF_SERIES_C_NYSE}), [Series E]({RF_SERIES_E_NYSE}) and [Series F]({RF_SERIES_F_NYSE}) · [Series D certificate of elimination]({RF_SERIES_D_ELIMINATION}).
 - **MetLife · Three NYSE preferred-linked listings matched.** The November 6 Form 10-Q and November 10 Form 8-K identify one direct preferred stock listing and two depositary share listings. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, SEC cover and directory symbols. [MetLife Form 10-Q]({MET_QUARTER}) · [MetLife Form 8-K]({MET_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=110)
   - `MET-PA` / `MET PRA` / `MET$A` · Series A · Direct floating-rate preferred stock
   - `MET-PE` / `MET PRE` / `MET$E` · Series E · 5.625% · Depositary share · 1/1,000

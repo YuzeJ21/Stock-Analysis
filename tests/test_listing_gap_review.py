@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '149 were reviewed, with 395 still unreviewed' in review and '273 still unreviewed' in review
+    assert '152 were reviewed, with 392 still unreviewed' in review and '273 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -463,6 +463,26 @@ def test_metlife_review_distinguishes_direct_floating_and_depositary_listings():
     assert '000095012305007232/y09784e8va12b.txt' in batch
     assert 'METPRE.8A.06.06.18.pdf' in batch and 'MET8A011620.pdf' in batch
     assert 'NYSEshvol20261112.pdf#page=110' in batch
+
+
+def test_regions_review_preserves_depositary_mappings_and_distinct_rate_terms():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    start = '**Regions Financial · Three NYSE depositary share listings matched.**'
+    assert start in review
+    batch = review.split(start, 1)[1].split('\n- **', 1)[0]
+    for series, terms in zip('CEF', ('5.700% fixed-to-floating', '4.450% fixed', '6.950% fixed-rate reset'), strict=True):
+        assert f'`RF-P{series}` / `RF PR{series}` / `RF${series}` · Series {series} · {terms}\n' in batch
+    assert '1/40 of its underlying preferred share' in batch
+    assert 'August 15, 2029' in batch and 'September 15, 2029' in batch
+    assert 'Series D was fully redeemed in the second quarter of 2025' in batch
+    assert 'rf_seriesdcertificateofe.htm' in batch
+    assert '000128176126000073/rf-20260930.htm' in batch
+    assert '000128176126000066/rf-20261104.htm' in batch
+    for certification in ('RFPRC8A043019.pdf', 'RFPRE050321.pdf', 'RFPRF072624.pdf'):
+        assert certification in batch
+    assert 'NYSEshvol20261112.pdf#page=146' in batch
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):

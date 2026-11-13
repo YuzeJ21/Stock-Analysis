@@ -908,9 +908,42 @@ SEC submissions bind the September 30 Form 10-Q to accession `0001099219-26-0000
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**149 of the original 544 SEC-only records have been reviewed, with 395 unreviewed.** Nine of the 282 directory-type gaps have dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The MetLife batch brought the SEC-only review to 149 of the original 544 records, with 395 unreviewed at that stage. Nine of the 282 directory-type gaps had dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
 
 The integration passed 272 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, seven source links, the distinction between direct preferred stock and depositary shares, and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### Regions Financial preferred-share follow-up
+
+The November 9 Form 10-Q and November 4 Form 8-K identify three Regions Financial Corporation (CIK `0001281761`) NYSE depositary listings. Each listed security represents 1/40 of an underlying non-cumulative perpetual preferred share. The November 4 report furnishes investor presentation materials and supplies a dated listing cover. The November 12 Nasdaq Trader directory already classifies all three rows as depositary shares, with NYSE code `N` and test and ETF flags `N`. [November 9 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1281761/000128176126000073/rf-20260930.htm) · [November 4 Form 8-K](https://www.sec.gov/Archives/edgar/data/1281761/000128176126000066/rf-20261104.htm) · [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt)
+
+| Series | Stated rate and terms | SEC map | SEC cover | Nasdaq Trader ACT symbol | NYSE certification |
+| --- | --- | --- | --- | --- | --- |
+| C | 5.700% fixed-to-floating | `RF-PC` | `RF PRC` | `RF$C` | [April 30, 2019](https://www.sec.gov/Archives/edgar/data/1281761/000087666119000435/RFPRC8A043019.pdf) |
+| E | 4.450% fixed | `RF-PE` | `RF PRE` | `RF$E` | [May 3, 2021](https://www.sec.gov/Archives/edgar/data/1281761/000087666121000626/RFPRE050321.pdf) |
+| F | 6.950% fixed-rate reset | `RF-PF` | `RF PRF` | `RF$F` | [July 26, 2024](https://www.sec.gov/Archives/edgar/data/1281761/000087666124000605/RFPRF072624.pdf) |
+
+Note 6 shows all three underlying series outstanding on September 30. Series C's initial rate runs to August 15, 2029, when the stated terms switch to three-month CME Term SOFR plus 3.410 percentage points. Its earliest ordinary optional redemption date is May 15, 2029. Series F's first scheduled fixed-rate reset is September 15, 2029 to the five-year Treasury rate plus 2.771 percentage points. Series E remained outstanding on September 30 after its June 15, 2026 optional redemption date. The separate Series D was fully redeemed June 16, 2025 and its designation was subsequently eliminated. [Form 10-Q, Note 6](https://www.sec.gov/Archives/edgar/data/1281761/000128176126000073/R14.htm) · [Series D Form 8-K](https://www.sec.gov/Archives/edgar/data/1281761/000128176125000053/rf-20250617.htm) · [Certificate of elimination](https://www.sec.gov/Archives/edgar/data/1281761/000128176125000053/rf_seriesdcertificateofe.htm)
+
+Page 146 of the November 12 NYSE report shows positive total volume for `RF PRC`, `RF PRE` and `RF PRF`. This corroborates exchange activity on that date. First trade, continuous listing history, current yield and analysis eligibility require separate evidence. [November 12 NYSE report, page 146](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=146)
+
+SEC submissions bind the September 30 Form 10-Q to accession `0001281761-26-000073`, accepted November 9 at 15:05:16 UTC, and the Form 8-K to `0001281761-26-000066`, accepted November 4 at 22:08:28 UTC. The eight submissions, filing and certification receipts below were observed November 13 from 15:03:59 to 15:05:36 UTC. [SEC submissions](https://data.sec.gov/submissions/CIK0001281761.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `e6df484b98345a0fadd032cdb769a8a641f7df62926f891d6de1f767f916034b` |
+| November 9 Form 10-Q | `b5ae33caa3f9aaa75a97d8bba6e7d478cb382a61614309ec76e91befd87ccd6d` |
+| November 4 Form 8-K | `d25bd567c88afd231c016b939f8b30fce9f33388fefe64650208deb806e83562` |
+| NYSE Series C certification | `4d5b69247126633d438c606de02302e16e109cf4371ae1062f564a82613098d8` |
+| NYSE Series E certification | `66f11aa5cd8a74d5a293adc851100c652ed69c1745c5723532ba70d4357fc63c` |
+| NYSE Series F certification | `b2738cb89e268c4138dea4b892f787ee421006723d7dcb1194010234e6b7eec3` |
+| Series D Form 8-K | `d17ad46b4f1151bbd2ff0554950772f8545105f57c36f9b002e41a5b0c43a4cf` |
+| Series D certificate of elimination | `d2e804581216e52939aefb4f13ec288471ba735c5cf82343cc052445898719a7` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**152 of the original 544 SEC-only records have been reviewed, with 392 unreviewed.** Nine of the 282 directory-type gaps have dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 273 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, eight source links, the separate rate schedules, the Series D exclusion and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 
