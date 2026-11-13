@@ -48,6 +48,11 @@ ALL_QUARTER = 'https://www.sec.gov/Archives/edgar/data/899051/000089905126000157
 ALL_COVER = 'https://www.sec.gov/Archives/edgar/data/899051/000089905126000156/all-20261104.htm'
 ALL_SERIES_J_NYSE = 'https://www.sec.gov/Archives/edgar/data/899051/000087666123000432/ALLPRJ052423.pdf'
 ALL_DEBT_REGISTRATION = 'https://www.sec.gov/Archives/edgar/data/899051/000110465913001880/a13-2630_18a12b.htm'
+ATH_COVER = 'https://www.sec.gov/Archives/edgar/data/1527469/000152746926000090/ahl-20261112.htm'
+ATH_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1527469/000152746926000085/ahl-20260930.htm'
+ATH_SERIES_E_NYSE = 'https://www.sec.gov/Archives/edgar/data/1527469/000087666122001120/ATHPRE121322.pdf'
+ATH_SECURITIES = 'https://www.sec.gov/Archives/edgar/data/1527469/000152746926000013/q42025exhibit48.htm'
+ATH_SERIES_C = 'https://www.sec.gov/Archives/edgar/data/1527469/000119312525154072/d948326d8k.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -65,11 +70,18 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 105 were reviewed, with 439 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 109 were reviewed, with 435 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Eight now have dated class evidence, with 274 still unreviewed.
 
 **Dated findings**
 
+- **Athene · Four NYSE depositary share listings matched.** The November 12 Form 8-K and November 5 Form 10-Q identify the four classes. These depositary shares each represent 1/1,000 of one preferred share. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, filing cover and directory symbols. [Athene Form 8-K]({ATH_COVER}) · [Athene Form 10-Q]({ATH_QUARTER}) · [NYSE Series E certification]({ATH_SERIES_E_NYSE}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=14)
+  - `ATH-PA` / `ATHPrA` / `ATH$A` · Series A
+  - `ATH-PB` / `ATHPrB` / `ATH$B` · Series B
+  - `ATH-PD` / `ATHPrD` / `ATH$D` · Series D
+  - `ATH-PE` / `ATHPrE` / `ATH$E` · Series E
+  - Series A’s 6.35% fixed period ends before June 30, 2029. Series E’s first reset date is December 30, 2027. These are filed terms. [Athene securities description]({ATH_SECURITIES})
+  - Series C was fully redeemed on June 30, 2025 and falls outside this batch. [Series C redemption Form 8-K]({ATH_SERIES_C})
 - **Allstate · Three NYSE depositary share listings matched.** The November 4 Forms 10-Q and 8-K identify Series H, I and J. Each depositary share represents 1/1,000 of one preferred share. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the dated matches. Each row gives the SEC map, filing cover and directory symbols. [Allstate Form 10-Q]({ALL_QUARTER}) · [Allstate Form 8-K]({ALL_COVER}) · [NYSE Series J certification]({ALL_SERIES_J_NYSE}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=8)
   - `ALL-PH` / `ALL PR H` / `ALL$H` · Series H
   - `ALL-PI` / `ALL PR I` / `ALL$I` · Series I

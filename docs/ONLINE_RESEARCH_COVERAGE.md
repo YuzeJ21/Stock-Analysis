@@ -523,9 +523,42 @@ SEC submissions bind the November 4 Form 10-Q for September 30 to accession `000
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**105 of the original 544 SEC-only records have been reviewed, with 439 unreviewed.** The four additions include three depositary share matches and one debt identification. Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The Allstate follow-up brought the reviewed count to 105 of the original 544 SEC-only records, leaving 439 unreviewed at that stage. The four additions included three depositary share matches and one debt identification. Eight of the original 282 directory-type gaps had dated class evidence. PFBC's IRS number remained unreconciled.
 
 The integration passed 260 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified all four symbol mappings, six source links, the separate debt identification and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### Athene preferred-share follow-up
+
+The November 12 Form 8-K and November 5 Form 10-Q for Athene Holding Ltd. (CIK `0001527469`) identify four NYSE depositary share listings. Each represents 1/1,000 of a perpetual non-cumulative preferred share of the corresponding series. The December 13, 2022 NYSE certification independently identifies the Series E depositary shares. The filings list the `ATHS` debentures separately. [November 12 Form 8-K](https://www.sec.gov/Archives/edgar/data/1527469/000152746926000090/ahl-20261112.htm) · [September-quarter Form 10-Q](https://www.sec.gov/Archives/edgar/data/1527469/000152746926000085/ahl-20260930.htm) · [NYSE Series E certification](https://www.sec.gov/Archives/edgar/data/1527469/000087666122001120/ATHPRE121322.pdf)
+
+| SEC map | Filing cover | Directory ACT symbol | NYSE report symbol | Underlying series | Filed rate structure |
+| --- | --- | --- | --- | --- | --- |
+| `ATH-PA` | `ATHPrA` | `ATH$A` | `ATH PRA` | A | 6.35% fixed before June 30, 2029, then floating |
+| `ATH-PB` | `ATHPrB` | `ATH$B` | `ATH PRB` | B | 5.625% fixed |
+| `ATH-PD` | `ATHPrD` | `ATH$D` | `ATH PRD` | D | 4.875% fixed |
+| `ATH-PE` | `ATHPrE` | `ATH$E` | `ATH PRE` | E | 7.750% fixed before the December 30, 2027 first reset |
+
+The annual securities description supplies the rate boundaries for A and E. The table reports class terms. Future reset rates and current yields require separate evidence. Athene completed the redemption of Series C and its depositary shares on June 30, 2025. NYSE's removal notice specified removal at the July 11 opening. Series C is outside the four matches. [Athene securities description](https://www.sec.gov/Archives/edgar/data/1527469/000152746926000013/q42025exhibit48.htm) · [Series C redemption Form 8-K](https://www.sec.gov/Archives/edgar/data/1527469/000119312525154072/d948326d8k.htm) · [NYSE Series C removal notice](https://www.sec.gov/Archives/edgar/data/876661/000087666125000467/ruleprovisionnotice.htm)
+
+The November 12 Nasdaq Trader snapshot gives each counterpart venue code `N`, test and ETF flags `N`, and an existing depositary-receipt classification. The same-day NYSE short-sale volume report shows one market-`N` row with positive total volume per class on page 14. The report covers limited activity for that date. Continuous listing and current trading status require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 14](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=14)
+
+SEC submissions bind the November 12 Form 8-K to accession `0001527469-26-000090`, accepted at 12:50:55 UTC, and the November 5 Form 10-Q for September 30 to `0001527469-26-000085`, accepted at 21:17:23 UTC. The Series E certification is accession `0000876661-22-001120`. The SEC sources below were observed November 13 from 04:44:23 to 04:46:17 UTC, November 12 in Toronto. [SEC submissions](https://data.sec.gov/submissions/CIK0001527469.json)
+
+| Captured source | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `b82cbd2a7b3dbb8f36ec366f2a3e203f12632a896815619e17d66722bc315b62` |
+| November 12 Form 8-K | `29020cd04c0f74791a0814f2e505626847596354047c53c149ef16de32240cfa` |
+| November 5 Form 10-Q | `c7301ee09267e227c6978b7d05b2111ca6abc7efd34bff9f122d441c4bf41c47` |
+| NYSE Series E certification | `303eb62ab5bbe047e7a14749c104bd11422a9f401a15e54f79e9666f16e73410` |
+| Annual securities description, Form 10-K Exhibit 4.8 | `22abc469f3b36d96258ad5037f6365af0a85cc4a1a3c3f65fba2690ed300565c` |
+| July 1, 2025 Series C redemption Form 8-K | `b5803dbfe9f794eba41a4656224c07aa593960673a6e2a92c6ddd288fb37edb1` |
+| NYSE Series C removal notice | `72a3501af2849de4f7da2f6d2d1041fb36dad2cb1a6df7b160d82ebda30b3a37` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**109 of the original 544 SEC-only records have been reviewed, with 435 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 261 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the four mappings, seven source links, the filed rate boundaries, the Series C exclusion and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 
