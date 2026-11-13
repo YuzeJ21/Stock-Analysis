@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '85 were reviewed, with 459 still unreviewed' in review and '274 still unreviewed' in review
+    assert '91 were reviewed, with 453 still unreviewed' in review and '274 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -184,6 +184,23 @@ def test_pacific_gas_and_electric_review_preserves_the_venue_conflict_and_issuer
     assert 'https://www.sec.gov/Archives/edgar/data/75488/000199937126024070/pcg-8k_102926.htm' in review
     assert 'https://www.sec.gov/Archives/edgar/data/75488/000100498026000055/pcg-20260930.htm' in review
     assert 'Amexshvol20261112.pdf#page=102' in review
+
+
+def test_wells_fargo_review_keeps_series_l_and_the_separate_hh_offering_distinct():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    assert 'Wells Fargo · Six NYSE preferred-linked listings matched' in review
+    assert 'Five depositary shares each represent 1/1,000' in review
+    for suffix, series in zip('ACDLYZ', ('AA', 'CC', 'DD', 'L', 'Y', 'Z'), strict=True):
+        instrument = ' · Direct convertible preferred stock' if suffix == 'L' else ''
+        assert f'`WFC-P{suffix}` / `WFC.PR{suffix}` / `WFC${suffix}` · Series {series}{instrument}\n' in review
+    assert 'separate Series HH offering represents a 1/25 interest' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/72971/000007297126000327/wfc-20260930.htm' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/72971/000007297126000318/wfc-20261013.htm' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/72971/000087666121001124/WFCPRD072921.pdf' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/72971/000119312526356890/d144651d8k.htm' in review
+    assert 'NYSEshvol20261112.pdf#page=188' in review
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):

@@ -398,9 +398,41 @@ SEC submissions bind the November 2 Form 8-K to accession `0001999371-26-024070`
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE American short-sale volume report | `458e1a6d932407be6f4b4ba7f1bcc33364f44de751f5dd039bee5e5fd0c96c8a` |
 
-**85 of the original 544 SEC-only records have been reviewed, with 459 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The Pacific Gas and Electric Company follow-up brought the reviewed count to 85 of the original 544 SEC-only records, leaving 459 unreviewed at that stage. Eight of the original 282 directory-type gaps had dated class evidence. PFBC's IRS number remained unreconciled.
 
 The integration passed 256 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the eight mappings, four source links, venue discrepancy, parent security distinction and prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### Wells Fargo preferred-share follow-up
+
+The October 28 Form 10-Q cover for Wells Fargo & Company (CIK `0000072971`) and its October 13 Form 8-K cover identify six NYSE preferred-linked listings. Five are depositary shares, each representing 1/1,000 of one non-cumulative perpetual Class A preferred share. Series L is direct 7.5% non-cumulative perpetual convertible Class A preferred stock. The NYSE certification dated July 27, 2021 independently identifies the Series DD depositary shares. [October 28 Form 10-Q](https://www.sec.gov/Archives/edgar/data/72971/000007297126000327/wfc-20260930.htm) · [October 13 Form 8-K](https://www.sec.gov/Archives/edgar/data/72971/000007297126000318/wfc-20261013.htm) · [NYSE Series DD certification](https://www.sec.gov/Archives/edgar/data/72971/000087666121001124/WFCPRD072921.pdf)
+
+| SEC map | Filing cover | Directory ACT symbol | NYSE report symbol | Underlying series | Listed security |
+| --- | --- | --- | --- | --- | --- |
+| `WFC-PA` | `WFC.PRA` | `WFC$A` | `WFC PRA` | AA | Depositary share |
+| `WFC-PC` | `WFC.PRC` | `WFC$C` | `WFC PRC` | CC | Depositary share |
+| `WFC-PD` | `WFC.PRD` | `WFC$D` | `WFC PRD` | DD | Depositary share |
+| `WFC-PL` | `WFC.PRL` | `WFC$L` | `WFC PRL` | L | Direct convertible preferred stock |
+| `WFC-PY` | `WFC.PRY` | `WFC$Y` | `WFC PRY` | Y | Depositary share |
+| `WFC-PZ` | `WFC.PRZ` | `WFC$Z` | `WFC PRZ` | Z | Depositary share |
+
+The November 12 Nasdaq Trader snapshot gives each counterpart venue code `N` and test and ETF flags `N`. Its existing descriptions classify five as depositary receipts and Series L as preferred stock. The November 12 NYSE short-sale volume report has one market-`N` row with positive total volume per class on page 188. The report covers limited activity for that date. Continuous listing and current trading status require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 188](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=188)
+
+Note 8 of the Form 10-Q reports all six underlying classes outstanding on September 30 and the separate Series BB redemption in March. The August 19 Form 8-K describes the separate Series HH offering with a 1/25 interest per depositary share. Both events fall outside this cohort. [Form 10-Q, Note 8](https://www.sec.gov/Archives/edgar/data/72971/000007297126000327/wfc-20260930.htm) · [Series HH Form 8-K](https://www.sec.gov/Archives/edgar/data/72971/000119312526356890/d144651d8k.htm)
+
+SEC submissions bind the October 28 Form 10-Q for September 30 to accession `0000072971-26-000327`, accepted at 12:59:31 UTC, and the October 13 Form 8-K to `0000072971-26-000318`, accepted at 10:28:19 UTC. The Series DD certification is accession `0000876661-21-001124`. The Series HH Form 8-K is accession `0001193125-26-356890`. The two covers and supplementary filings were observed November 13 from 04:18:48 to 04:20:48 UTC, November 12 in Toronto. [SEC submissions](https://data.sec.gov/submissions/CIK0000072971.json) · [Form 10-Q filing detail](https://www.sec.gov/Archives/edgar/data/72971/000007297126000327/0000072971-26-000327-index.htm)
+
+| Captured source | Raw SHA-256 |
+| --- | --- |
+| October 28 Form 10-Q | `110f4a9e3937f8f647d11e36bc383d22c5b7087f08aa70498564fcf6aa8021ef` |
+| October 13 Form 8-K | `98aa72a9d44a5bc524d4c42a4014caddc8387815c3b25cdd2f4811f3137c5a17` |
+| NYSE Series DD certification | `2dad750fece1b4ced613c5b9032bf3cc33ec41ee379fd303292662c2f2776aa6` |
+| August 19 Series HH Form 8-K | `8e0b45dcd691a317265b6603652ba53f5017ba71cf3b8d97aae299b2a749de2e` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**91 of the original 544 SEC-only records have been reviewed, with 453 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 257 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the six mappings, six source links, the direct Series L and separate Series HH offering, and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

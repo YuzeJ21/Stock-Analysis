@@ -33,6 +33,10 @@ PSA_SERIES_T_U_NYSE = 'https://www.sec.gov/Archives/edgar/data/1393311/000087666
 PCG_UTILITY_COVER = 'https://www.sec.gov/Archives/edgar/data/75488/000199937126024070/pcg-8k_102926.htm'
 PCG_JOINT_QUARTER = 'https://www.sec.gov/Archives/edgar/data/75488/000100498026000055/pcg-20260930.htm'
 NOV12_NYSE_AMERICAN_VOLUME = 'https://ftp.nyse.com/ShortData/Amexshvol/Amexshvol2026/Amexshvol202611/Amexshvol20261112.pdf'
+WFC_QUARTER = 'https://www.sec.gov/Archives/edgar/data/72971/000007297126000327/wfc-20260930.htm'
+WFC_COVER = 'https://www.sec.gov/Archives/edgar/data/72971/000007297126000318/wfc-20261013.htm'
+WFC_SERIES_DD_NYSE = 'https://www.sec.gov/Archives/edgar/data/72971/000087666121001124/WFCPRD072921.pdf'
+WFC_SERIES_HH = 'https://www.sec.gov/Archives/edgar/data/72971/000119312526356890/d144651d8k.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -50,11 +54,19 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 85 were reviewed, with 459 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 91 were reviewed, with 453 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Eight now have dated class evidence, with 274 still unreviewed.
 
 **Dated findings**
 
+- **Wells Fargo · Six NYSE preferred-linked listings matched.** The October 28 Form 10-Q, October 13 Form 8-K and November 12 exchange records support these matches. Five depositary shares each represent 1/1,000 of one preferred share. Series L is listed as direct convertible preferred stock. Each row gives the SEC map, filing cover and directory symbols. [Wells Fargo Form 10-Q]({WFC_QUARTER}) · [Wells Fargo Form 8-K]({WFC_COVER}) · [NYSE Series DD certification]({WFC_SERIES_DD_NYSE}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=188)
+  - `WFC-PA` / `WFC.PRA` / `WFC$A` · Series AA
+  - `WFC-PC` / `WFC.PRC` / `WFC$C` · Series CC
+  - `WFC-PD` / `WFC.PRD` / `WFC$D` · Series DD
+  - `WFC-PL` / `WFC.PRL` / `WFC$L` · Series L · Direct convertible preferred stock
+  - `WFC-PY` / `WFC.PRY` / `WFC$Y` · Series Y
+  - `WFC-PZ` / `WFC.PRZ` / `WFC$Z` · Series Z
+  - The separate Series HH offering represents a 1/25 interest per depositary share and falls outside this batch. [Series HH Form 8-K]({WFC_SERIES_HH})
 - **Pacific Gas and Electric Company · Eight NYSE American preferred share listings matched.** The November 2 utility Form 8-K and October 22 joint Form 10-Q list all eight as direct cumulative first preferred shares with $25 par value. The SEC exchange map labels all eight NYSE. The filing covers and November 12 Nasdaq Trader directory identify NYSE American, and the same-day NYSE American report shows activity for all eight. Each row gives the SEC map and filing symbol followed by the directory symbol. [Utility Form 8-K]({PCG_UTILITY_COVER}) · [Joint Form 10-Q]({PCG_JOINT_QUARTER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE American report]({NOV12_NYSE_AMERICAN_VOLUME}#page=102)
   - `PCG-PA` / `PCG$A` · 6% nonredeemable
   - `PCG-PB` / `PCG$B` · 5.50% nonredeemable
