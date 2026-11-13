@@ -490,13 +490,42 @@ SEC submissions bind the November 10 Form 8-K to accession `0000927628-26-000157
 | November 10 Form 8-K | `b7a7218116d2e3d67d3a58cb8f60d264be163a036f31ba662430e0f76a6c4025` |
 | November 3 Form 10-Q | `7ce69ea43c976191cfc7884b05ab5915e2e5e1a519cfddbe546fd040c44ea3be` |
 | NYSE Series N certification | `b47e4af2b7feb8410c7da62f3433d1b2c66e30ee7f31bb1569b290fca67d52e7` |
-| Series M Form 8-K | `6e8ae876ca0b4f707ebe97a1ab2d9923def508305e70d266b9596975325c5201` |
+| [Series M certificate of elimination, Form 8-K Exhibit 3.1](https://www.sec.gov/Archives/edgar/data/927628/000119312526378455/d477310dex31.htm) | `6e8ae876ca0b4f707ebe97a1ab2d9923def508305e70d266b9596975325c5201` |
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**101 of the original 544 SEC-only records have been reviewed, with 443 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The Capital One follow-up brought the reviewed count to 101 of the original 544 SEC-only records, leaving 443 unreviewed at that stage. Eight of the original 282 directory-type gaps had dated class evidence. PFBC's IRS number remained unreconciled.
 
 The integration passed 259 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the five mappings, six source links, the separate Series M and O scope, and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### Allstate preferred-share follow-up
+
+The November 4 Form 10-Q and Form 8-K for The Allstate Corporation (CIK `0000899051`) identify three NYSE depositary share listings. Each depositary share represents 1/1,000 of one preferred share in Series H, I or J. The May 24, 2023 NYSE certification independently identifies the Series J depositary shares. The same November covers identify `ALL.PR.B` as fixed-to-floating subordinated debentures due 2053, consistent with the original Form 8-A registration. The common stock's separate NYSE Texas registration is outside these four matches. [November 4 Form 10-Q](https://www.sec.gov/Archives/edgar/data/899051/000089905126000157/all-20260930.htm) · [November 4 Form 8-K](https://www.sec.gov/Archives/edgar/data/899051/000089905126000156/all-20261104.htm) · [NYSE Series J certification](https://www.sec.gov/Archives/edgar/data/899051/000087666123000432/ALLPRJ052423.pdf) · [Debentures Form 8-A](https://www.sec.gov/Archives/edgar/data/899051/000110465913001880/a13-2630_18a12b.htm)
+
+| SEC map | Filing cover | Directory ACT symbol | NYSE report symbol | Filed security |
+| --- | --- | --- | --- | --- |
+| `ALL-PH` | `ALL PR H` | `ALL$H` | `ALL PRH` | Series H depositary share, 5.100% stated rate |
+| `ALL-PI` | `ALL PR I` | `ALL$I` | `ALL PRI` | Series I depositary share, 4.750% stated rate |
+| `ALL-PJ` | `ALL PR J` | `ALL$J` | `ALL PRJ` | Series J depositary share, 7.375% stated rate |
+| `ALL-PB` | `ALL.PR.B` | `ALL$B` | `ALL PRB` | 5.100% fixed-to-floating rate subordinated debentures due 2053 |
+
+The November 12 Nasdaq Trader snapshot gives all four directory counterparts venue code `N` and test and ETF flags `N`. Its existing rules classify H, I and J as depositary receipts and B as debt. The same-day NYSE short-sale volume report has one market-`N` row with positive total volume for each symbol on page 8. The report covers limited activity for that date. Continuous listing and current trading status require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 8](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=8)
+
+SEC submissions bind the November 4 Form 10-Q for September 30 to accession `0000899051-26-000157`, accepted at 21:18:21 UTC, and the November 4 Form 8-K to `0000899051-26-000156`, accepted at 21:16:26 UTC. The Series J certification is accession `0000876661-23-000432` and the debentures Form 8-A is `0001104659-13-001880`. The SEC files below were observed November 13 from 04:32:39 to 04:33:44 UTC, November 12 in Toronto. [SEC submissions](https://data.sec.gov/submissions/CIK0000899051.json)
+
+| Captured source | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `6d716a5c10d0f9b5ddba01a010dfcec1d63ca6bcad8e331d825d1056c4c18785` |
+| November 4 Form 10-Q | `cc07db370373d5397254f4dc86feffda9ae64f71373dd8713151a121d38752de` |
+| November 4 Form 8-K | `d511929b2ba867125b30035c97cf4d6c3d9e783366854c7d6673cc1b8c481e4b` |
+| NYSE Series J certification | `3000115e622ccbebe7b31a63b83e9ca9e185bd7785439af2206d911707e48ad3` |
+| Debentures Form 8-A | `192dbdaed1bc6120d9773ff12250bf80f358b96a0e1ffde893d66dc4abe393f0` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**105 of the original 544 SEC-only records have been reviewed, with 439 unreviewed.** The four additions include three depositary share matches and one debt identification. Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 260 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified all four symbol mappings, six source links, the separate debt identification and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

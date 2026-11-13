@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '101 were reviewed, with 443 still unreviewed' in review and '274 still unreviewed' in review
+    assert '105 were reviewed, with 439 still unreviewed' in review and '274 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -233,6 +233,23 @@ def test_capital_one_review_matches_exact_classes_and_preserves_separate_series(
     assert 'https://www.sec.gov/Archives/edgar/data/927628/000087666121001133/COFPRN072921.pdf' in review
     assert 'https://www.sec.gov/Archives/edgar/data/927628/000119312526378455/d477310d8k.htm' in review
     assert 'NYSEshvol20261112.pdf#page=39' in review
+
+
+def test_allstate_review_keeps_subordinated_debt_out_of_the_preferred_count():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    assert 'Allstate · Three NYSE depositary share listings matched' in review
+    assert 'Allstate · One NYSE debt listing identified' in review
+    for series in 'HIJ':
+        assert f'`ALL-P{series}` / `ALL PR {series}` / `ALL${series}` · Series {series}\n' in review
+    assert '`ALL-PB` / `ALL.PR.B` / `ALL$B` · 5.100% fixed-to-floating rate subordinated debentures due 2053' in review
+    assert 'excluded from the preferred-share count' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/899051/000089905126000157/all-20260930.htm' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/899051/000089905126000156/all-20261104.htm' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/899051/000087666123000432/ALLPRJ052423.pdf' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/899051/000110465913001880/a13-2630_18a12b.htm' in review
+    assert 'NYSEshvol20261112.pdf#page=8' in review
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):

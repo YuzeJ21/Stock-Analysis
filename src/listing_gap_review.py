@@ -44,6 +44,10 @@ COF_COVER = 'https://www.sec.gov/Archives/edgar/data/927628/000092762826000157/c
 COF_QUARTER = 'https://www.sec.gov/Archives/edgar/data/927628/000092762826000152/cof-20260930.htm'
 COF_SERIES_N_NYSE = 'https://www.sec.gov/Archives/edgar/data/927628/000087666121001133/COFPRN072921.pdf'
 COF_SERIES_M = 'https://www.sec.gov/Archives/edgar/data/927628/000119312526378455/d477310d8k.htm'
+ALL_QUARTER = 'https://www.sec.gov/Archives/edgar/data/899051/000089905126000157/all-20260930.htm'
+ALL_COVER = 'https://www.sec.gov/Archives/edgar/data/899051/000089905126000156/all-20261104.htm'
+ALL_SERIES_J_NYSE = 'https://www.sec.gov/Archives/edgar/data/899051/000087666123000432/ALLPRJ052423.pdf'
+ALL_DEBT_REGISTRATION = 'https://www.sec.gov/Archives/edgar/data/899051/000110465913001880/a13-2630_18a12b.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -61,11 +65,16 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 101 were reviewed, with 443 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 105 were reviewed, with 439 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Eight now have dated class evidence, with 274 still unreviewed.
 
 **Dated findings**
 
+- **Allstate · Three NYSE depositary share listings matched.** The November 4 Forms 10-Q and 8-K identify Series H, I and J. Each depositary share represents 1/1,000 of one preferred share. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the dated matches. Each row gives the SEC map, filing cover and directory symbols. [Allstate Form 10-Q]({ALL_QUARTER}) · [Allstate Form 8-K]({ALL_COVER}) · [NYSE Series J certification]({ALL_SERIES_J_NYSE}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=8)
+  - `ALL-PH` / `ALL PR H` / `ALL$H` · Series H
+  - `ALL-PI` / `ALL PR I` / `ALL$I` · Series I
+  - `ALL-PJ` / `ALL PR J` / `ALL$J` · Series J
+- **Allstate · One NYSE debt listing identified.** `ALL-PB` / `ALL.PR.B` / `ALL$B` · 5.100% fixed-to-floating rate subordinated debentures due 2053. This record is included in the SEC-only review total and excluded from the preferred-share count. [Debentures Form 8-A]({ALL_DEBT_REGISTRATION})
 - **Capital One · Five NYSE depositary share listings matched.** The November 10 Form 8-K and November 3 Form 10-Q identify the five classes. These depositary shares each represent 1/40 of one preferred share. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the dated matches. Each row gives the SEC map, filing cover and directory symbols. [Capital One Form 8-K]({COF_COVER}) · [Capital One Form 10-Q]({COF_QUARTER}) · [NYSE Series N certification]({COF_SERIES_N_NYSE}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=39)
   - `COF-PI` / `COF PRI` / `COF$I` · Series I
   - `COF-PJ` / `COF PRJ` / `COF$J` · Series J
