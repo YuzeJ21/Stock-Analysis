@@ -127,6 +127,8 @@ FHN_COVER = 'https://www.sec.gov/Archives/edgar/data/36966/000003696626000184/fh
 FHN_SERIES_E_NYSE = 'https://www.sec.gov/Archives/edgar/data/36966/000087666120000496/FHN8A061120.pdf'
 FHN_SERIES_F_NYSE = 'https://www.sec.gov/Archives/edgar/data/36966/000087666121000699/FHNPRF051021.pdf'
 FHN_SERIES_H_NYSE = 'https://www.sec.gov/Archives/edgar/data/36966/000087666126000232/FHNPRH031626.pdf'
+GS_QUARTER = 'https://www.sec.gov/Archives/edgar/data/886982/000088698226000532/gs-20260930.htm'
+GS_COVER = 'https://www.sec.gov/Archives/edgar/data/886982/000119312526460732/d187542d8k.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -144,11 +146,18 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 161 were reviewed, with 383 still unreviewed.
-- **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Nine now have dated class evidence, with 273 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 164 were reviewed, with 380 still unreviewed.
+- **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Ten now have dated class evidence, with 272 still unreviewed.
 
 **Dated findings**
 
+- **Goldman Sachs · Three NYSE depositary share listings matched.** The November 2 Form 10-Q and November 13 Form 8-K identify the three listings. Each depositary share represents 1/1,000 of a floating-rate non-cumulative preferred share. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, SEC cover and directory symbols. [Goldman Sachs Form 10-Q]({GS_QUARTER}) · [Goldman Sachs Form 8-K]({GS_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=78)
+  - `GS-PA` / `GS PrA` / `GS$A` · Series A
+  - `GS-PC` / `GS PrC` / `GS$C` · Series C
+  - `GS-PD` / `GS PrD` / `GS$D` · Series D
+  - The filings also resolve the directory-type gap for `GS$D`.
+  - Series O and V were fully redeemed on November 10 and fall outside this batch.
+  - The separate NYSE trust capital securities and medium-term notes fall outside this batch.
 - **First Horizon · Three NYSE depositary share listings matched.** The November 5 Form 10-Q and October 27 Form 8-K identify the three listings. Each depositary share represents 1/4,000 of its underlying preferred share. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, SEC cover and directory symbols, followed by the stated class rate. [First Horizon Form 10-Q]({FHN_QUARTER}) · [First Horizon Form 8-K]({FHN_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=64)
   - `FHN-PE` / `FHN PR E` / `FHN$E` · Series E · 6.500%
   - `FHN-PF` / `FHN PR F` / `FHN$F` · Series F · 4.700%

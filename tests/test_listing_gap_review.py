@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '161 were reviewed, with 383 still unreviewed' in review and '273 still unreviewed' in review
+    assert '164 were reviewed, with 380 still unreviewed' in review and '272 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -542,6 +542,24 @@ def test_first_horizon_review_keeps_current_depositary_shares_and_redeemed_serie
     for certification in ('FHN8A061120.pdf', 'FHNPRF051021.pdf', 'FHNPRH031626.pdf'):
         assert certification in batch
     assert 'NYSEshvol20261112.pdf#page=64' in batch
+
+
+def test_goldman_review_distinguishes_depositary_shares_from_trust_securities_and_notes():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    start = '**Goldman Sachs · Three NYSE depositary share listings matched.**'
+    assert start in review
+    batch = review.split(start, 1)[1].split('\n- **', 1)[0]
+    for series in 'ACD':
+        assert f'`GS-P{series}` / `GS Pr{series}` / `GS${series}` · Series {series}\n' in batch
+    assert '1/1,000 of a floating-rate non-cumulative preferred share' in batch
+    assert 'directory-type gap for `GS$D`' in batch
+    assert 'Series O and V were fully redeemed on November 10' in batch
+    assert 'trust capital securities and medium-term notes fall outside this batch' in batch
+    assert '000088698226000532/gs-20260930.htm' in batch
+    assert '000119312526460732/d187542d8k.htm' in batch
+    assert 'NYSEshvol20261112.pdf#page=78' in batch
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):

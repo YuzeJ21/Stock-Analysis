@@ -1042,9 +1042,39 @@ SEC submissions bind the September 30 Form 10-Q to accession `0000036966-26-0001
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**161 of the original 544 SEC-only records have been reviewed, with 383 unreviewed.** Nine of the 282 directory-type gaps have dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The First Horizon batch brought the SEC-only review to 161 of the original 544 records, with 383 unreviewed at that stage. Nine of the 282 directory-type gaps had dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
 
 The integration passed 276 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, seven source links, the depositary fractions and rates, the Series H issuance, the separate Series C redemption and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### Goldman Sachs preferred-share follow-up
+
+The November 2 Form 10-Q and November 13 Form 8-K for The Goldman Sachs Group, Inc. (CIK `0000886982`) identify three NYSE-listed depositary shares. Each represents 1/1,000 of an underlying floating-rate non-cumulative preferred share. The October 13 Form 8-K shows the same three security rows. The November 12 Nasdaq Trader directory lists all three with NYSE code `N` and test and ETF flags `N`. [November 2 Form 10-Q](https://www.sec.gov/Archives/edgar/data/886982/000088698226000532/gs-20260930.htm) · [November 13 Form 8-K](https://www.sec.gov/Archives/edgar/data/886982/000119312526460732/d187542d8k.htm) · [October 13 Form 8-K](https://www.sec.gov/Archives/edgar/data/886982/000088698226000529/gs-20261013.htm) · [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt)
+
+| Series | SEC map | SEC cover | Nasdaq Trader ACT symbol | Filed annual dividend formula as of September 2026 |
+| --- | --- | --- | --- | --- |
+| A | `GS-PA` | `GS PrA` | `GS$A` | 3-month term SOFR + 1.01161%, with a 3.75% floor |
+| C | `GS-PC` | `GS PrC` | `GS$C` | 3-month term SOFR + 1.01161%, with a 4.00% floor |
+| D | `GS-PD` | `GS PrD` | `GS$D` | 3-month term SOFR + 0.93161%, with a 4.00% floor |
+
+The abbreviated Series D directory description left one security-type gap in the saved snapshot. The filed class and depositary fraction provide dated evidence for that row. The Series A and C directory rows already had a depositary classification. November 12 NYSE short-sale reporting shows positive total volume for `GS PRA`, `GS PRC` and `GS PRD`, corroborating activity on that date. First trade, continuous listing history, current yield and analysis eligibility require separate evidence. [November 12 NYSE report, page 78](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=78)
+
+The November 13 Form 8-K records full redemption of the separate Series O and V preferred stock on November 10 and filing of their certificates of elimination on November 12. The separately registered Goldman Sachs Capital II and III trust securities and GS Finance Corp. medium-term notes fall outside this batch. The dividend formulas come from Note 19 and describe the terms as filed. [November 13 Form 8-K, Item 5.03](https://www.sec.gov/Archives/edgar/data/886982/000119312526460732/d187542d8k.htm) · [Form 10-Q, Note 19](https://www.sec.gov/Archives/edgar/data/886982/000088698226000532/gs-20260930.htm)
+
+SEC submissions bind the September 30 Form 10-Q to accession `0000886982-26-000532`, accepted November 2 at 21:35:36 UTC. The November 12 report on Form 8-K is accession `0001193125-26-460732`, accepted November 13 at 21:24:39 UTC. SEC evidence was observed November 13 from 22:23:43 to 22:24:29 UTC. The dated directory and exchange report use the preserved November 12 snapshot and report receipts. [SEC submissions](https://data.sec.gov/submissions/CIK0000886982.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `c5b138c99d21fc1f5923ac34fd260cfb74a7fa6cbdb1a66c3a2384aca41481d4` |
+| November 2 Form 10-Q | `575b7c132dea1410e7cc2893824c6d55baf99ea572430f7c1b727da0aec44359` |
+| November 13 Form 8-K | `ca974e1d3cc56317ca7b9c1c09e87b3b3a3e382c9e297d80409d72fce37a452d` |
+| October 13 Form 8-K | `89450ed33462e7a542b3c817f06beba40dbde885f4ba98257ee6e458a25a55d4` |
+| November 12 SEC exchange map | `98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**164 of the original 544 SEC-only records have been reviewed, with 380 unreviewed.** Ten of the 282 directory-type gaps have dated class evidence, with 272 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 225 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, four source links, the Series D type gap resolution, the separate Series O and V redemptions, and the prior PFBC finding. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 
