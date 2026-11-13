@@ -164,7 +164,27 @@ The follow-up reviewed the six Series D through I non-cumulative preferred class
 
 SEC submissions metadata binds the November 12 filing to accession `0000845877-26-000143`, accepted at 21:19:54 UTC, and the November 6 filing to `0000845877-26-000139`, accepted at 21:05:52 UTC. The covers were observed on November 12 at 23:35:41 and 23:35:42 UTC. Their raw SHA-256 digests are `14097f5aff6e587b7ef5d63110f87a7e82d64be146241ed09a0ab7148a02bbd7` and `b4db3ee28eee6f013a0238a4b7df4cf3ee9756970bbf6886c5b668438381ab3b`, respectively. [SEC submissions](https://data.sec.gov/submissions/CIK0000845877.json)
 
-**Ten of the original 544 SEC-only rows have now been reviewed, with 534 unreviewed.** The six matches are dated class evidence for the recorded symbols. Live classification, saved inventory, current trading status and financial eligibility retain their separate checks.
+The Farmer Mac follow-up brought the reviewed count to ten of the original 544 SEC-only rows. The six matches are dated class evidence for the recorded symbols. Live classification, saved inventory, current trading status and financial eligibility retain their separate checks.
+
+#### Triton preference-share follow-up
+
+The next review matched seven cumulative redeemable perpetual preference classes for Triton International Limited, CIK `0001660734`. The February 20 Form 20-F cover binds each series, stated rate, literal symbol and NYSE. The November 6 Form 6-K's interim statements corroborate all seven classes and the NYSE venue as of September 30. The November 12 Nasdaq Trader file agrees on each rate and series. Its seven corresponding rows use venue code `N` and carry `N` for both the test and ETF flags. [SEC Form 20-F](https://www.sec.gov/Archives/edgar/data/1660734/000166073426000005/trtn-20251231.htm) · [SEC interim statements](https://www.sec.gov/Archives/edgar/data/1660734/000162828026071407/trtn-20260930.htm) · [Nasdaq Trader other-listed directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt)
+
+| Series | Stated rate | SEC map | Filing cover | Directory ACT symbol |
+| --- | --- | --- | --- | --- |
+| A | 8.50% | `TRTN-PA` | `TRTN PRA` | `TRTN$A` |
+| B | 8.00% | `TRTN-PB` | `TRTN PRB` | `TRTN$B` |
+| C | 7.375% | `TRTN-PC` | `TRTN PRC` | `TRTN$C` |
+| D | 6.875% | `TRTN-PD` | `TRTN PRD` | `TRTN$D` |
+| E | 5.75% | `TRTN-PE` | `TRTN PRE` | `TRTN$E` |
+| F | 7.625% | `TRTN-PF` | `TRTN PRF` | `TRTN$F` |
+| G | 7.500% | `TRTN-PG` | `TRTN PRG` | `TRTN$G` |
+
+The Form 20-F reports the fiscal year ended December 31, 2025. Series G appears on its cover after the January 12, 2026 issuance. The January 12 Form 8-A and January 13 NYSE certification separately support the Series G class and listing approval. The review supplies no first execution date or continuous listing history. [Series G Form 8-A](https://www.sec.gov/Archives/edgar/data/1660734/000119312526010370/d30078d8a12b.htm) · [NYSE listing certification](https://www.sec.gov/Archives/edgar/data/1660734/000087666126000041/TRTNPRG011326.pdf)
+
+SEC submissions bind the Form 20-F to accession `0001660734-26-000005`, accepted February 20 at 15:20:31 UTC, and the Form 6-K to `0001628280-26-071407`, accepted November 6 at 14:47:09 UTC. Both documents were captured November 13 at 00:01:54 UTC, November 12 in Toronto. Raw SHA-256 was `30e24861e176c01f326d109b3beb6ef85d623bec98e8ce824018376613c18dbf` for the Form 20-F and `1bbb97e2e2dd25eba6a9f6c930d71c7fdbbcfa6108c27e1602f8e5bd2cc77785` for the interim exhibit. The Series G NYSE certificate digest was `aea9d1593d5c41711e5f4a34a90ffd39c356be4876fc1264a6ee7bd568f0adb3`. [SEC submissions](https://data.sec.gov/submissions/CIK0001660734.json)
+
+**Seventeen of the original 544 SEC-only records have now been reviewed, with 527 unreviewed.** The seven Triton matches apply only to the dated sources and explicit symbol spellings above.
 
 #### Preferred Bank FDIC filing follow-up
 
@@ -173,3 +193,19 @@ The FDIC's public securities filings index for certificate `33539` ties Preferre
 The FDIC index and both cover documents were observed November 12 at 23:36:33, 23:37:17 and 23:37:18 UTC, respectively. Raw SHA-256 was `01425742eb85700a4b9408dbe6b2a20c0706633335f78dbfb5611e4dba9a1516` for the index, `20817448c10fea5d0047cdd6727148d3bcbc4127b57e8bdad174a7eed4dfb1ae` for the Form 10-Q and `36188ea29c839ffad580958b7bf7aae2ed3cd5cc4c25a82c958dd6f043d70316` for the Form 10-K. The exact row supplies a dated instrument and venue observation for PFBC. The original directory rule result remains unknown, and these documents supply no new automated financial coverage.
 
 The follow-up passed 245 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the new dated findings and source links, the separate live classification filters with controlled responses and the earlier venue summary. Opening the dated review made zero source requests. All 89 protected files matched the baseline.
+
+#### Preferred Bank IRS identification number review
+
+The FDIC lists Preferred Bank under certificate `33539`. The reviewed filing covers show a repeated split between quarterly and annual/current reports. The bank certificate and the common-stock row provide the dated listing evidence. The correct IRS number remains unresolved. [FDIC supervised-bank list](https://www.fdic.gov/analysis/list-fdic-supervised-banks-filing-under-securities-exchange-act) · [Certificate 33539 filings index](https://securitiesfilings.fdicconnect.fdic.gov/api/instflng/cert/33539)
+
+| FDIC filing covers reviewed | IRS number as filed |
+| --- | --- |
+| 2025 Form 10-Q covers for [March](https://securitiesfilings.fdicconnect.fdic.gov/api/instflng/11715/attachment/1), [June](https://securitiesfilings.fdicconnect.fdic.gov/api/instflng/11787/attachment/1) and [September](https://securitiesfilings.fdicconnect.fdic.gov/api/instflng/11832/attachment/1) | `95-4340119` |
+| 2026 Form 10-Q covers for [March](https://securitiesfilings.fdicconnect.fdic.gov/api/instflng/11944/attachment/1), [June](https://securitiesfilings.fdicconnect.fdic.gov/api/instflng/11992/attachment/1) and [September](https://securitiesfilings.fdicconnect.fdic.gov/api/instflng/12041/attachment/1) | `95-4340119` |
+| [Two 2024 Form 10-K entries](https://securitiesfilings.fdicconnect.fdic.gov/api/instflng/11658/attachment/1) ([second entry](https://securitiesfilings.fdicconnect.fdic.gov/api/instflng/11659/attachment/1)), [2024 Form 10-K/A](https://securitiesfilings.fdicconnect.fdic.gov/api/instflng/11687/attachment/1), [2025 Form 10-K](https://securitiesfilings.fdicconnect.fdic.gov/api/instflng/11872/attachment/1) and [October 27, 2026 Form 8-K](https://securitiesfilings.fdicconnect.fdic.gov/api/instflng/12028/attachment/1) | `95-4340199` |
+
+The April 15, 2025 Form 10-K/A explanatory note limits the amendment to filing the clawback policy with accompanying certifications. It retains `95-4340199`. The reviewed public filings supplied no correction or authoritative confirmation that resolves the conflict. Eight additional PDFs were observed November 13 from 00:02:28 to 00:02:35 UTC, November 12 in Toronto. The amendment's raw SHA-256 was `5a193b25b25eeeff7afbae1d6b928fa32ead6369af178b3c68bd6be8809a7ec8`. [FDIC amendment](https://securitiesfilings.fdicconnect.fdic.gov/api/instflng/11687/attachment/1)
+
+The index refreshed at 00:04:48 UTC on November 13 with the same 272 entries and raw digest. The 35 filings dated in 2025 and 2026 include one amendment by form label, the 2024 Form 10-K/A. The two March 14 annual attachments have different bytes and agree on their cover fields. The reviewed evidence leaves their order of precedence open. [FDIC filings index](https://securitiesfilings.fdicconnect.fdic.gov/api/instflng/cert/33539)
+
+The Triton and PFBC follow-up passed 247 affected tests, six research route checks and automated desktop and phone checks. The browser checks verified the new findings, 19 dated review links and the existing classification controls with controlled responses. Opening the dated review made zero source requests. All 89 protected files matched the baseline.
