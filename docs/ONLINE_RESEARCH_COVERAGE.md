@@ -1072,9 +1072,52 @@ SEC submissions bind the September 30 Form 10-Q to accession `0000886982-26-0005
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**164 of the original 544 SEC-only records have been reviewed, with 380 unreviewed.** Ten of the 282 directory-type gaps have dated class evidence, with 272 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The Goldman Sachs batch brought the SEC-only review to 164 of the original 544 records, with 380 unreviewed at that stage. Ten of the 282 directory-type gaps had dated class evidence, with 272 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
 
 The integration passed 225 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, four source links, the Series D type gap resolution, the separate Series O and V redemptions, and the prior PFBC finding. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
+
+#### Southern California Edison trust preference follow-up
+
+The November 12 SEC exchange map lists four securities under Southern California Edison Company (SCE, CIK `0000092103`). The joint October 29 Form 10-Q and October 30 Form 8-K report no Section 12(b) securities for SCE on their covers. They list Edison International common stock under its separate registrant. The individual trust registrations and prospectuses establish the roles for the four NYSE-traded securities. Each trust issues its own cumulative trust preference security. SCE issues the underlying preference stock to the trust and guarantees the listed security on the terms of the filed guarantee. Each listed instrument has a $25 liquidation amount. [Joint Form 10-Q](https://www.sec.gov/Archives/edgar/data/92103/000082705226000073/eix-20260930.htm) · [Joint Form 8-K](https://www.sec.gov/Archives/edgar/data/92103/000082705226000075/eix-20261029.htm) · [2025 Form 10-K, Note 14](https://www.sec.gov/Archives/edgar/data/827052/000082705226000012/eix-20251231.htm)
+
+| Underlying series | SEC map | NYSE symbol in prospectus | Nasdaq Trader ACT symbol | Trust issuer and CIK | Stated rate | Filed registration |
+| --- | --- | --- | --- | --- | --- | --- |
+| G | `SCE-PG` | `SCE PR G` | `SCE$G` | SCE Trust II, `0001122392` | 5.10% | [January 31, 2013 Form 8-A](https://www.sec.gov/Archives/edgar/data/1122392/000119312513031120/d475965d8a12b.htm) |
+| L | `SCE-PL` | `SCE PR L` | `SCE$L` | SCE Trust VI, `0001709317` | 5.00% | [June 27, 2017 Form 8-A](https://www.sec.gov/Archives/edgar/data/1709317/000009210317000029/scetrustviform8-a.htm) |
+| M | `SCE-PM` | `SCE PR M` | `SCE$M` | SCE Trust VII, `0001709318` | 7.50% | [November 22, 2023 Form 8-A](https://www.sec.gov/Archives/edgar/data/1709318/000009210323000027/tmb-20231122x8a12b.htm) |
+| N | `SCE-PN` | `SCE PR N` | `SCE$N` | SCE Trust VIII, `0001709319` | 6.95% | [May 14, 2024 Form 8-A](https://www.sec.gov/Archives/edgar/data/92103/000009210324000023/tmb-20240514x8a12b.htm) |
+
+The filed prospectuses tie each trust to the underlying series and provide the listed-security symbol and stated distribution rate. [Series G prospectus](https://www.sec.gov/Archives/edgar/data/1122392/000119312513022187/d468333d424b2.htm) · [Series L prospectus](https://www.sec.gov/Archives/edgar/data/1709317/000119312517208145/d330401d424b2.htm) · [Series M prospectus](https://www.sec.gov/Archives/edgar/data/1709318/000119312523279793/d513878d424b5.htm) · [Series N prospectus](https://www.sec.gov/Archives/edgar/data/1709319/000119312524134145/d815589d424b5.htm)
+
+The November 12 Nasdaq Trader directory lists all four with NYSE code `N`, test flag `N` and ETF flag `N`. The G row already had a security type. The filings supply dated class evidence for the unresolved L, M and N directory rows. The November 12 NYSE report shows positive total volume for the corresponding symbols `SCE PRG`, `SCE PRL`, `SCE PRM` and `SCE PRN`. That establishes activity for that report date. First trades, listing continuity, current yields and analysis eligibility require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 153](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=153)
+
+The separate Series K preference stock and SCE Trust V securities were fully redeemed in March 2026. The October joint Form 10-Q confirms the redemption. NYSE records March 15 as the call date for the trust securities and March 16 as the trading suspension date. The March 17 exchange notices identify the trust securities and SCE guarantee separately. Both Series K records fall outside this four-security batch. [NYSE removal notice](https://www.sec.gov/Archives/edgar/data/876661/000087666126000237/ruleprovisionnotice.htm) · [NYSE Form 25, trust securities](https://www.sec.gov/Archives/edgar/data/876661/000087666126000237/primary_doc.xml) · [NYSE Form 25, guarantor](https://www.sec.gov/Archives/edgar/data/876661/000087666126000238/primary_doc.xml)
+
+SEC submissions bind the September 30 Form 10-Q to accession `0000827052-26-000073`, accepted October 29 at 20:08:16 UTC, and the October 29 report on Form 8-K to accession `0000827052-26-000075`, accepted October 29 at 22:11:04 UTC and filed October 30. The SEC documents were observed November 13. The directory, map and exchange report use the preserved November 12 source receipts. [SCE SEC submissions](https://data.sec.gov/submissions/CIK0000092103.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SCE SEC submissions | `8012fe6a5c038bbdf19778c9b0137575dceedb32e0cd28c0be94e1cea4288a27` |
+| October 29 Form 10-Q | `800b96dd486ef81ba24e2183c8b544a2aadc2c23dbc1d4bdaed7ac0ef51acc2b` |
+| October 30 Form 8-K | `46ce633f73646ccc0da29591fa647ca80aba37e4d2a04c395c073698388b472e` |
+| 2025 Form 10-K | `5af7ea56bd315f3c5bc4f0ef9da231ee169b753169eb63845946be942624528d` |
+| Series G prospectus | `c19fc33aacc03fd549f6ca656997eddd1c2b7acb08b3f11c1d493646d8290382` |
+| Series L prospectus | `87c4fa666d7545059a6092aceb67ba47a73069b1f7ca6e290fce876217467f7d` |
+| Series M prospectus | `c55fa427d9e6d383a6db40ee15eb9851ccde11b7c36ddac7e0afb8d465f9f6a4` |
+| Series N prospectus | `a819b1713b3094e005906dd1ece0bb26c6fa1746c12371ecf0185ba1cbf8c3ec` |
+| Trust II Form 8-A | `cd2fb0ccf8995f30a92b7822ec5096f898f35f3c115d547e346d098f1c4996c0` |
+| Trust VI Form 8-A | `5b09461b3b965721303eb73760375659bd1535415b8780aa35957dcbcc231c0a` |
+| Trust VII Form 8-A | `b712cad6260b2e12c001e0a0fd65e6da71f63012ba8f889f664918ee4e82a8f2` |
+| Trust VIII Form 8-A | `a1eb2d08aa58fdaa3cdf8470e72e7a599d3c024eaf5ac279a0f404cda56a0a09` |
+| NYSE Series K Form 25, trust securities | `8c651a33aa81746763fbcd53e316e10aa653439972b2e746e58d65879a529899` |
+| NYSE Series K Form 25, guarantor | `01d63726ff4fedfd7a44d8a4fc819acdf9f13845c696e58bd0031eb3f0eb60ee` |
+| November 12 SEC exchange map | `98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**168 of the original 544 SEC-only records have been reviewed, with 376 unreviewed.** Thirteen of the 282 directory-type gaps have dated class evidence, with 269 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 226 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the four mappings, eight source links, the trust and guarantor roles, the separate Series K redemption and the prior PFBC finding. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

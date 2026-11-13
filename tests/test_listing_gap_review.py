@@ -5,7 +5,8 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '164 were reviewed, with 380 still unreviewed' in review and '272 still unreviewed' in review
+    assert '168 were reviewed, with 376 still unreviewed' in review
+    assert 'Thirteen now have dated class evidence, with 269 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -560,6 +561,25 @@ def test_goldman_review_distinguishes_depositary_shares_from_trust_securities_an
     assert '000088698226000532/gs-20260930.htm' in batch
     assert '000119312526460732/d187542d8k.htm' in batch
     assert 'NYSEshvol20261112.pdf#page=78' in batch
+
+
+def test_sce_review_distinguishes_trust_issuers_from_utility_guarantor():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    start = '**Southern California Edison · Four NYSE trust preference securities matched.**'
+    assert start in review
+    batch = review.split(start, 1)[1].split('\n- **', 1)[0]
+    for series, trust, rate in zip('GLMN', ('II', 'VI', 'VII', 'VIII'), ('5.10%', '5.00%', '7.50%', '6.95%'), strict=True):
+        assert f'`SCE-P{series}` / `SCE PR {series}` / `SCE${series}` · Series {series} · SCE Trust {trust} · {rate}\n' in batch
+    assert 'SCE is the guarantor and issues the underlying preference stock' in batch
+    assert 'reports no Section 12(b) securities for SCE' in batch
+    assert 'directory-type gaps for `SCE$L`, `SCE$M` and `SCE$N`' in batch
+    assert 'Trust V Series K was redeemed in March 2026' in batch
+    for source in ('d475965d8a12b.htm', 'scetrustviform8-a.htm', 'tmb-20231122x8a12b.htm',
+                   'tmb-20240514x8a12b.htm', 'eix-20260930.htm', '000087666126000238/primary_doc.xml',
+                   'NYSEshvol20261112.pdf#page=153'):
+        assert source in batch
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):

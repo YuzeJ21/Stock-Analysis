@@ -129,6 +129,12 @@ FHN_SERIES_F_NYSE = 'https://www.sec.gov/Archives/edgar/data/36966/0000876661210
 FHN_SERIES_H_NYSE = 'https://www.sec.gov/Archives/edgar/data/36966/000087666126000232/FHNPRH031626.pdf'
 GS_QUARTER = 'https://www.sec.gov/Archives/edgar/data/886982/000088698226000532/gs-20260930.htm'
 GS_COVER = 'https://www.sec.gov/Archives/edgar/data/886982/000119312526460732/d187542d8k.htm'
+SCE_QUARTER = 'https://www.sec.gov/Archives/edgar/data/92103/000082705226000073/eix-20260930.htm'
+SCE_TRUST_II_REGISTRATION = 'https://www.sec.gov/Archives/edgar/data/1122392/000119312513031120/d475965d8a12b.htm'
+SCE_TRUST_VI_REGISTRATION = 'https://www.sec.gov/Archives/edgar/data/1709317/000009210317000029/scetrustviform8-a.htm'
+SCE_TRUST_VII_REGISTRATION = 'https://www.sec.gov/Archives/edgar/data/1709318/000009210323000027/tmb-20231122x8a12b.htm'
+SCE_TRUST_VIII_REGISTRATION = 'https://www.sec.gov/Archives/edgar/data/92103/000009210324000023/tmb-20240514x8a12b.htm'
+SCE_SERIES_K_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000238/primary_doc.xml'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -146,11 +152,18 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 164 were reviewed, with 380 still unreviewed.
-- **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Ten now have dated class evidence, with 272 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 168 were reviewed, with 376 still unreviewed.
+- **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Thirteen now have dated class evidence, with 269 still unreviewed.
 
 **Dated findings**
 
+- **Southern California Edison · Four NYSE trust preference securities matched.** The trusts issue the listed securities. SCE is the guarantor and issues the underlying preference stock. The October 29 joint Form 10-Q reports no Section 12(b) securities for SCE on its cover. The trust registrations, November 12 Nasdaq Trader directory and same-day NYSE report support the matches below. Each row gives the SEC map, NYSE and directory symbols, followed by the underlying series, trust issuer and stated rate. [Joint Form 10-Q]({SCE_QUARTER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=153)
+  - `SCE-PG` / `SCE PR G` / `SCE$G` · Series G · SCE Trust II · 5.10%
+  - `SCE-PL` / `SCE PR L` / `SCE$L` · Series L · SCE Trust VI · 5.00%
+  - `SCE-PM` / `SCE PR M` / `SCE$M` · Series M · SCE Trust VII · 7.50%
+  - `SCE-PN` / `SCE PR N` / `SCE$N` · Series N · SCE Trust VIII · 6.95%
+  - The filings resolve the directory-type gaps for `SCE$L`, `SCE$M` and `SCE$N`. See the Forms 8-A for [Trust II]({SCE_TRUST_II_REGISTRATION}), [Trust VI]({SCE_TRUST_VI_REGISTRATION}), [Trust VII]({SCE_TRUST_VII_REGISTRATION}) and [Trust VIII]({SCE_TRUST_VIII_REGISTRATION}).
+  - Trust V Series K was redeemed in March 2026 and falls outside this batch. [NYSE Form 25 for the Series K guarantee]({SCE_SERIES_K_REMOVAL})
 - **Goldman Sachs · Three NYSE depositary share listings matched.** The November 2 Form 10-Q and November 13 Form 8-K identify the three listings. Each depositary share represents 1/1,000 of a floating-rate non-cumulative preferred share. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, SEC cover and directory symbols. [Goldman Sachs Form 10-Q]({GS_QUARTER}) · [Goldman Sachs Form 8-K]({GS_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=78)
   - `GS-PA` / `GS PrA` / `GS$A` · Series A
   - `GS-PC` / `GS PrC` / `GS$C` · Series C
