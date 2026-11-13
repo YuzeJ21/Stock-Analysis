@@ -100,6 +100,11 @@ KIM_QUARTER = 'https://www.sec.gov/Archives/edgar/data/879101/000119312526437341
 KIM_COVER = 'https://www.sec.gov/Archives/edgar/data/879101/000119312526436941/kim-20261029.htm'
 KIM_SUCCESSION = 'https://www.sec.gov/Archives/edgar/data/879101/000114036123000046/ny20006479x6_8k12b.htm'
 KIM_CLASS_N_NYSE = 'https://www.sec.gov/Archives/edgar/data/879101/000087666123001022/KIMPRN122923.pdf'
+MET_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1099219/000109921926000062/met-20260930.htm'
+MET_COVER = 'https://www.sec.gov/Archives/edgar/data/1099219/000119312526454038/d155870d8k.htm'
+MET_SERIES_A_REGISTRATION = 'https://www.sec.gov/Archives/edgar/data/1099219/000095012305007232/y09784e8va12b.txt'
+MET_SERIES_E_NYSE = 'https://www.sec.gov/Archives/edgar/data/1099219/000087666118000657/METPRE.8A.06.06.18.pdf'
+MET_SERIES_F_NYSE = 'https://www.sec.gov/Archives/edgar/data/1099219/000087666120000035/MET8A011620.pdf'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -117,11 +122,16 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 146 were reviewed, with 398 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 149 were reviewed, with 395 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Nine now have dated class evidence, with 273 still unreviewed.
 
 **Dated findings**
 
+- **MetLife · Three NYSE preferred-linked listings matched.** The November 6 Form 10-Q and November 10 Form 8-K identify one direct preferred stock listing and two depositary share listings. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, SEC cover and directory symbols. [MetLife Form 10-Q]({MET_QUARTER}) · [MetLife Form 8-K]({MET_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=110)
+  - `MET-PA` / `MET PRA` / `MET$A` · Series A · Direct floating-rate preferred stock
+  - `MET-PE` / `MET PRE` / `MET$E` · Series E · 5.625% · Depositary share · 1/1,000
+  - `MET-PF` / `MET PRF` / `MET$F` · Series F · 4.75% · Depositary share · 1/1,000
+  - The SEC covers identify Series E behind the directory’s generic depositary share description. Series A Junior Participating Preferred Stock and Series D fall outside this batch. [Series A Form 8-A]({MET_SERIES_A_REGISTRATION}) · NYSE certifications for [Series E]({MET_SERIES_E_NYSE}) and [Series F]({MET_SERIES_F_NYSE}).
 - **Kimco Realty · Three NYSE depositary share listings matched.** The October 29 Form 10-Q and Form 8-K identify three listings of Kimco Realty Corporation. Each listed depositary share represents 1/1,000 of its underlying preferred share. Kimco Realty OP, LLC is a separate registrant. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, SEC cover and directory symbols, followed by the stated class rate. [Kimco Form 10-Q]({KIM_QUARTER}) · [Kimco Form 8-K]({KIM_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=100)
   - `KIM-PL` / `KIMprL` / `KIM$L` · Class L · 5.125%
   - `KIM-PM` / `KIMprM` / `KIM$M` · Class M · 5.250%

@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '146 were reviewed, with 398 still unreviewed' in review and '273 still unreviewed' in review
+    assert '149 were reviewed, with 395 still unreviewed' in review and '273 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -445,6 +445,24 @@ def test_kimco_review_keeps_depositary_listings_and_underlying_classes_distinct(
     assert '000119312526436941/kim-20261029.htm' in batch
     assert '000114036123000046/ny20006479x6_8k12b.htm' in batch
     assert 'KIMPRN122923.pdf' in batch and 'NYSEshvol20261112.pdf#page=100' in batch
+
+
+def test_metlife_review_distinguishes_direct_floating_and_depositary_listings():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    start = '**MetLife · Three NYSE preferred-linked listings matched.**'
+    assert start in review
+    batch = review.split(start, 1)[1].split('\n- **', 1)[0]
+    assert '`MET-PA` / `MET PRA` / `MET$A` · Series A · Direct floating-rate preferred stock\n' in batch
+    for series, rate in zip('EF', ('5.625%', '4.75%'), strict=True):
+        assert f'`MET-P{series}` / `MET PR{series}` / `MET${series}` · Series {series} · {rate} · Depositary share · 1/1,000\n' in batch
+    assert 'Series A Junior Participating Preferred Stock and Series D fall outside this batch' in batch
+    assert '000109921926000062/met-20260930.htm' in batch
+    assert '000119312526454038/d155870d8k.htm' in batch
+    assert '000095012305007232/y09784e8va12b.txt' in batch
+    assert 'METPRE.8A.06.06.18.pdf' in batch and 'MET8A011620.pdf' in batch
+    assert 'NYSEshvol20261112.pdf#page=110' in batch
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):

@@ -876,9 +876,41 @@ SEC submissions bind the September 30 Form 10-Q to accession `0001193125-26-4373
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**146 of the original 544 SEC-only records have been reviewed, with 398 unreviewed.** Nine of the 282 directory-type gaps have dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The Kimco Realty batch brought the SEC-only review to 146 of the original 544 records, with 398 unreviewed at that stage. Nine of the 282 directory-type gaps had dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
 
 The integration passed 271 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, six source links, the depositary terms, the issuer and operating company distinction, and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### MetLife preferred-share follow-up
+
+The November 6 Form 10-Q and November 10 Form 8-K for MetLife, Inc. (CIK `0001099219`) identify three NYSE listings. The November 10 Form 8-K covers a November 9 credit agreement amendment and supplies a dated listing cover. The November 12 Nasdaq Trader directory already identifies A as preferred stock and E and F as depositary shares, with NYSE code `N` and test and ETF flags `N`. The generic Series E directory description omits the series, rate and fraction. The SEC covers and original NYSE certification supply those details. [November 6 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1099219/000109921926000062/met-20260930.htm) · [November 10 Form 8-K](https://www.sec.gov/Archives/edgar/data/1099219/000119312526454038/d155870d8k.htm) · [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt)
+
+| Series | Listed instrument | SEC map | SEC cover | Nasdaq Trader ACT symbol | Registration evidence |
+| --- | --- | --- | --- | --- | --- |
+| A | Direct floating-rate non-cumulative preferred stock | `MET-PA` | `MET PRA` | `MET$A` | [June 10, 2005 Form 8-A](https://www.sec.gov/Archives/edgar/data/1099219/000095012305007232/y09784e8va12b.txt) |
+| E | 1/1,000 depositary share, 5.625% underlying non-cumulative preferred stock | `MET-PE` | `MET PRE` | `MET$E` | [June 6, 2018 NYSE certification](https://www.sec.gov/Archives/edgar/data/1099219/000087666118000657/METPRE.8A.06.06.18.pdf) |
+| F | 1/1,000 depositary share, 4.75% underlying non-cumulative preferred stock | `MET-PF` | `MET PRF` | `MET$F` | [January 16, 2020 NYSE certification](https://www.sec.gov/Archives/edgar/data/1099219/000087666120000035/MET8A011620.pdf) |
+
+Note 13 reports all three underlying classes outstanding on September 30. The annual securities description gives Series A's dividend rate, when declared, as the greater of 4.00% or three-month CME Term SOFR plus 1.26161 percentage points. The separate Series A Junior Participating Preferred Stock had zero shares outstanding. Series D remains outstanding and falls outside the Section 12(b) NYSE listings reviewed here. [Form 10-Q, Note 13](https://www.sec.gov/Archives/edgar/data/1099219/000109921926000062/R20.htm) · [Annual securities description](https://www.sec.gov/Archives/edgar/data/1099219/000109921926000013/exhibit416descriptionofsec.htm)
+
+Page 110 of the November 12 NYSE report shows positive total volume for `MET PRA`, `MET PRE` and `MET PRF`. It corroborates exchange activity on that date. First trade, continuous listing history, current yield and analysis eligibility require separate evidence. [November 12 NYSE report, page 110](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=110)
+
+SEC submissions bind the September 30 Form 10-Q to accession `0001099219-26-000062`, accepted November 6 at 02:14:37 UTC, and the Form 8-K to `0001193125-26-454038`, accepted November 10 at 00:16:08 UTC. The seven submissions, filing and certification receipts below were observed November 13 from 14:52:33 to 14:53:41 UTC. [SEC submissions](https://data.sec.gov/submissions/CIK0001099219.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `2da95e0be9f200c045d9f7f3993aaf1b1ec710fd655f2b04aeda2f7cec7e1334` |
+| November 6 Form 10-Q | `468e9ebe70aa49426670275334a0019cf5ee26833f93a13bc765e8cf83bdda2a` |
+| November 10 Form 8-K | `0ca37c8bb350cb501e8b0656eff101c55b51ff1ec785ac5cce95bd5d7efea0f7` |
+| Series A Form 8-A | `6a3158da7309c9472a7609a15cef6bb67382425dd1ad91860a078dd247a6a4fd` |
+| NYSE Series E certification | `df94b32fd6ac47dc91197d5ef032b577c31108486fccc1bf68e72dd87f5f7605` |
+| NYSE Series F certification | `554a59b8770581d84ac153824148fbabee09e31c6ce9b4149f1632fff3af35f5` |
+| Annual securities description | `674e05dbdcc6d5cb53d9f2f2ef96bb3e64ab0f10f2ac14abae20549f39404941` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**149 of the original 544 SEC-only records have been reviewed, with 395 unreviewed.** Nine of the 282 directory-type gaps have dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 272 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, seven source links, the distinction between direct preferred stock and depositary shares, and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 
