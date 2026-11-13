@@ -10,6 +10,12 @@ AGM_QUARTER = 'https://www.sec.gov/Archives/edgar/data/845877/000084587726000139
 TRITON_COVER = 'https://www.sec.gov/Archives/edgar/data/1660734/000166073426000005/trtn-20251231.htm'
 TRITON_INTERIM = 'https://www.sec.gov/Archives/edgar/data/1660734/000162828026071407/trtn-20260930.htm'
 TRITON_SERIES_G_NYSE = 'https://www.sec.gov/Archives/edgar/data/1660734/000087666126000041/TRTNPRG011326.pdf'
+RITHM_COVER = 'https://www.sec.gov/Archives/edgar/data/1556593/000155659326000035/nrz-20260930.htm'
+RITHM_SERIES_F_NYSE = 'https://www.sec.gov/Archives/edgar/data/1556593/000087666126000052/RITMPRF012126.pdf'
+ANNALY_COVER = 'https://www.sec.gov/Archives/edgar/data/1043219/000104321926000083/nly-20260930.htm'
+ANNALY_SERIES_F_TERMS = 'https://www.sec.gov/Archives/edgar/data/1043219/000119312517235069/d417558dfwp.htm'
+ANNALY_SERIES_I_REDEMPTION = 'https://www.sec.gov/Archives/edgar/data/1043219/000104321926000070/nly-20261002.htm'
+ANNALY_SERIES_I_NYSE = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000807/ruleprovisionnotice.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -27,11 +33,20 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. Seventeen were reviewed, with 527 still unreviewed.
-- **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Three now have dated class evidence, with 279 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 26 were reviewed, with 518 still unreviewed.
+- **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Four now have dated class evidence, with 278 still unreviewed.
 
 **Dated findings**
 
+- **Rithm Capital Series A–F · Six NYSE preferred share classes matched.** The November 2 Form 10-Q and November 12 Nasdaq Trader directory agree on six direct preferred stock classes. The percentages in the class titles identify the securities. Current yields are outside this review. [Rithm Form 10-Q]({RITHM_COVER}) · [NYSE Series F certification]({RITHM_SERIES_F_NYSE}) · [Nasdaq Trader directory]({_SOURCES[1][2]})
+  - SEC map · `RITM-PA`, `RITM-PB`, `RITM-PC`, `RITM-PD`, `RITM-PE`, `RITM-PF`
+  - Filing cover · `RITM PR A`, `RITM PR B`, `RITM PR C`, `RITM PR D`, `RITM PR E`, `RITM PR F`
+  - Directory · `RITM$A`, `RITM$B`, `RITM$C`, `RITM$D`, `RITM$E`, `RITM$F`
+- **Annaly Series F, G and J · Three NYSE preferred share classes matched.** The October 28 Form 10-Q identifies all three classes. The shortened Series F directory description matches the issuer, NYSE, series and title rate. The filed term sheet gives `NLYPrF` as the NYSE listing symbol. The directory's CQS spelling is `NLYpF`, and its description rule still leaves `NLY$F` unknown. [Annaly Form 10-Q]({ANNALY_COVER}) · [Series F term sheet]({ANNALY_SERIES_F_TERMS})
+  - SEC map · `NLY-PF`, `NLY-PG`, `NLY-PJ`
+  - Filing cover · `NLY.F`, `NLY.G`, `NLY.J`
+  - Directory · `NLY$F`, `NLY$G`, `NLY$J`
+  - Series I was redeemed October 1. NYSE's notice specified removal at the October 12 opening. Series I is excluded from the reviewed counts. [Annaly Form 8-K]({ANNALY_SERIES_I_REDEMPTION}) · [NYSE removal notice]({ANNALY_SERIES_I_NYSE})
 - **ABR-PD, ABR-PE and ABR-PF · Three NYSE preferred share classes matched.** Arbor Realty's October 30 Form 8-K identifies Series D, E and F separately. The November 12 directory uses `ABR$D`, `ABR$E` and `ABR$F` for those classes. [SEC cover]({ABR_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]})
 - **Farmer Mac Series D–I · Six NYSE preferred share classes matched.** The November 12 Form 8-K, November 6 Form 10-Q and November 12 Nasdaq Trader directory identify the same six non-cumulative preferred classes. The symbols below follow series order. [Farmer Mac 8-K]({AGM_COVER}) · [Farmer Mac 10-Q]({AGM_QUARTER}) · [Nasdaq Trader directory]({_SOURCES[1][2]})
   - SEC map · `AGM-PD`, `AGM-PE`, `AGM-PF`, `AGM-PG`, `AGM-PH`, `AGM-PI`

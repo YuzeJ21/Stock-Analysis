@@ -184,7 +184,33 @@ The Form 20-F reports the fiscal year ended December 31, 2025. Series G appears 
 
 SEC submissions bind the Form 20-F to accession `0001660734-26-000005`, accepted February 20 at 15:20:31 UTC, and the Form 6-K to `0001628280-26-071407`, accepted November 6 at 14:47:09 UTC. Both documents were captured November 13 at 00:01:54 UTC, November 12 in Toronto. Raw SHA-256 was `30e24861e176c01f326d109b3beb6ef85d623bec98e8ce824018376613c18dbf` for the Form 20-F and `1bbb97e2e2dd25eba6a9f6c930d71c7fdbbcfa6108c27e1602f8e5bd2cc77785` for the interim exhibit. The Series G NYSE certificate digest was `aea9d1593d5c41711e5f4a34a90ffd39c356be4876fc1264a6ee7bd568f0adb3`. [SEC submissions](https://data.sec.gov/submissions/CIK0001660734.json)
 
-**Seventeen of the original 544 SEC-only records have now been reviewed, with 527 unreviewed.** The seven Triton matches apply only to the dated sources and explicit symbol spellings above.
+The Triton follow-up brought the reviewed count to 17 of the original 544 SEC-only records. The seven matches apply to the dated sources and explicit symbol spellings above.
+
+#### Rithm and Annaly preferred-share follow-up
+
+The next batch matched nine direct preferred share classes from the same November 12 snapshot. Rithm Capital Corp. (CIK `0001556593`) reports Series A through F in its November 2 Form 10-Q for September 30. Annaly Capital Management, Inc. (CIK `0001043219`) reports Series F, G and J in its October 28 Form 10-Q for September 30. Each visible cover row gives NYSE and the exact symbol and class. The matching Nasdaq Trader rows all use exchange code `N` and have test and ETF flags `N`. The percentages below come from the security titles. Reset rates, yields and continuous listing history require their own evidence. [Rithm Form 10-Q](https://www.sec.gov/Archives/edgar/data/1556593/000155659326000035/nrz-20260930.htm) · [Annaly Form 10-Q](https://www.sec.gov/Archives/edgar/data/1043219/000104321926000083/nly-20260930.htm) · [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt)
+
+| Issuer and series | Title rate | SEC map | Filing cover | Directory ACT symbol |
+| --- | --- | --- | --- | --- |
+| Rithm A | 7.50% | `RITM-PA` | `RITM PR A` | `RITM$A` |
+| Rithm B | 7.125% | `RITM-PB` | `RITM PR B` | `RITM$B` |
+| Rithm C | 6.375% | `RITM-PC` | `RITM PR C` | `RITM$C` |
+| Rithm D | 7.00% | `RITM-PD` | `RITM PR D` | `RITM$D` |
+| Rithm E | 8.750% | `RITM-PE` | `RITM PR E` | `RITM$E` |
+| Rithm F | 8.750% | `RITM-PF` | `RITM PR F` | `RITM$F` |
+| Annaly F | 6.95% | `NLY-PF` | `NLY.F` | `NLY$F` |
+| Annaly G | 6.50% | `NLY-PG` | `NLY.G` | `NLY$G` |
+| Annaly J | 8.875% | `NLY-PJ` | `NLY.J` | `NLY$J` |
+
+The NYSE certified Rithm Series F on January 21, 2026 and Annaly Series J on August 12, 2025. Rithm Series E's directory rate `8.75%` equals the filing's `8.750%`. Annaly Series F's directory title is shortened to the issuer, rate and series. The cover supplies the exact class and venue. The filed term sheet names `NLYPrF` as the NYSE listing symbol, and the November directory uses `NLYpF` in its CQS field. The dated match gives the `NLY$F` directory row class evidence while the original classification rule still returns unknown. [Rithm Series F NYSE certification](https://www.sec.gov/Archives/edgar/data/1556593/000087666126000052/RITMPRF012126.pdf) · [Annaly Series J NYSE certification](https://www.sec.gov/Archives/edgar/data/1043219/000087666125000592/NLYPRJ081225.pdf) · [Annaly Series F term sheet](https://www.sec.gov/Archives/edgar/data/1043219/000119312517235069/d417558dfwp.htm)
+
+Annaly redeemed Series I on October 1. The NYSE Form 25 notice reports suspension on October 1 and specifies removal at the October 12 opening. Series I is absent from the November 12 input files and excluded from both reviewed counts. [Annaly Form 8-K](https://www.sec.gov/Archives/edgar/data/1043219/000104321926000070/nly-20261002.htm) · [NYSE Form 25 notice](https://www.sec.gov/Archives/edgar/data/876661/000087666126000807/ruleprovisionnotice.htm)
+
+SEC submissions bind the Rithm Form 10-Q to accession `0001556593-26-000035`, accepted October 31 at 00:02:09 UTC, and the Annaly Form 10-Q to `0001043219-26-000083`, accepted October 28 at 20:06:15 UTC. The covers were captured November 13 at 02:09:42 and 02:08:58 UTC, respectively, November 12 in Toronto. Their raw SHA-256 digests were `990c0cd66f5b53275064eff230b34ada90b462190437271fa6179211d6307254` and `1189fb0d19d7fab55f20e30a62cbfb67f22afcc83894a51899ce3159caab15d9`. [Rithm submissions](https://data.sec.gov/submissions/CIK0001556593.json) · [Annaly submissions](https://data.sec.gov/submissions/CIK0001043219.json)
+
+**26 of 544 SEC-only records have been reviewed, with 518 unreviewed.** The original 282 directory-type gaps now include four with dated class evidence and 278 unreviewed. The SEC-only and directory counts measure separate source rows. The two Annaly Series F rows describe one security. PFBC's IRS number remains unreconciled.
+
+The integration passed 249 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the nine new class matches, source links, Series I exclusion and prior PFBC finding. The dated review made zero source requests. All 89 protected files matched the baseline.
 
 #### Preferred Bank FDIC filing follow-up
 

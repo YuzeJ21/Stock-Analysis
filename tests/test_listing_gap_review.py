@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '527 still unreviewed' in review and '279 still unreviewed' in review
+    assert '518 still unreviewed' in review and '278 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -33,6 +33,33 @@ def test_triton_review_keeps_the_seven_distinct_preference_share_series():
     assert 'https://www.sec.gov/Archives/edgar/data/1660734/000166073426000005/trtn-20251231.htm' in review
     assert 'https://www.sec.gov/Archives/edgar/data/1660734/000162828026071407/trtn-20260930.htm' in review
     assert 'https://www.sec.gov/Archives/edgar/data/1660734/000087666126000041/TRTNPRG011326.pdf' in review
+
+
+def test_rithm_review_keeps_six_distinct_preferred_classes_and_rate_scope():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    assert 'Rithm Capital Series A–F · Six NYSE preferred share classes matched' in review
+    for series in 'ABCDEF':
+        assert f'`RITM-P{series}`' in review and f'`RITM PR {series}`' in review and f'`RITM${series}`' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/1556593/000155659326000035/nrz-20260930.htm' in review
+    assert 'class titles' in review and 'Current yields are outside this review' in review
+
+
+def test_annaly_review_distinguishes_short_directory_title_and_redeemed_series():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    assert 'Annaly Series F, G and J · Three NYSE preferred share classes matched' in review
+    for series in 'FGJ':
+        assert f'`NLY-P{series}`' in review and f'`NLY.{series}`' in review and f'`NLY${series}`' in review
+    assert '`NLYPrF` as the NYSE listing symbol' in review and "CQS spelling is `NLYpF`" in review
+    assert 'description rule still leaves `NLY$F` unknown' in review
+    assert 'Series I was redeemed October 1' in review and 'excluded from the reviewed counts' in review
+    assert 'October 12 opening' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/1043219/000104321926000083/nly-20260930.htm' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/1043219/000119312517235069/d417558dfwp.htm' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000807/ruleprovisionnotice.htm' in review
 
 
 def test_pfbc_common_stock_is_dated_to_the_fdic_covers():
