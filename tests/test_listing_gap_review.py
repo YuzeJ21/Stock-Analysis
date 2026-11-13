@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '152 were reviewed, with 392 still unreviewed' in review and '273 still unreviewed' in review
+    assert '155 were reviewed, with 389 still unreviewed' in review and '273 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -483,6 +483,24 @@ def test_regions_review_preserves_depositary_mappings_and_distinct_rate_terms():
     for certification in ('RFPRC8A043019.pdf', 'RFPRE050321.pdf', 'RFPRF072624.pdf'):
         assert certification in batch
     assert 'NYSEshvol20261112.pdf#page=146' in batch
+
+
+def test_truist_review_preserves_depositary_fractions_and_series_j_scope():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    start = '**Truist Financial · Three NYSE depositary share listings matched.**'
+    assert start in review
+    batch = review.split(start, 1)[1].split('\n- **', 1)[0]
+    for series, fraction in zip('IOR', ('1/4,000', '1/1,000', '1/1,000'), strict=True):
+        assert f'`TFC-P{series}` / `TFC.P{series}` / `TFC${series}` · Series {series} · {fraction}\n' in batch
+    assert '`TFC.PJ` is a separate Series J preferred purchase security' in batch
+    assert 'outside this SEC-only batch' in batch
+    assert '000009223026000129/tfc-20260930.htm' in batch
+    assert '000119312526423384/d186531d8k.htm' in batch
+    for certification in ('TFCPRI120619.pdf', 'TFCPRO052820.pdf', 'TFCPRR080420.pdf'):
+        assert certification in batch
+    assert 'NYSEshvol20261112.pdf#page=170' in batch
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):

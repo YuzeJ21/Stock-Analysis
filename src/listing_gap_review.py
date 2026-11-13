@@ -111,6 +111,11 @@ RF_SERIES_C_NYSE = 'https://www.sec.gov/Archives/edgar/data/1281761/000087666119
 RF_SERIES_E_NYSE = 'https://www.sec.gov/Archives/edgar/data/1281761/000087666121000626/RFPRE050321.pdf'
 RF_SERIES_F_NYSE = 'https://www.sec.gov/Archives/edgar/data/1281761/000087666124000605/RFPRF072624.pdf'
 RF_SERIES_D_ELIMINATION = 'https://www.sec.gov/Archives/edgar/data/1281761/000128176125000053/rf_seriesdcertificateofe.htm'
+TFC_QUARTER = 'https://www.sec.gov/Archives/edgar/data/92230/000009223026000129/tfc-20260930.htm'
+TFC_COVER = 'https://www.sec.gov/Archives/edgar/data/92230/000119312526423384/d186531d8k.htm'
+TFC_SERIES_I_NYSE = 'https://www.sec.gov/Archives/edgar/data/92230/000087666119001227/TFCPRI120619.pdf'
+TFC_SERIES_O_NYSE = 'https://www.sec.gov/Archives/edgar/data/92230/000087666120000446/TFCPRO052820.pdf'
+TFC_SERIES_R_NYSE = 'https://www.sec.gov/Archives/edgar/data/92230/000087666120000610/TFCPRR080420.pdf'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -128,11 +133,16 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 152 were reviewed, with 392 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 155 were reviewed, with 389 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Nine now have dated class evidence, with 273 still unreviewed.
 
 **Dated findings**
 
+- **Truist Financial · Three NYSE depositary share listings matched.** The October 28 Form 10-Q and October 16 Form 8-K identify all three listings. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, SEC cover and directory symbols, followed by the fraction of an underlying preferred share. [Truist Form 10-Q]({TFC_QUARTER}) · [Truist Form 8-K]({TFC_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=170)
+  - `TFC-PI` / `TFC.PI` / `TFC$I` · Series I · 1/4,000
+  - `TFC-PO` / `TFC.PO` / `TFC$O` · Series O · 1/1,000
+  - `TFC-PR` / `TFC.PR` / `TFC$R` · Series R · 1/1,000
+  - The SEC covers identify Series I behind the directory’s generic depositary share description. `TFC.PJ` is a separate Series J preferred purchase security outside this SEC-only batch. NYSE certifications for [Series I]({TFC_SERIES_I_NYSE}), [Series O]({TFC_SERIES_O_NYSE}) and [Series R]({TFC_SERIES_R_NYSE}).
 - **Regions Financial · Three NYSE depositary share listings matched.** The November 9 Form 10-Q and November 4 Form 8-K identify the three listings. Each depositary share represents 1/40 of its underlying preferred share. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, SEC cover and directory symbols, followed by the rate terms. [Regions Form 10-Q]({RF_QUARTER}) · [Regions Form 8-K]({RF_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=146)
   - `RF-PC` / `RF PRC` / `RF$C` · Series C · 5.700% fixed-to-floating
   - `RF-PE` / `RF PRE` / `RF$E` · Series E · 4.450% fixed

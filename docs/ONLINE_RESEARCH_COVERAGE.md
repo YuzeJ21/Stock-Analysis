@@ -941,9 +941,42 @@ SEC submissions bind the September 30 Form 10-Q to accession `0001281761-26-0000
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**152 of the original 544 SEC-only records have been reviewed, with 392 unreviewed.** Nine of the 282 directory-type gaps have dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The Regions Financial batch brought the SEC-only review to 152 of the original 544 records, with 392 unreviewed at that stage. Nine of the 282 directory-type gaps had dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
 
 The integration passed 273 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, eight source links, the separate rate schedules, the Series D exclusion and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### Truist Financial preferred-share follow-up
+
+The October 28 Form 10-Q and October 16 Form 8-K for Truist Financial Corporation (CIK `0000092230`) identify three NYSE depositary share listings. The Form 8-K reports an executive departure and supplies a dated listing cover. The November 12 Nasdaq Trader directory already classifies the three as depositary shares. All have NYSE code `N` and test and ETF flags `N`. The generic Series I directory description omits the underlying series and fraction, which the SEC covers and NYSE certification supply. [October 28 Form 10-Q](https://www.sec.gov/Archives/edgar/data/92230/000009223026000129/tfc-20260930.htm) · [October 16 Form 8-K](https://www.sec.gov/Archives/edgar/data/92230/000119312526423384/d186531d8k.htm) · [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt)
+
+| Series | Interest per listed depositary share | SEC map | SEC cover | Nasdaq Trader ACT symbol | NYSE certification |
+| --- | --- | --- | --- | --- | --- |
+| I | 1/4,000 | `TFC-PI` | `TFC.PI` | `TFC$I` | [December 6, 2019](https://www.sec.gov/Archives/edgar/data/92230/000087666119001227/TFCPRI120619.pdf) |
+| O | 1/1,000 | `TFC-PO` | `TFC.PO` | `TFC$O` | [May 28, 2020](https://www.sec.gov/Archives/edgar/data/92230/000087666120000446/TFCPRO052820.pdf) |
+| R | 1/1,000 | `TFC-PR` | `TFC.PR` | `TFC$R` | [August 4, 2020](https://www.sec.gov/Archives/edgar/data/92230/000087666120000610/TFCPRR080420.pdf) |
+
+The Series I certificate identifies BB&T Corporation and its pending name change to Truist. The exchange's notice documents the conversion of each predecessor SunTrust Series A depositary share into one Series I depositary share on December 6, 2019. The annual equity note identifies Series I's dividend rate, when declared, as the greater of 4.00% or three-month SOFR plus 0.79161 percentage points. It reports fixed rates of 5.250% for O and 4.750% for R. The quarterly filing reports dividends for all three. [NYSE predecessor notice](https://www.sec.gov/Archives/edgar/data/876661/000087666119001234/ruleprovisionnotice.htm) · [Annual equity note](https://www.sec.gov/Archives/edgar/data/92230/000009223026000030/R20.htm) · [Quarterly equity note](https://www.sec.gov/Archives/edgar/data/92230/000009223026000129/R16.htm)
+
+The SEC covers separately list `TFC.PJ` as a Series J preferred purchase security with a 1/100 interest. No corresponding Series J row appears in the November 12 SEC exchange map or either saved directory, so its directory coverage remains an open gap outside the fixed SEC-only count. The annual report records the separate completed redemption of Series P in 2025. Page 170 of the November 12 NYSE report shows positive total volume for `TFC PRI`, `TFC PRO` and `TFC PRR`. This corroborates exchange activity on that date. First trade, continuous listing history, current yield and analysis eligibility require separate evidence. [Form 10-Q cover](https://www.sec.gov/Archives/edgar/data/92230/000009223026000129/tfc-20260930.htm) · [Annual equity note](https://www.sec.gov/Archives/edgar/data/92230/000009223026000030/R20.htm) · [November 12 NYSE report, page 170](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=170)
+
+SEC submissions bind the September 30 Form 10-Q to accession `0000092230-26-000129`, accepted October 28 at 21:23:21 UTC, and the October 14 report on Form 8-K to `0001193125-26-423384`, accepted October 16 at 11:12:23 UTC. The eight submissions, filing and exchange receipts below were observed November 13 from 15:08:34 to 15:09:54 UTC. [SEC submissions](https://data.sec.gov/submissions/CIK0000092230.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `32a07d31344850b8fef43cd66ab6a797325e79e4bfa3d6a25682521d1bb7fcc5` |
+| October 28 Form 10-Q | `dff843c06f87e337200d0d73538110d8ceb70d0438633ae2197e4c35f03bbbf3` |
+| October 16 Form 8-K | `ce85795dfec6a31bef82a02790afb52f5a7dc830acf672a24103349746c63028` |
+| NYSE Series I certification | `b4c1901ec2aceafac4dbe49a7a20983c083ab52d46936423380f2ed1f5392e31` |
+| NYSE Series O certification | `b4c24e5f0b80b9a37185969e375938db5253aa3be6870e7de989358ef1dd4a94` |
+| NYSE Series R certification | `39047cf3c2c1f2ab820a7666a3c0a6fb7b61d42ae07b51d687c48554880e6fbb` |
+| Annual equity note | `11c72c8ac9bd3f58d844fab2584228be5628531eeab3ec1ac51e5aef0a51907d` |
+| NYSE SunTrust predecessor notice | `452d82e7b9f033582bf6cd3e5b9f530386170ca7b74da8114d70799cb3976b88` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**155 of the original 544 SEC-only records have been reviewed, with 389 unreviewed.** Nine of the 282 directory-type gaps have dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 274 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, seven source links, the depositary fractions, the Series J exclusion and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 
