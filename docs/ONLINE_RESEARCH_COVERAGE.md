@@ -745,9 +745,42 @@ SEC submissions bind the September 30 Form 10-Q to accession `0001474098-26-0000
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**133 of the original 544 SEC-only records have been reviewed, with 411 unreviewed.** All four directory rows already had explicit preferred share labels. Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The Pebblebrook batch brought the SEC-only review to 133 of the original 544 records, with 411 unreviewed at that stage. All four directory rows already had explicit preferred share labels. Eight of the 282 directory-type gaps had dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
 
 The integration passed 267 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the four mappings, seven source links, the Series Z exclusion and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### Vornado Realty Trust preferred-share follow-up
+
+The November 2 joint Form 10-Q and Form 8-K cover rows assign the four NYSE listings to Vornado Realty Trust (CIK `0000899689`). They are direct cumulative redeemable preferred shares of beneficial interest. The operating partnership is a separate registrant (CIK `0001040765`), and its preferred units fall outside the batch. [November 2 Form 10-Q](https://www.sec.gov/Archives/edgar/data/899689/000089968926000053/vno-20260930.htm) · [November 2 Form 8-K](https://www.sec.gov/Archives/edgar/data/899689/000089968926000055/vno-20261102.htm)
+
+| Series | Stated class rate | SEC map | SEC cover | Nasdaq Trader ACT symbol | Registration evidence |
+| --- | --- | --- | --- | --- | --- |
+| L | 5.40% | `VNO-PL` | `VNO/PL` | `VNO$L` | [January 28, 2013 Form 8-A](https://www.sec.gov/Archives/edgar/data/899689/000110465913004808/a13-3025_58a12b.htm) |
+| M | 5.25% | `VNO-PM` | `VNO/PM` | `VNO$M` | [December 14, 2017 NYSE certification](https://www.sec.gov/Archives/edgar/data/899689/000087666117000755/VNOPRM.8A.12.14.17.pdf) |
+| N | 5.25% | `VNO-PN` | `VNO/PN` | `VNO$N` | [November 30, 2020 NYSE certification](https://www.sec.gov/Archives/edgar/data/899689/000087666120001105/VNOPRN8A113020.pdf) |
+| O | 4.45% | `VNO-PO` | `VNO/PO` | `VNO$O` | [September 27, 2021 NYSE certification](https://www.sec.gov/Archives/edgar/data/899689/000087666121001398/VNOPRO092721.pdf) |
+
+The November 12 directory uses an abbreviated Series L description and the original classification rule returns unknown. The two SEC covers and the Series L Form 8-A supply dated evidence for that exact row. The other three rows already have explicit preferred labels. All four have venue code `N` and test and ETF flags `N`. Page 184 of the November 12 NYSE report shows positive total volume for `VNO PRL`, `VNO PRM`, `VNO PRN` and `VNO PRO`. The report corroborates activity on its date. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 184](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=184)
+
+The September 30 Form 10-Q describes optional redemption terms and reports dividends for the four series. The filing's repurchase program applies to common shares. First trade, continuous listing history, current yield and analysis eligibility require separate evidence. [Form 10-Q, Note 11](https://www.sec.gov/Archives/edgar/data/899689/000089968926000053/vno-20260930.htm)
+
+SEC submissions bind the September 30 Form 10-Q to accession `0000899689-26-000053`, accepted November 2 at 21:16:07 UTC, and the earnings Form 8-K to `0000899689-26-000055`, accepted the same day at 21:40:06 UTC. The Series L Form 8-A was signed January 25, 2013 and EDGAR records January 28 as its filing date. The seven SEC and certification receipts below were observed November 13 from 14:04:19 to 14:05:12 UTC. [SEC submissions](https://data.sec.gov/submissions/CIK0000899689.json) · [Series L Form 8-A filing detail](https://www.sec.gov/Archives/edgar/data/899689/000110465913004808/0001104659-13-004808-index.htm)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `b20f9de808497689dea6652dad7753074549585cbd0a74c7a50a75d3fdea4293` |
+| November 2 Form 10-Q | `4a0b79cb9fe5f4e840d6cb24a8d274b5162eda3edffe80c8f9cef034bf0f76cb` |
+| November 2 Form 8-K | `8aba034374aad3f60e1ffe14f003d9987be953549aa0d0e62c75dcf782883663` |
+| Series L Form 8-A | `616f32c3efc715a56fa0649f43660e3681cd0137bd572380cec2b54383e66640` |
+| NYSE Series M certification | `878a23f81baf63edd74bac33ad99f051a8afa84cb4dff119e201e42e110c15a6` |
+| NYSE Series N certification | `9b486a5251549488b838d576bb021181ff48825c43b6c6d45a44e4a3a421e9da` |
+| NYSE Series O certification | `0cb75d200cc9e8bddb92047feec063a222ea0fe1a85e7750c615c423cc72aa90` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**137 of the original 544 SEC-only records have been reviewed, with 407 unreviewed.** Nine of the 282 directory-type gaps now have dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 268 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the four mappings, eight source links, the Series L directory finding, the Trust and partnership distinction, and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

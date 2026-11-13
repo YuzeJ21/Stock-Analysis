@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '133 were reviewed, with 411 still unreviewed' in review and '274 still unreviewed' in review
+    assert '137 were reviewed, with 407 still unreviewed' in review and '273 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -371,6 +371,24 @@ def test_pebblebrook_review_distinguishes_listed_shares_from_partnership_units()
     for certification in ('PEBPRE_PEBPRF8A113018.pdf', 'PEB051221.pdf', 'PEBPRH072721.pdf'):
         assert certification in batch
     assert 'NYSEshvol20261112.pdf#page=133' in batch
+
+
+def test_vornado_review_resolves_one_directory_type_and_keeps_registrants_distinct():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    start = '**Vornado Realty Trust · Four NYSE preferred share listings matched.**'
+    assert start in review
+    batch = review.split(start, 1)[1].split('\n- **', 1)[0]
+    for series, rate in zip('LMNO', ('5.40%', '5.25%', '5.25%', '4.45%'), strict=True):
+        assert f'`VNO-P{series}` / `VNO/P{series}` / `VNO${series}` · Series {series} · {rate}\n' in batch
+    assert 'The cover assigns all four listings to the Trust' in batch
+    assert 'Vornado Realty L.P. units fall outside this batch' in batch
+    assert 'Pfd Ser L %' in batch and 'the original directory classification remains unknown' in batch
+    assert '000089968926000053/vno-20260930.htm' in batch
+    assert '000089968926000055/vno-20261102.htm' in batch
+    assert '000110465913004808/a13-3025_58a12b.htm' in batch
+    assert 'NYSEshvol20261112.pdf#page=184' in batch
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):

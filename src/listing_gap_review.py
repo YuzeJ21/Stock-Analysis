@@ -80,6 +80,12 @@ PEB_COVER = 'https://www.sec.gov/Archives/edgar/data/1474098/000147409826000074/
 PEB_SERIES_E_F_NYSE = 'https://www.sec.gov/Archives/edgar/data/1474098/000087666118001270/PEBPRE_PEBPRF8A113018.pdf'
 PEB_SERIES_G_NYSE = 'https://www.sec.gov/Archives/edgar/data/1474098/000087666121000716/PEB051221.pdf'
 PEB_SERIES_H_NYSE = 'https://www.sec.gov/Archives/edgar/data/1474098/000087666121001123/PEBPRH072721.pdf'
+VNO_QUARTER = 'https://www.sec.gov/Archives/edgar/data/899689/000089968926000053/vno-20260930.htm'
+VNO_COVER = 'https://www.sec.gov/Archives/edgar/data/899689/000089968926000055/vno-20261102.htm'
+VNO_SERIES_L_REGISTRATION = 'https://www.sec.gov/Archives/edgar/data/899689/000110465913004808/a13-3025_58a12b.htm'
+VNO_SERIES_M_NYSE = 'https://www.sec.gov/Archives/edgar/data/899689/000087666117000755/VNOPRM.8A.12.14.17.pdf'
+VNO_SERIES_N_NYSE = 'https://www.sec.gov/Archives/edgar/data/899689/000087666120001105/VNOPRN8A113020.pdf'
+VNO_SERIES_O_NYSE = 'https://www.sec.gov/Archives/edgar/data/899689/000087666121001398/VNOPRO092721.pdf'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -97,11 +103,17 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 133 were reviewed, with 411 still unreviewed.
-- **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Eight now have dated class evidence, with 274 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 137 were reviewed, with 407 still unreviewed.
+- **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Nine now have dated class evidence, with 273 still unreviewed.
 
 **Dated findings**
 
+- **Vornado Realty Trust · Four NYSE preferred share listings matched.** The November 2 joint Form 10-Q and Form 8-K identify four direct cumulative redeemable preferred shares of beneficial interest. The cover assigns all four listings to the Trust. Vornado Realty L.P. units fall outside this batch. Each row gives the SEC map, SEC cover and directory symbols, followed by the stated class rate. [Vornado Form 10-Q]({VNO_QUARTER}) · [Vornado Form 8-K]({VNO_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=184)
+  - `VNO-PL` / `VNO/PL` / `VNO$L` · Series L · 5.40%
+  - `VNO-PM` / `VNO/PM` / `VNO$M` · Series M · 5.25%
+  - `VNO-PN` / `VNO/PN` / `VNO$N` · Series N · 5.25%
+  - `VNO-PO` / `VNO/PO` / `VNO$O` · Series O · 4.45%
+  - The directory abbreviates Series L as `Pfd Ser L %`. The filings provide dated preferred share evidence for this row. In the saved snapshot, the original directory classification remains unknown. [Series L Form 8-A]({VNO_SERIES_L_REGISTRATION}) · NYSE certifications for [Series M]({VNO_SERIES_M_NYSE}), [Series N]({VNO_SERIES_N_NYSE}) and [Series O]({VNO_SERIES_O_NYSE}).
 - **Pebblebrook Hotel Trust · Four NYSE preferred share listings matched.** The October 29 Form 10-Q and Form 8-K identify four direct cumulative redeemable preferred shares of beneficial interest. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the shared SEC map and cover symbol, the directory symbol and the stated class rate. [Pebblebrook Form 10-Q]({PEB_QUARTER}) · [Pebblebrook Form 8-K]({PEB_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=133)
   - `PEB-PE` / `PEB$E` · Series E · 6.375%
   - `PEB-PF` / `PEB$F` · Series F · 6.30%
