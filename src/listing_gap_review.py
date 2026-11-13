@@ -40,6 +40,10 @@ WFC_SERIES_HH = 'https://www.sec.gov/Archives/edgar/data/72971/00011931252635689
 AHT_EARNINGS_COVER = 'https://www.sec.gov/Archives/edgar/data/1232582/000123258226000214/aht-20261110.htm'
 AHT_OFFICER_COVER = 'https://www.sec.gov/Archives/edgar/data/1232582/000110465926125247/tm2629394d1_8k.htm'
 AHT_EARNINGS_EXHIBIT = 'https://www.sec.gov/Archives/edgar/data/1232582/000123258226000214/aht2026q3earningsrelease.htm'
+COF_COVER = 'https://www.sec.gov/Archives/edgar/data/927628/000092762826000157/cof-20261110.htm'
+COF_QUARTER = 'https://www.sec.gov/Archives/edgar/data/927628/000092762826000152/cof-20260930.htm'
+COF_SERIES_N_NYSE = 'https://www.sec.gov/Archives/edgar/data/927628/000087666121001133/COFPRN072921.pdf'
+COF_SERIES_M = 'https://www.sec.gov/Archives/edgar/data/927628/000119312526378455/d477310d8k.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -57,11 +61,18 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 96 were reviewed, with 448 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 101 were reviewed, with 443 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Eight now have dated class evidence, with 274 still unreviewed.
 
 **Dated findings**
 
+- **Capital One · Five NYSE depositary share listings matched.** The November 10 Form 8-K and November 3 Form 10-Q identify the five classes. These depositary shares each represent 1/40 of one preferred share. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the dated matches. Each row gives the SEC map, filing cover and directory symbols. [Capital One Form 8-K]({COF_COVER}) · [Capital One Form 10-Q]({COF_QUARTER}) · [NYSE Series N certification]({COF_SERIES_N_NYSE}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=39)
+  - `COF-PI` / `COF PRI` / `COF$I` · Series I
+  - `COF-PJ` / `COF PRJ` / `COF$J` · Series J
+  - `COF-PK` / `COF PRK` / `COF$K` · Series K
+  - `COF-PL` / `COF PRL` / `COF$L` · Series L
+  - `COF-PN` / `COF PRN` / `COF$N` · Series N
+  - Series M was fully redeemed on September 1. Series O uses a 1/100 depositary interest. Both fall outside this batch. [Series M Form 8-K]({COF_SERIES_M})
 - **Ashford Hospitality Trust · Five NYSE preferred share listings matched.** Two November 10 Forms 8-K list the same five direct cumulative preferred share classes. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map and filing symbol followed by the directory symbol and stated class rate. [Earnings Form 8-K]({AHT_EARNINGS_COVER}) · [Officer change Form 8-K]({AHT_OFFICER_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=6)
   - `AHT-PD` / `AHT$D` · Series D · 8.45%
   - `AHT-PF` / `AHT$F` · Series F · 7.375%

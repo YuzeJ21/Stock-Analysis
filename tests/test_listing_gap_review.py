@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '96 were reviewed, with 448 still unreviewed' in review and '274 still unreviewed' in review
+    assert '101 were reviewed, with 443 still unreviewed' in review and '274 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -216,6 +216,23 @@ def test_ashford_review_separates_class_rates_from_suspended_dividends():
     assert 'https://www.sec.gov/Archives/edgar/data/1232582/000110465926125247/tm2629394d1_8k.htm' in review
     assert 'https://www.sec.gov/Archives/edgar/data/1232582/000123258226000214/aht2026q3earningsrelease.htm' in review
     assert 'NYSEshvol20261112.pdf#page=6' in review
+
+
+def test_capital_one_review_matches_exact_classes_and_preserves_separate_series():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    assert 'Capital One · Five NYSE depositary share listings matched' in review
+    assert 'each represent 1/40 of one preferred share' in review
+    for series in 'IJKLN':
+        assert f'`COF-P{series}` / `COF PR{series}` / `COF${series}` · Series {series}\n' in review
+    assert 'Series M was fully redeemed on September 1' in review
+    assert 'Series O uses a 1/100 depositary interest' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/927628/000092762826000157/cof-20261110.htm' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/927628/000092762826000152/cof-20260930.htm' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/927628/000087666121001133/COFPRN072921.pdf' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/927628/000119312526378455/d477310d8k.htm' in review
+    assert 'NYSEshvol20261112.pdf#page=39' in review
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):

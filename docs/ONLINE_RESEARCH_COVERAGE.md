@@ -462,9 +462,41 @@ SEC submissions bind the November 10 earnings Form 8-K to accession `0001232582-
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**96 of the original 544 SEC-only records have been reviewed, with 448 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The Ashford Hospitality Trust follow-up brought the reviewed count to 96 of the original 544 SEC-only records, leaving 448 unreviewed at that stage. Eight of the original 282 directory-type gaps had dated class evidence. PFBC's IRS number remained unreconciled.
 
 The integration passed 258 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the five mappings, five source links, dividend suspension, class exclusions and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### Capital One preferred-share follow-up
+
+The November 10 Form 8-K and November 3 Form 10-Q for Capital One Financial Corporation (CIK `0000927628`) identify five NYSE depositary share listings. Each depositary share represents a 1/40 interest in one fixed-rate non-cumulative perpetual preferred share of its respective series. The NYSE certification dated July 29, 2021 independently confirms approval to list and register Series N depositary shares. [November 10 Form 8-K](https://www.sec.gov/Archives/edgar/data/927628/000092762826000157/cof-20261110.htm) · [September-quarter Form 10-Q](https://www.sec.gov/Archives/edgar/data/927628/000092762826000152/cof-20260930.htm) · [NYSE Series N certification](https://www.sec.gov/Archives/edgar/data/927628/000087666121001133/COFPRN072921.pdf)
+
+| SEC map | Filing cover and NYSE report symbol | Directory ACT symbol | Underlying series |
+| --- | --- | --- | --- |
+| `COF-PI` | `COF PRI` | `COF$I` | I |
+| `COF-PJ` | `COF PRJ` | `COF$J` | J |
+| `COF-PK` | `COF PRK` | `COF$K` | K |
+| `COF-PL` | `COF PRL` | `COF$L` | L |
+| `COF-PN` | `COF PRN` | `COF$N` | N |
+
+The November 12 Nasdaq Trader snapshot gives each counterpart venue code `N`, test and ETF flags `N`, and an existing depositary-receipt classification. The same-day NYSE short-sale volume report has one market-`N` row with positive total volume per class on page 39. The report covers limited activity for that date. Continuous listing and current trading status require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 39](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=39)
+
+The Form 10-Q reports all five underlying series outstanding at September 30. Series M was fully redeemed September 1. Series O, issued in connection with the Discover acquisition, has a 1/100 depositary fraction and falls outside these five matches. [Form 10-Q, preferred stock note](https://www.sec.gov/Archives/edgar/data/927628/000092762826000152/cof-20260930.htm) · [Series M Form 8-K](https://www.sec.gov/Archives/edgar/data/927628/000119312526378455/d477310d8k.htm)
+
+SEC submissions bind the November 10 Form 8-K to accession `0000927628-26-000157`, accepted at 21:05:58 UTC, and the November 3 Form 10-Q for September 30 to `0000927628-26-000152`, accepted at 21:13:27 UTC. The Series N certification is accession `0000876661-21-001133`. The submissions index and exact documents below were observed November 13 from 04:28:07 to 04:28:56 UTC, November 12 in Toronto. [SEC submissions](https://data.sec.gov/submissions/CIK0000927628.json)
+
+| Captured source | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `3709c1b8da263853ef28a6d955733074b4e686bf5388c195234a81a35ba08921` |
+| November 10 Form 8-K | `b7a7218116d2e3d67d3a58cb8f60d264be163a036f31ba662430e0f76a6c4025` |
+| November 3 Form 10-Q | `7ce69ea43c976191cfc7884b05ab5915e2e5e1a519cfddbe546fd040c44ea3be` |
+| NYSE Series N certification | `b47e4af2b7feb8410c7da62f3433d1b2c66e30ee7f31bb1569b290fca67d52e7` |
+| Series M Form 8-K | `6e8ae876ca0b4f707ebe97a1ab2d9923def508305e70d266b9596975325c5201` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**101 of the original 544 SEC-only records have been reviewed, with 443 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 259 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the five mappings, six source links, the separate Series M and O scope, and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 
