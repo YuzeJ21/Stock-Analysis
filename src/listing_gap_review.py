@@ -137,6 +137,9 @@ SCE_TRUST_VIII_REGISTRATION = 'https://www.sec.gov/Archives/edgar/data/92103/000
 SCE_SERIES_K_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000238/primary_doc.xml'
 PMT_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1464423/000119312526445330/pmt-20260930.htm'
 PMT_COVER = 'https://www.sec.gov/Archives/edgar/data/1464423/000119312526437878/d179622d8k.htm'
+EPR_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1045450/000104545026000051/epr-20260930.htm'
+EPR_COVER = 'https://www.sec.gov/Archives/edgar/data/1045450/000119312526456657/d488669d8k.htm'
+EPR_Q3_SUPPLEMENT = 'https://www.sec.gov/Archives/edgar/data/1045450/000104545026000050/ex993-eprx9302026supplemen.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -154,11 +157,17 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 171 were reviewed, with 373 still unreviewed.
-- **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Thirteen now have dated class evidence, with 269 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 174 were reviewed, with 370 still unreviewed.
+- **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Fourteen now have dated class evidence, with 268 still unreviewed.
 
 **Dated findings**
 
+- **EPR Properties · Three NYSE preferred share listings matched.** The October 29 Form 10-Q and November 12 Form 8-K identify all three classes. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, SEC cover and directory symbols, followed by the stated class terms. [EPR Form 10-Q]({EPR_QUARTER}) · [EPR Form 8-K]({EPR_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=57)
+  - `EPR-PC` / `EPR PrC` / `EPR$C` · Series C · 5.75% cumulative convertible
+  - `EPR-PE` / `EPR PrE` / `EPR$E` · Series E · 9.00% cumulative convertible
+  - `EPR-PG` / `EPR PrG` / `EPR$G` · Series G · 5.75% cumulative redeemable
+  - The filings resolve the directory-type gap for `EPR$E`. As of September 30, 2026, EPR reported conversion ratios of 0.4433 for Series C and 0.4866 for Series E, in common shares per preferred share. [EPR quarterly supplement]({EPR_Q3_SUPPLEMENT})
+  - The 4.5% convertible senior notes fall outside this batch.
 - **PennyMac Mortgage Investment Trust · Three NYSE preferred share listings matched.** The November 3 Form 10-Q and October 29 Form 8-K identify the cumulative redeemable preferred shares of beneficial interest. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, 10-Q cover, 8-K cover and directory symbols, followed by the stated class rate. [PennyMac Form 10-Q]({PMT_QUARTER}) · [PennyMac Form 8-K]({PMT_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=137)
   - `PMT-PA` / `PMT/PRA` / `PMT/PA` / `PMT$A` · Series A · 8.125%
   - `PMT-PB` / `PMT/PRB` / `PMT/PB` / `PMT$B` · Series B · 8.00%

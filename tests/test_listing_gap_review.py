@@ -5,8 +5,8 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '171 were reviewed, with 373 still unreviewed' in review
-    assert 'Thirteen now have dated class evidence, with 269 still unreviewed' in review
+    assert '174 were reviewed, with 370 still unreviewed' in review
+    assert 'Fourteen now have dated class evidence, with 268 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -599,6 +599,24 @@ def test_pennymac_review_preserves_both_filed_symbols_and_dividend_dispute():
     assert '000119312526445330/pmt-20260930.htm' in batch
     assert '000119312526437878/d179622d8k.htm' in batch
     assert 'NYSEshvol20261112.pdf#page=137' in batch
+
+
+def test_epr_review_distinguishes_convertible_preferred_shares_from_redeemable_series_and_debt():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    start = '**EPR Properties · Three NYSE preferred share listings matched.**'
+    assert start in review
+    batch = review.split(start, 1)[1].split('\n- **', 1)[0]
+    terms = ('5.75% cumulative convertible', '9.00% cumulative convertible', '5.75% cumulative redeemable')
+    for series, term in zip('CEG', terms, strict=True):
+        assert f'`EPR-P{series}` / `EPR Pr{series}` / `EPR${series}` · Series {series} · {term}\n' in batch
+    assert 'directory-type gap for `EPR$E`' in batch
+    assert 'September 30, 2026' in batch and '0.4433' in batch and '0.4866' in batch
+    assert 'convertible senior notes fall outside this batch' in batch
+    for source in ('000104545026000051/epr-20260930.htm', '000119312526456657/d488669d8k.htm',
+                   '000104545026000050/ex993-eprx9302026supplemen.htm', 'NYSEshvol20261112.pdf#page=57'):
+        assert source in batch
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):

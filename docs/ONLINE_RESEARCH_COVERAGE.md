@@ -1148,9 +1148,47 @@ SEC submissions bind the September 30 Form 10-Q to accession `0001193125-26-4453
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**171 of the original 544 SEC-only records have been reviewed, with 373 unreviewed.** Thirteen of the 282 directory-type gaps have dated evidence, with 269 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The PennyMac batch brought the SEC-only review to 171 of the original 544 records, with 373 unreviewed at that stage. Thirteen of the 282 directory-type gaps had dated evidence, with 269 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
 
 The integration passed 227 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, four source links, the dividend dispute and redemption disclosures, and the prior PFBC finding. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
+
+#### EPR Properties preferred-share follow-up
+
+The October 29 Form 10-Q and November 12 Form 8-K identify three NYSE-listed preferred shares issued by EPR Properties (CIK `0001045450`). The Form 8-K concerns the pricing of separate 4.5% convertible senior notes due 2032. The notes and EPR common shares fall outside this batch. The older Forms 8-A for Series C and E name Entertainment Properties Trust, the former name of the same SEC registrant. [October 29 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1045450/000104545026000051/epr-20260930.htm) · [November 12 Form 8-K](https://www.sec.gov/Archives/edgar/data/1045450/000119312526456657/d488669d8k.htm)
+
+| Series | SEC map | SEC covers | Nasdaq Trader ACT symbol | Stated class terms | NYSE registration |
+| --- | --- | --- | --- | --- | --- |
+| C | `EPR-PC` | `EPR PrC` | `EPR$C` | 5.75% cumulative convertible | [December 21, 2006 Form 8-A](https://www.sec.gov/Archives/edgar/data/1045450/000095013706014002/c110108ae8va12b.htm) |
+| E | `EPR-PE` | `EPR PrE` | `EPR$E` | 9.00% cumulative convertible | [April 2, 2008 Form 8-A](https://www.sec.gov/Archives/edgar/data/1045450/000095013708004975/c25350ae8va12b.htm) |
+| G | `EPR-PG` | `EPR PrG` | `EPR$G` | 5.75% cumulative redeemable | [November 30, 2017 Form 8-A](https://www.sec.gov/Archives/edgar/data/1045450/000119312517357323/d404207d8a12b.htm) |
+
+The quarterly supplement reports conversion ratios of 0.4433 common shares per Series C preferred share and 0.4866 per Series E preferred share as of September 30, 2026. The Form 10-Q separately reports that holders converted 132,998 Series C preferred shares into 58,704 common shares during the quarter. Series C remained on the November SEC cover and appears in the dated exchange report. The Series G NYSE certificate approves the redeemable preferred class. The filed security description separately sets out its conditional change-of-control conversion right. [Quarterly supplement](https://www.sec.gov/Archives/edgar/data/1045450/000104545026000050/ex993-eprx9302026supplemen.htm) · [December 5, 2017 NYSE certification](https://www.sec.gov/Archives/edgar/data/1045450/999999999717010356/eprproperties.pdf) · [Description of registered securities](https://www.sec.gov/Archives/edgar/data/1045450/000104545024000027/exhibit412-123123x10k.htm)
+
+The November 12 Nasdaq Trader directory lists all three with NYSE venue code `N` and ETF and test flags `N`. Series C and G already had a preferred classification. The filings resolve the directory-type gap for the abbreviated Series E row. Page 57 of the November 12 NYSE report shows positive volume for `EPR PRC`, `EPR PRE` and `EPR PRG`. First trades, listing continuity, current yields and analysis eligibility require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 57](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=57)
+
+SEC submissions bind the September 30 Form 10-Q to accession `0001045450-26-000051`, accepted October 29 at 13:19:00 UTC, and the November 11 report on Form 8-K to accession `0001193125-26-456657`, accepted November 12 at 11:05:29 UTC. The ratio table appears in Exhibit 99.3 of the October 28 Form 8-K. The SEC documents were observed November 13 from 22:47:42 to 22:49:22 UTC. The exchange map, directory and report use the preserved November 12 receipts. [SEC submissions](https://data.sec.gov/submissions/CIK0001045450.json) · [October 28 filing index](https://www.sec.gov/Archives/edgar/data/1045450/000104545026000050/0001045450-26-000050-index.htm)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `a9b9aa8ca4344a225d4f26674892621c3adfb9f4e8fcd0ec925192e011354c4a` |
+| October 29 Form 10-Q | `7b918f30558080a8170c313658eff45ebc48bab709d58eb848ea8f3882611908` |
+| November 12 Form 8-K | `9197e3493e5020909250e918a840941ae3c7adc109fe3d8c97507d850fb97155` |
+| October 28 Form 8-K | `64ab3b2ffb7ec6cd99ea7b7c4d2cb00d262363a40d6f03a45ff4f47813c4ac7b` |
+| October 28 Exhibit 99.3, quarterly supplement | `e1d2a823679009ed1a6b1da52f524e047f9159526b92e74198af1acfcb4119d7` |
+| Series C Form 8-A | `f340158da0daf0ba565a7f147e71e7b2044523abd696b85e5ada46816ee26040` |
+| Series E Form 8-A | `05a42387f3413cfc29cda55b8d5ed4373fe557cdef91efc8d325df86ffb6b468` |
+| Series G Form 8-A | `b852a339ba69da961c3b51b78cb3b94c60d3893b553a9253aadf8a1504e42f78` |
+| Series G NYSE certification | `be1863bec268a2085d2316f0092cd3b1db963effce10dde915eed86fa2c33ce9` |
+| Description of registered securities | `9afc1698b287322b583efa2a382c36829c01c00bccf41b016f6ccc14e2a0ccc6` |
+| 2025 Form 10-K | `bc4ba1f23b8fae38fab45480bb1199ae8433211880fc3cebccc05c252f745dd4` |
+| Archived SEC submissions | `6818ff5beebd7168a80f7089a2b6612dcaa210093d88da028bd7f537ed9a973d` |
+| November 12 SEC exchange map | `98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**174 of the original 544 SEC-only records have been reviewed, with 370 unreviewed.** Fourteen of the 282 directory-type gaps have dated evidence, with 268 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 228 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, five source links, the conversion ratios, the separate senior notes and the prior PFBC finding. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 
