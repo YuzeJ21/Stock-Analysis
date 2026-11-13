@@ -430,9 +430,41 @@ SEC submissions bind the October 28 Form 10-Q for September 30 to accession `000
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**91 of the original 544 SEC-only records have been reviewed, with 453 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The Wells Fargo follow-up brought the reviewed count to 91 of the original 544 SEC-only records, leaving 453 unreviewed at that stage. Eight of the original 282 directory-type gaps had dated class evidence. PFBC's IRS number remained unreconciled.
 
 The integration passed 257 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the six mappings, six source links, the direct Series L and separate Series HH offering, and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### Ashford Hospitality Trust preferred-share follow-up
+
+Two November 10 Forms 8-K for Ashford Hospitality Trust, Inc. (CIK `0001232582`) identify five NYSE preferred share classes with the same literal symbols as the SEC exchange map. The June-quarter Form 10-Q and November 12 Nasdaq Trader directory corroborate the cumulative preferred stock classes and their stated rates. The directory already classified all five as preferred, with venue code `N` and test and ETF flags `N`. [Earnings Form 8-K](https://www.sec.gov/Archives/edgar/data/1232582/000123258226000214/aht-20261110.htm) · [Officer change Form 8-K](https://www.sec.gov/Archives/edgar/data/1232582/000110465926125247/tm2629394d1_8k.htm) · [June-quarter Form 10-Q](https://www.sec.gov/Archives/edgar/data/1232582/000123258226000183/aht-20260630.htm) · [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt)
+
+| SEC map and filing symbol | Directory ACT symbol | NYSE report symbol | Series | Stated class rate |
+| --- | --- | --- | --- | --- |
+| `AHT-PD` | `AHT$D` | `AHT PRD` | D | 8.45% |
+| `AHT-PF` | `AHT$F` | `AHT PRF` | F | 7.375% |
+| `AHT-PG` | `AHT$G` | `AHT PRG` | G | 7.375% |
+| `AHT-PH` | `AHT$H` | `AHT PRH` | H | 7.50% |
+| `AHT-PI` | `AHT$I` | `AHT PRI` | I | 7.50% |
+
+The November 10 earnings exhibit reports shares outstanding for all five classes at September 30 and says that preferred dividends remain suspended and continue to accumulate. The percentages identify the class terms. Current yields and payment timing require separate evidence. Series J, K, L and M and the separately registered preferred stock purchase rights fall outside these five matches. The captured submissions index had yet to show a September-quarter Form 10-Q when reviewed on November 12. [September-quarter earnings exhibit](https://www.sec.gov/Archives/edgar/data/1232582/000123258226000214/aht2026q3earningsrelease.htm) · [SEC submissions](https://data.sec.gov/submissions/CIK0001232582.json)
+
+The November 12 NYSE short-sale volume report has one market-`N` row with positive total volume per class on page 6. The report covers limited activity for that date. Continuous listing and current trading status require separate evidence. [November 12 NYSE report, page 6](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=6)
+
+SEC submissions bind the November 10 earnings Form 8-K to accession `0001232582-26-000214`, accepted at 22:28:33 UTC, and the officer change Form 8-K to `0001104659-26-125247`, accepted at 21:31:11 UTC. The SEC files below were observed November 13 from 04:24:03 to 04:24:50 UTC, November 12 in Toronto. [Earnings filing detail](https://www.sec.gov/Archives/edgar/data/1232582/000123258226000214/0001232582-26-000214-index.htm) · [Officer change filing detail](https://www.sec.gov/Archives/edgar/data/1232582/000110465926125247/0001104659-26-125247-index.htm)
+
+| Captured source | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `1c22fe0e28a06711f6e351c3b196a47e468658b9ca19db3eeb791d4a785a764e` |
+| November 10 earnings Form 8-K | `2352906de201f66df9236838e66a8f1d5f655fa3e930d15261f2f1d37c2b919c` |
+| November 10 officer change Form 8-K | `515576a61d150a40412e6c4154837100f97f5176612e825013eed112153cf0bd` |
+| November 10 earnings exhibit | `d7acd1dd8533309dd1bd861be03e44807941fe2aeb1f739605d02777d212fb5f` |
+| June-quarter Form 10-Q | `03cbfd3149fd347dc5b2d173b33713aef49651e80ac8bc1c5c5b1560e914a151` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**96 of the original 544 SEC-only records have been reviewed, with 448 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 258 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the five mappings, five source links, dividend suspension, class exclusions and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

@@ -37,6 +37,9 @@ WFC_QUARTER = 'https://www.sec.gov/Archives/edgar/data/72971/000007297126000327/
 WFC_COVER = 'https://www.sec.gov/Archives/edgar/data/72971/000007297126000318/wfc-20261013.htm'
 WFC_SERIES_DD_NYSE = 'https://www.sec.gov/Archives/edgar/data/72971/000087666121001124/WFCPRD072921.pdf'
 WFC_SERIES_HH = 'https://www.sec.gov/Archives/edgar/data/72971/000119312526356890/d144651d8k.htm'
+AHT_EARNINGS_COVER = 'https://www.sec.gov/Archives/edgar/data/1232582/000123258226000214/aht-20261110.htm'
+AHT_OFFICER_COVER = 'https://www.sec.gov/Archives/edgar/data/1232582/000110465926125247/tm2629394d1_8k.htm'
+AHT_EARNINGS_EXHIBIT = 'https://www.sec.gov/Archives/edgar/data/1232582/000123258226000214/aht2026q3earningsrelease.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -54,11 +57,18 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 91 were reviewed, with 453 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 96 were reviewed, with 448 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Eight now have dated class evidence, with 274 still unreviewed.
 
 **Dated findings**
 
+- **Ashford Hospitality Trust · Five NYSE preferred share listings matched.** Two November 10 Forms 8-K list the same five direct cumulative preferred share classes. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map and filing symbol followed by the directory symbol and stated class rate. [Earnings Form 8-K]({AHT_EARNINGS_COVER}) · [Officer change Form 8-K]({AHT_OFFICER_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=6)
+  - `AHT-PD` / `AHT$D` · Series D · 8.45%
+  - `AHT-PF` / `AHT$F` · Series F · 7.375%
+  - `AHT-PG` / `AHT$G` · Series G · 7.375%
+  - `AHT-PH` / `AHT$H` · Series H · 7.50%
+  - `AHT-PI` / `AHT$I` · Series I · 7.50%
+  - On November 10, Ashford reported that preferred dividends remained suspended and continued to accumulate. Series J, K, L and M and the preferred stock purchase rights fall outside this batch. [September-quarter earnings exhibit]({AHT_EARNINGS_EXHIBIT})
 - **Wells Fargo · Six NYSE preferred-linked listings matched.** The October 28 Form 10-Q, October 13 Form 8-K and November 12 exchange records support these matches. Five depositary shares each represent 1/1,000 of one preferred share. Series L is listed as direct convertible preferred stock. Each row gives the SEC map, filing cover and directory symbols. [Wells Fargo Form 10-Q]({WFC_QUARTER}) · [Wells Fargo Form 8-K]({WFC_COVER}) · [NYSE Series DD certification]({WFC_SERIES_DD_NYSE}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=188)
   - `WFC-PA` / `WFC.PRA` / `WFC$A` · Series AA
   - `WFC-PC` / `WFC.PRC` / `WFC$C` · Series CC

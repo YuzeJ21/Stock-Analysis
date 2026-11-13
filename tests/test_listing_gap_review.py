@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '91 were reviewed, with 453 still unreviewed' in review and '274 still unreviewed' in review
+    assert '96 were reviewed, with 448 still unreviewed' in review and '274 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -201,6 +201,21 @@ def test_wells_fargo_review_keeps_series_l_and_the_separate_hh_offering_distinct
     assert 'https://www.sec.gov/Archives/edgar/data/72971/000087666121001124/WFCPRD072921.pdf' in review
     assert 'https://www.sec.gov/Archives/edgar/data/72971/000119312526356890/d144651d8k.htm' in review
     assert 'NYSEshvol20261112.pdf#page=188' in review
+
+
+def test_ashford_review_separates_class_rates_from_suspended_dividends():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    assert 'Ashford Hospitality Trust · Five NYSE preferred share listings matched' in review
+    for suffix, rate in zip('DFGHI', ('8.45%', '7.375%', '7.375%', '7.50%', '7.50%'), strict=True):
+        assert f'`AHT-P{suffix}` / `AHT${suffix}` · Series {suffix} · {rate}\n' in review
+    assert 'preferred dividends remained suspended and continued to accumulate' in review
+    assert 'Series J, K, L and M and the preferred stock purchase rights fall outside this batch' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/1232582/000123258226000214/aht-20261110.htm' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/1232582/000110465926125247/tm2629394d1_8k.htm' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/1232582/000123258226000214/aht2026q3earningsrelease.htm' in review
+    assert 'NYSEshvol20261112.pdf#page=6' in review
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):
