@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '140 were reviewed, with 404 still unreviewed' in review and '273 still unreviewed' in review
+    assert '143 were reviewed, with 401 still unreviewed' in review and '273 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -407,6 +407,25 @@ def test_digital_realty_review_links_stock_listings_and_excludes_partnership_uni
     assert 'DLR8A031219.pdf' in batch
     assert 'DLR8A100919.pdf' in batch
     assert 'NYSEshvol20261112.pdf#page=49' in batch
+
+
+def test_ellington_review_preserves_exact_aliases_and_reset_terms():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    start = '**Ellington Financial · Three NYSE preferred share listings matched.**'
+    assert start in review
+    batch = review.split(start, 1)[1].split('\n- **', 1)[0]
+    assert '`EFC-PB` / `EFC PR B` / `EFC$B` · Series B · 6.250% fixed-rate reset\n' in batch
+    assert '`EFC-PC` / `EFC PR C` / `EFC$C` · Series C · 8.625% fixed-rate reset\n' in batch
+    assert '`EFC-PD` / `EFC PRD` / `EFC$D` · Series D · 7.000% fixed\n' in batch
+    assert 'January 30, 2027' in batch and 'April 30, 2028' in batch
+    assert 'Series A was fully redeemed on February 27, 2026' in batch
+    assert '000162828026071569/efc-20260930.htm' in batch
+    assert '000162828026073150/efc-20261112.htm' in batch
+    for certification in ('EFC121321.pdf', 'EFCPRC020623.pdf', 'EFCPRDPRE121323.pdf'):
+        assert certification in batch
+    assert 'NYSEshvol20261112.pdf#page=54' in batch
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):

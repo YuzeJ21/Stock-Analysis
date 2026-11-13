@@ -809,9 +809,41 @@ SEC submissions bind the September 30 Form 10-Q to accession `0001104659-26-1207
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**140 of the original 544 SEC-only records have been reviewed, with 404 unreviewed.** Nine of the 282 directory-type gaps have dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The Digital Realty batch brought the SEC-only review to 140 of the original 544 records, with 404 unreviewed at that stage. Nine of the 282 directory-type gaps had dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
 
 The integration passed 269 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, seven source links, the issuer and partnership distinction, and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### Ellington Financial preferred-share follow-up
+
+The November 6 Form 10-Q and November 12 Form 8-K for Ellington Financial Inc. (CIK `0001411342`) identify three direct cumulative redeemable preferred stock listings on NYSE. The November 12 filing concerns a mortgage servicing investment transaction and supplies a dated listing cover. The November 12 Nasdaq Trader directory already classifies the three rows as preferred, with NYSE code `N` and both the test and ETF flags set to `N`. [November 6 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1411342/000162828026071569/efc-20260930.htm) · [November 12 Form 8-K](https://www.sec.gov/Archives/edgar/data/1411342/000162828026073150/efc-20261112.htm) · [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt)
+
+| Series | Stated class terms | SEC map | SEC cover | Nasdaq Trader ACT symbol | NYSE certification |
+| --- | --- | --- | --- | --- | --- |
+| B | 6.250% fixed-rate reset | `EFC-PB` | `EFC PR B` | `EFC$B` | [December 13, 2021](https://www.sec.gov/Archives/edgar/data/1411342/000087666121001738/EFC121321.pdf) |
+| C | 8.625% fixed-rate reset | `EFC-PC` | `EFC PR C` | `EFC$C` | [February 6, 2023](https://www.sec.gov/Archives/edgar/data/1411342/000087666123000092/EFCPRC020623.pdf) |
+| D | 7.000% fixed, perpetual | `EFC-PD` | `EFC PRD` | `EFC$D` | [December 13, 2023](https://www.sec.gov/Archives/edgar/data/1411342/000087666123000966/EFCPRDPRE121323.pdf) |
+
+Note 19 reports all three classes outstanding on September 30. Series B's first scheduled reset is January 30, 2027 at the five-year Treasury rate plus 4.99 percentage points. Series C's is April 30, 2028 at the five-year Treasury rate plus 5.13 percentage points. The filing records the separate Series A redemption on February 27, 2026. The exchange's removal notice applies to Series A, and the historical Series D certification also names the separate Series E class. Both series are outside the batch. [Form 10-Q, Note 19](https://www.sec.gov/Archives/edgar/data/1411342/000162828026071569/efc-20260930.htm) · [NYSE Series A Form 25](https://www.sec.gov/Archives/edgar/data/876661/000087666126000184/primary_doc.xml)
+
+Page 54 of the November 12 NYSE report shows positive total volume for `EFC PRB`, `EFC PRC` and `EFC PRD`. This corroborates exchange activity on that date. First trade, continuous listing history, current yield and analysis eligibility require separate evidence. [November 12 NYSE report, page 54](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=54)
+
+SEC submissions bind the September 30 Form 10-Q to accession `0001628280-26-071569`, accepted November 6 at 19:58:26 UTC, and the Form 8-K to `0001628280-26-073150`, accepted November 12 at 13:33:58 UTC. The seven submissions, filing and exchange certification receipts below were observed November 13 from 14:37:01 to 14:39:53 UTC. [SEC submissions](https://data.sec.gov/submissions/CIK0001411342.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `86d0bb671e95d67d2bda3d5bdfaa98e76ff018de4f02c9e46978bbd3c3a3068c` |
+| November 6 Form 10-Q | `edc44ecf51923be84d4e3be2a831f3b5883271297a80feef1e483dd24cad9e10` |
+| November 12 Form 8-K | `e909766e1a97678beaeaae4927fd7d83a94dbc99691e6597a4179804868035f0` |
+| NYSE Series B certification | `3755598b43c09d61ec9be3a3e56a2d9b947e32fe8cfd35a3f663631d8ab70ce8` |
+| NYSE Series C certification | `a8da3a7a7ea8526e74d99edb909cfd8e6aab08b5ef8af6c57a9d9832ca8d2018` |
+| NYSE Series D and E certification | `168e8f0059deb9928971c4ad60c8d21a659c349a38ec12093e9e34948d911d9c` |
+| NYSE Series A Form 25 | `cccde506decd1cd685d78c1a2f0b17d196940b4360e1cfe2a17a8f86c63cbf39` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**143 of the original 544 SEC-only records have been reviewed, with 401 unreviewed.** Nine of the 282 directory-type gaps have dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 270 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, seven source links, the scheduled reset dates, the Series A exclusion and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 
