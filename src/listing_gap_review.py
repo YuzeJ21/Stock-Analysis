@@ -69,6 +69,12 @@ KEY_QUARTER = 'https://www.sec.gov/Archives/edgar/data/91576/000009157626000023/
 KEY_COVER = 'https://www.sec.gov/Archives/edgar/data/91576/000119312526443714/d156521d8k.htm'
 KEY_SERIES_H_NYSE = 'https://www.sec.gov/Archives/edgar/data/91576/000087666122000709/KEYPRL082522.pdf'
 KEY_DIVIDEND_TERMS = 'https://www.sec.gov/Archives/edgar/data/91576/000009157626000020/a3q26earningspresentatio.htm'
+MTB_QUARTER = 'https://www.sec.gov/Archives/edgar/data/36270/000003627026000060/mtb-20260930.htm'
+MTB_COVER = 'https://www.sec.gov/Archives/edgar/data/36270/000003627026000057/mbt-20261016.htm'
+MTB_SERIES_H_NYSE = 'https://www.sec.gov/Archives/edgar/data/36270/000087666122000329/MTBPRH033122.pdf'
+MTB_SERIES_J_NYSE = 'https://www.sec.gov/Archives/edgar/data/36270/000087666124000343/MTBPRJ051424.pdf'
+MTB_SERIES_K_NYSE = 'https://www.sec.gov/Archives/edgar/data/36270/000087666125000827/MTBPRK110325.pdf'
+MTB_SERIES_L_NYSE = 'https://www.sec.gov/Archives/edgar/data/36270/000087666126000638/MTBPRL072326.pdf'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -86,11 +92,17 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 125 were reviewed, with 419 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 129 were reviewed, with 415 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Eight now have dated class evidence, with 274 still unreviewed.
 
 **Dated findings**
 
+- **M&T Bank · Four NYSE preferred-linked listings matched.** The November 5 Form 10-Q and October 16 Form 8-K identify all four NYSE listings. The original NYSE certifications distinguish direct Series H stock from the Series J, K and L depositary shares. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, filing cover and directory symbols. [M&T Bank Form 10-Q]({MTB_QUARTER}) · [M&T Bank Form 8-K]({MTB_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=116)
+  - `MTB-PH` / `MTBPrH` / `MTB$H` · Series H · Direct preferred stock
+  - `MTB-PJ` / `MTBPrJ` / `MTB$J` · Series J · Depositary share · 1/400
+  - `MTB-PK` / `MTBPrK` / `MTB$K` · Series K · Depositary share · 1/400
+  - `MTB-PL` / `MTBPrL` / `MTB$L` · Series L · Depositary share · 1/400
+  - Each depositary share represents 1/400 of its underlying preferred share. Series F was fully redeemed on November 1, 2026 and falls outside this batch. NYSE certifications for [Series H]({MTB_SERIES_H_NYSE}), [Series J]({MTB_SERIES_J_NYSE}), [Series K]({MTB_SERIES_K_NYSE}) and [Series L]({MTB_SERIES_L_NYSE}) support the class distinctions.
 - **KeyCorp · Four NYSE depositary share listings matched.** The November 3 Form 10-Q and November 2 Form 8-K identify the four classes. These depositary shares each represent 1/40 of one preferred share. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, filing cover and directory symbols. [KeyCorp Form 10-Q]({KEY_QUARTER}) · [KeyCorp Form 8-K]({KEY_COVER}) · [NYSE Series H certification]({KEY_SERIES_H_NYSE}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=100)
   - `KEY-PI` / `KEY PrI` / `KEY$I` · Series E
   - `KEY-PJ` / `KEY PrJ` / `KEY$J` · Series F

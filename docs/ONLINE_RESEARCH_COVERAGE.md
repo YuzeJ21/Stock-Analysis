@@ -682,9 +682,41 @@ SEC submissions bind the November 3 Form 10-Q for September 30 to accession `000
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**125 of the original 544 SEC-only records have been reviewed, with 419 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The KeyCorp batch brought the SEC-only review to 125 of the original 544 records, with 419 unreviewed at that stage. Eight of the 282 directory-type gaps had dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
 
 The integration passed 265 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the four mappings, six source links, the rate-term distinctions, the Series D exclusion and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### M&T Bank preferred-share follow-up
+
+The November 5 Form 10-Q and October 16 Form 8-K for M&T Bank Corporation (CIK `0000036270`) list all four symbols on NYSE. The Form 10-Q cover names the underlying preferred classes. NYSE's original certifications distinguish the listed instruments. The November 12 Nasdaq Trader directory gives Series H an explicit preferred type and Series J, K and L explicit depositary types, so these matches add four SEC-only reviews and zero directory-type reviews. [November 5 Form 10-Q](https://www.sec.gov/Archives/edgar/data/36270/000003627026000060/mtb-20260930.htm) · [October 16 Form 8-K](https://www.sec.gov/Archives/edgar/data/36270/000003627026000057/mbt-20261016.htm) · [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt)
+
+| SEC map | SEC cover | Nasdaq Trader | Listed instrument | NYSE certification |
+| --- | --- | --- | --- | --- |
+| `MTB-PH` | `MTBPrH` | `MTB$H` | Series H direct preferred stock, fixed-to-floating | [March 31, 2022](https://www.sec.gov/Archives/edgar/data/36270/000087666122000329/MTBPRH033122.pdf) |
+| `MTB-PJ` | `MTBPrJ` | `MTB$J` | Series J depositary share, 1/400 of 7.500% preferred stock | [May 14, 2024](https://www.sec.gov/Archives/edgar/data/36270/000087666124000343/MTBPRJ051424.pdf) |
+| `MTB-PK` | `MTBPrK` | `MTB$K` | Series K depositary share, 1/400 of 6.350% preferred stock | [November 3, 2025](https://www.sec.gov/Archives/edgar/data/36270/000087666125000827/MTBPRK110325.pdf) |
+| `MTB-PL` | `MTBPrL` | `MTB$L` | Series L depositary share, 1/400 of 6.625% preferred stock | [July 23, 2026](https://www.sec.gov/Archives/edgar/data/36270/000087666126000638/MTBPRL072326.pdf) |
+
+Series H succeeded People's United Series A in the April 1, 2022 merger. The November 5 filing records the separate full redemption of Series F on November 1, 2026. Series F falls outside the batch. All four directory rows have NYSE code `N` and test and ETF flags `N`. Page 116 of the November 12 NYSE report shows positive total volume for `MTB PRH`, `MTB PRJ`, `MTB PRK` and `MTB PRL`. That report corroborates activity on its date. First trade, continuous listing history, current yield and analysis eligibility require separate evidence. [Merger Form 8-K](https://www.sec.gov/Archives/edgar/data/36270/000119312522094296/d349120d8k.htm) · [November 12 NYSE report, page 116](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=116)
+
+SEC submissions bind the September 30 Form 10-Q to accession `0000036270-26-000060`, accepted November 5 at 18:21:11 UTC, and the earnings Form 8-K to `0000036270-26-000057`, accepted October 16 at 10:02:42 UTC. The SEC submissions, filings and certifications below were observed November 13 from 13:02:18 to 13:03:17 UTC. [SEC submissions](https://data.sec.gov/submissions/CIK0000036270.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `b262bb1acce56ec3515103bcf905a8aedaa88e743d238984dfb1d518704ce2ff` |
+| November 5 Form 10-Q | `2fa7c940bd39ea926d456c10cc1790876f6e7bc4c82b7744c98ebf63c021b614` |
+| October 16 Form 8-K | `c84ecfe87c2bed9158f8eac78b1d122b15d15c0e72b04360aa007de888db6c10` |
+| Merger Form 8-K | `81369268673711d6282d8893f7377db70462ba78a5a80d9d2e38cdfd51895b1c` |
+| NYSE Series H certification | `830688b1a47e89b4c07ec60e2fed954bd4f418fd329130984141b28111e15253` |
+| NYSE Series J certification | `aa10829a5d1bdef82b0c6d4cf861193b77b5e47bd63f0225b47548b652549334` |
+| NYSE Series K certification | `a562e1287267c16066fc492d540a0f86e477484d5d20923c35bb738e2d3da195` |
+| NYSE Series L certification | `8d7ffd7fae710eb04b723c34134127bbb10237f785b5ac51e3e088c49a82ee0c` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**129 of the original 544 SEC-only records have been reviewed, with 415 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 266 affected tests, six research route checks and automated browser checks at 1440 × 1000 and 390 × 844. Both browser runs verified the four mappings, eight scoped source links, the Series F exclusion, and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

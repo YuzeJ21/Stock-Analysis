@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '125 were reviewed, with 419 still unreviewed' in review and '274 still unreviewed' in review
+    assert '129 were reviewed, with 415 still unreviewed' in review and '274 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -335,6 +335,24 @@ def test_keycorp_review_keeps_filing_series_reset_terms_and_redemption_distinct(
     assert 'https://www.sec.gov/Archives/edgar/data/91576/000087666122000709/KEYPRL082522.pdf' in review
     assert 'https://www.sec.gov/Archives/edgar/data/91576/000009157626000020/a3q26earningspresentatio.htm' in review
     assert 'NYSEshvol20261112.pdf#page=100' in review
+
+
+def test_mt_bank_review_distinguishes_direct_preferred_and_depositary_shares():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    batch = review.split('**M&T Bank · Four NYSE preferred-linked listings matched.**', 1)[1]
+    batch = batch.split('\n- **', 1)[0]
+    assert '`MTB-PH` / `MTBPrH` / `MTB$H` · Series H · Direct preferred stock\n' in batch
+    for series in 'JKL':
+        assert f'`MTB-P{series}` / `MTBPr{series}` / `MTB${series}` · Series {series} · Depositary share · 1/400\n' in batch
+    assert 'Series F was fully redeemed on November 1, 2026' in batch
+    assert '`MTB-PF`' not in batch
+    assert '000003627026000060/mtb-20260930.htm' in batch
+    assert '000003627026000057/mbt-20261016.htm' in batch
+    for certification in ('MTBPRH033122.pdf', 'MTBPRJ051424.pdf', 'MTBPRK110325.pdf', 'MTBPRL072326.pdf'):
+        assert certification in batch
+    assert 'NYSEshvol20261112.pdf#page=116' in batch
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):
