@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '155 were reviewed, with 389 still unreviewed' in review and '273 still unreviewed' in review
+    assert '158 were reviewed, with 386 still unreviewed' in review and '273 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -501,6 +501,28 @@ def test_truist_review_preserves_depositary_fractions_and_series_j_scope():
     for certification in ('TFCPRI120619.pdf', 'TFCPRO052820.pdf', 'TFCPRR080420.pdf'):
         assert certification in batch
     assert 'NYSEshvol20261112.pdf#page=170' in batch
+
+
+def test_citizens_review_preserves_listed_classes_and_separate_g_redemption():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    start = '**Citizens Financial Group · Three NYSE depositary share listings matched.**'
+    assert start in review
+    batch = review.split(start, 1)[1].split('\n- **', 1)[0]
+    for series, terms in zip('EHI', ('5.000% fixed', '7.375% fixed', '6.500% fixed-rate reset'), strict=True):
+        assert f'`CFG-P{series}` / `CFG Pr{series}` / `CFG${series}` · Series {series} · {terms}\n' in batch
+    assert '1/40 of its underlying preferred share' in batch
+    assert 'October 6, 2030' in batch
+    assert 'Series G was fully redeemed on October 6, 2026' in batch
+    assert 'Series J issuance falls outside this batch' in batch
+    assert '000075994426000213/cfg-20260930.htm' in batch
+    assert '000119312526441754/d184921d8k.htm' in batch
+    assert '000075994426000192/cfg-20261006.htm' in batch
+    for certification in ('CFG102519.pdf', 'CFGPRH052324.pdf', 'CFGPRI073025.pdf'):
+        assert certification in batch
+    for page in (33, 34):
+        assert f'NYSEshvol20261112.pdf#page={page}' in batch
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):

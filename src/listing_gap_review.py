@@ -116,6 +116,12 @@ TFC_COVER = 'https://www.sec.gov/Archives/edgar/data/92230/000119312526423384/d1
 TFC_SERIES_I_NYSE = 'https://www.sec.gov/Archives/edgar/data/92230/000087666119001227/TFCPRI120619.pdf'
 TFC_SERIES_O_NYSE = 'https://www.sec.gov/Archives/edgar/data/92230/000087666120000446/TFCPRO052820.pdf'
 TFC_SERIES_R_NYSE = 'https://www.sec.gov/Archives/edgar/data/92230/000087666120000610/TFCPRR080420.pdf'
+CFG_QUARTER = 'https://www.sec.gov/Archives/edgar/data/759944/000075994426000213/cfg-20260930.htm'
+CFG_COVER = 'https://www.sec.gov/Archives/edgar/data/759944/000119312526441754/d184921d8k.htm'
+CFG_SERIES_E_NYSE = 'https://www.sec.gov/Archives/edgar/data/759944/000087666119001068/CFG102519.pdf'
+CFG_SERIES_H_NYSE = 'https://www.sec.gov/Archives/edgar/data/759944/000087666124000387/CFGPRH052324.pdf'
+CFG_SERIES_I_NYSE = 'https://www.sec.gov/Archives/edgar/data/759944/000087666125000536/CFGPRI073025.pdf'
+CFG_SERIES_G_REDEMPTION = 'https://www.sec.gov/Archives/edgar/data/759944/000075994426000192/cfg-20261006.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -133,11 +139,16 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 155 were reviewed, with 389 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 158 were reviewed, with 386 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Nine now have dated class evidence, with 273 still unreviewed.
 
 **Dated findings**
 
+- **Citizens Financial Group · Three NYSE depositary share listings matched.** The October 28 Form 10-Q and October 30 Form 8-K identify the three listings. Each depositary share represents 1/40 of its underlying preferred share. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, SEC cover and directory symbols, followed by the rate terms. [Citizens Form 10-Q]({CFG_QUARTER}) · [Citizens Form 8-K]({CFG_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report, Series E]({NOV12_NYSE_VOLUME}#page=33) · [November 12 NYSE report, Series H and I]({NOV12_NYSE_VOLUME}#page=34)
+  - `CFG-PE` / `CFG PrE` / `CFG$E` · Series E · 5.000% fixed
+  - `CFG-PH` / `CFG PrH` / `CFG$H` · Series H · 7.375% fixed
+  - `CFG-PI` / `CFG PrI` / `CFG$I` · Series I · 6.500% fixed-rate reset
+  - Series I's first scheduled reset is October 6, 2030. Series G was fully redeemed on October 6, 2026. The separate Series J issuance falls outside this batch. NYSE certifications for [Series E]({CFG_SERIES_E_NYSE}), [Series H]({CFG_SERIES_H_NYSE}) and [Series I]({CFG_SERIES_I_NYSE}) · [Series G Form 8-K]({CFG_SERIES_G_REDEMPTION}).
 - **Truist Financial · Three NYSE depositary share listings matched.** The October 28 Form 10-Q and October 16 Form 8-K identify all three listings. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, SEC cover and directory symbols, followed by the fraction of an underlying preferred share. [Truist Form 10-Q]({TFC_QUARTER}) · [Truist Form 8-K]({TFC_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=170)
   - `TFC-PI` / `TFC.PI` / `TFC$I` · Series I · 1/4,000
   - `TFC-PO` / `TFC.PO` / `TFC$O` · Series O · 1/1,000

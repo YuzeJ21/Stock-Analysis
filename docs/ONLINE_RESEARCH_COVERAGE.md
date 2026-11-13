@@ -974,9 +974,43 @@ SEC submissions bind the September 30 Form 10-Q to accession `0000092230-26-0001
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**155 of the original 544 SEC-only records have been reviewed, with 389 unreviewed.** Nine of the 282 directory-type gaps have dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The Truist Financial batch brought the SEC-only review to 155 of the original 544 records, with 389 unreviewed at that stage. Nine of the 282 directory-type gaps had dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
 
 The integration passed 274 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, seven source links, the depositary fractions, the Series J exclusion and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### Citizens Financial Group preferred-share follow-up
+
+The October 28 Form 10-Q and October 30 Form 8-K for Citizens Financial Group, Inc. (CIK `0000759944`) identify three NYSE depositary share listings. Each listed security represents 1/40 of an underlying non-cumulative perpetual preferred share. The Form 8-K concerns a change in independent auditor and supplies a dated listing cover. The November 12 Nasdaq Trader directory already classifies all three as depositary shares, with NYSE code `N` and test and ETF flags `N`. [October 28 Form 10-Q](https://www.sec.gov/Archives/edgar/data/759944/000075994426000213/cfg-20260930.htm) · [October 30 Form 8-K](https://www.sec.gov/Archives/edgar/data/759944/000119312526441754/d184921d8k.htm) · [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt)
+
+| Series | Stated rate terms | SEC map | SEC cover | Nasdaq Trader ACT symbol | NYSE certification |
+| --- | --- | --- | --- | --- | --- |
+| E | 5.000% fixed | `CFG-PE` | `CFG PrE` | `CFG$E` | [October 25, 2019](https://www.sec.gov/Archives/edgar/data/759944/000087666119001068/CFG102519.pdf) |
+| H | 7.375% fixed | `CFG-PH` | `CFG PrH` | `CFG$H` | [May 23, 2024](https://www.sec.gov/Archives/edgar/data/759944/000087666124000387/CFGPRH052324.pdf) |
+| I | 6.500% fixed-rate reset | `CFG-PI` | `CFG PrI` | `CFG$I` | [July 30, 2025](https://www.sec.gov/Archives/edgar/data/759944/000087666125000536/CFGPRI073025.pdf) |
+
+Note 10 reports E, H and I outstanding on September 30. Series I's first scheduled reset is October 6, 2030 to the five-year U.S. Treasury rate plus 2.629 percentage points. The same date starts ordinary optional redemption eligibility, subject to regulatory approval. Series G was fully redeemed on October 6, 2026. Series J was issued July 30, 2026 and falls outside the three NYSE cover rows reviewed here. [Form 10-Q, Note 10](https://www.sec.gov/Archives/edgar/data/759944/000075994426000213/cfg-20260930.htm) · [Series I certificate of designations](https://www.sec.gov/Archives/edgar/data/759944/000119312525169192/d18558dex32.htm) · [Series G Form 8-K](https://www.sec.gov/Archives/edgar/data/759944/000075994426000192/cfg-20261006.htm) · [Series J Form 8-K](https://www.sec.gov/Archives/edgar/data/759944/000119312526326411/d144911d8k.htm)
+
+The November 12 NYSE report shows positive total volume for `CFG PRE` on page 33 and for `CFG PRH` and `CFG PRI` on page 34. This corroborates exchange activity on that date. First trade, continuous listing history, current yield and analysis eligibility require separate evidence. [NYSE report, Series E](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=33) · [NYSE report, Series H and I](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=34)
+
+SEC submissions bind the September 30 Form 10-Q to accession `0000759944-26-000213`, accepted October 28 at 20:06:22 UTC, and the October 28 report on Form 8-K to `0001193125-26-441754`, accepted October 30 at 20:30:35 UTC. The nine submissions, filing and exchange receipts below were observed November 13 from 15:13:33 to 15:14:34 UTC. [SEC submissions](https://data.sec.gov/submissions/CIK0000759944.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `d160b694b459aabae5c6cec27fc6363e218e0522e6f70bc843a0bfe02ddaa9ba` |
+| October 28 Form 10-Q | `425246b9da9b21802d9451552d95c54178b9dd2a83627107d7d629d15730a10b` |
+| October 30 Form 8-K | `5738709f81d3cd7f8716c86064783c470279a35004df87071c88ffb964d3373c` |
+| NYSE Series E certification | `cffaea5bd31a3be41cc19e222a2c4995ab0862bd97de74ca4157388fa10ebf12` |
+| NYSE Series H certification | `4cc7bad4a7aaab8ac29ff3ee15a1c8904355a4e8f2fe0512a4f0a5c14892ffc2` |
+| NYSE Series I certification | `ab9fb83b6d273d619fcb79f66f559781ea5d79c1b107522825e7c1b3d17af7b5` |
+| Series I certificate of designations | `3e97e99673c66f35388a7c884a156031f352d9239f2122b7dc8bdf1845fe8cc2` |
+| Series G Form 8-K | `ba7eff5dac08e4e4a247d8ebb56da7af869f6c213e7c59f4be410f7a12fa425a` |
+| Series J Form 8-K | `3cbea361ef1c4eb800adc4e64c6d4ee31179546b6df97955b9dc1cc2ff9bb3a1` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**158 of the original 544 SEC-only records have been reviewed, with 386 unreviewed.** Nine of the 282 directory-type gaps have dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 275 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, nine source links, the rate terms, the separate Series G and J events, and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 
