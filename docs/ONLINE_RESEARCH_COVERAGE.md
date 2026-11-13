@@ -297,9 +297,38 @@ The four `BML`-prefixed SEC-only records map to Bank of America Corporation (CIK
 
 SEC submissions bind the October 23 Form 8-K to accession `0001193125-26-430566`, accepted at 20:41:47 UTC. Its raw SHA-256 was `70e51266cf2cba675a3ac32e065f6627bb9708aad9fce1ba6f662708541f7246`. The October 30 cover and November 12 NYSE report retain the raw digests recorded in the BAC review above. [SEC submissions](https://data.sec.gov/submissions/CIK0000070858.json)
 
-**55 of the original 544 SEC-only records have been reviewed, with 489 unreviewed.** Of 282 original directory-type gaps, eight have dated class evidence and 274 remain unreviewed. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The BML follow-up brought the reviewed count to 55 of the original 544 SEC-only records, leaving 489 unreviewed at that stage. Eight of the original 282 directory-type gaps had dated class evidence. PFBC's IRS number remained unreconciled.
 
 The integration passed 253 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the four mappings, source links, Series 5 distinction and prior PFBC finding. The dated review made zero source requests. All 89 protected files matched the baseline.
+
+#### U.S. Bancorp depositary-share follow-up
+
+The November 6 Form 8-K cover for U.S. Bancorp (CIK `0000036104`) identifies six NYSE depositary shares and their underlying non-cumulative perpetual preferred series. The November 5 Form 10-Q for September 30 corroborates the classes and fractions. The Form 8-K supplies the exact `USB PrR` spelling, where the 10-Q renders the last letter separately. Each November 12 Nasdaq Trader counterpart has venue code `N`, test and ETF flags `N`, and an existing depositary-receipt classification. Page 179 of the November 12 NYSE short-sale volume report has one market-`N` row with positive total volume for each class. The report covers a limited set of activity for that date. [Form 8-K](https://www.sec.gov/Archives/edgar/data/36104/000119312526450781/d172862d8k.htm) · [Form 10-Q](https://www.sec.gov/Archives/edgar/data/36104/000003610426000058/usb-20260930.htm) · [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 179](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=179)
+
+| SEC map | Filing cover | Directory ACT symbol | NYSE report symbol | Underlying series | Interest in one preferred share |
+| --- | --- | --- | --- | --- | --- |
+| `USB-PA` | `USB PrA` | `USB$A` | `USB PRA` | A | 1/100 |
+| `USB-PH` | `USB PrH` | `USB$H` | `USB PRH` | B | 1/1,000 |
+| `USB-PP` | `USB PrP` | `USB$P` | `USB PRP` | K | 1/1,000 |
+| `USB-PQ` | `USB PrQ` | `USB$Q` | `USB PRQ` | L | 1/1,000 |
+| `USB-PR` | `USB PrR` | `USB$R` | `USB PRR` | M | 1/1,000 |
+| `USB-PS` | `USB PrS` | `USB$S` | `USB PRS` | O | 1/1,000 |
+
+`USB-PP` represents Series K. The separate Series P depositary offering closed October 30 with a 1/25 interest per depositary share and falls outside this batch. These six dated matches do not establish continuous listing or current trading status. [October 30 Form 8-K](https://www.sec.gov/Archives/edgar/data/36104/000119312526441737/d20659d8k.htm) · [Series P deposit agreement](https://www.sec.gov/Archives/edgar/data/36104/000119312526441737/d20659dex43.htm)
+
+SEC submissions bind the Form 8-K to accession `0001193125-26-450781`, accepted November 6 at 13:00:19 UTC, and the Form 10-Q to `0000036104-26-000058`, accepted November 4 at 22:44:17 UTC and filed November 5. The primary documents and Series P agreement were observed November 13 from 03:57:09 to 03:57:47 UTC, November 12 in Toronto. [SEC submissions](https://data.sec.gov/submissions/CIK0000036104.json) · [Form 10-Q filing detail](https://www.sec.gov/Archives/edgar/data/36104/000003610426000058/0000036104-26-000058-index.htm)
+
+| Captured source | Raw SHA-256 |
+| --- | --- |
+| November 6 Form 8-K | `31ca96f38d5076916b32aa64daa52dbf6c01d986e6c39edfc2f152f1354f27f5` |
+| November 5 Form 10-Q | `a744ea2af1407af705bc93dfd4534cc8e5398e1e68bfa3f8354a34b892ec215d` |
+| October 30 Series P deposit agreement | `bc816c366217a935cbbc165fd7e1f3b5c02f5b3d8f78aa30a76cdfcde2ebbfc0` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**61 of the original 544 SEC-only records have been reviewed, with 483 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 254 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the six mappings, five source links, Series P distinction and prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

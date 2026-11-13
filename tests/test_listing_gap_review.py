@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '489 still unreviewed' in review and '274 still unreviewed' in review
+    assert '61 were reviewed, with 483 still unreviewed' in review and '274 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -134,6 +134,21 @@ def test_bml_review_maps_four_depositary_symbols_to_numbered_preferred_series():
     assert '`BML-PL` represents Series 5' in review and '`BAC-PL` is direct Series L' in review
     assert 'https://www.sec.gov/Archives/edgar/data/70858/000119312526430566/d176604d8k.htm' in review
     assert 'https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=24' in review
+
+
+def test_us_bancorp_review_matches_depositary_ratios_and_distinguishes_series_p():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    assert 'U.S. Bancorp · Six NYSE depositary share listings matched' in review
+    for suffix, series in zip('AHPQRS', 'ABKLMO', strict=True):
+        ratio = '1/100' if suffix == 'A' else '1/1,000'
+        assert f'`USB-P{suffix}` / `USB Pr{suffix}` / `USB${suffix}` · Series {series} · {ratio}\n' in review
+    assert '`USB-PP` represents Series K' in review and 'separate Series P offering' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/36104/000003610426000058/usb-20260930.htm' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/36104/000119312526450781/d172862d8k.htm' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/36104/000119312526441737/d20659dex43.htm' in review
+    assert 'https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=179' in review
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):

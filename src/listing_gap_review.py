@@ -24,6 +24,9 @@ NOV12_NYSE_VOLUME = 'https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSE
 BAC_COVER = 'https://www.sec.gov/Archives/edgar/data/70858/000007085826000548/bac-20260930.htm'
 BAC_OCT23_COVER = 'https://www.sec.gov/Archives/edgar/data/70858/000119312526430566/d176604d8k.htm'
 BAC_SERIES_SS_NYSE = 'https://www.sec.gov/Archives/edgar/data/70858/000087666122000107/BACPRS013122.pdf'
+USB_COVER = 'https://www.sec.gov/Archives/edgar/data/36104/000119312526450781/d172862d8k.htm'
+USB_QUARTER = 'https://www.sec.gov/Archives/edgar/data/36104/000003610426000058/usb-20260930.htm'
+USB_SERIES_P_TERMS = 'https://www.sec.gov/Archives/edgar/data/36104/000119312526441737/d20659dex43.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -41,11 +44,19 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 55 were reviewed, with 489 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 61 were reviewed, with 483 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Eight now have dated class evidence, with 274 still unreviewed.
 
 **Dated findings**
 
+- **U.S. Bancorp · Six NYSE depositary share listings matched.** The November 6 Form 8-K and November 5 Form 10-Q identify the underlying preferred shares. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the dated matches. Each row gives the SEC map, filing cover and directory symbols, followed by the underlying series and share fraction. [U.S. Bancorp Form 8-K]({USB_COVER}) · [U.S. Bancorp Form 10-Q]({USB_QUARTER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=179)
+  - `USB-PA` / `USB PrA` / `USB$A` · Series A · 1/100
+  - `USB-PH` / `USB PrH` / `USB$H` · Series B · 1/1,000
+  - `USB-PP` / `USB PrP` / `USB$P` · Series K · 1/1,000
+  - `USB-PQ` / `USB PrQ` / `USB$Q` · Series L · 1/1,000
+  - `USB-PR` / `USB PrR` / `USB$R` · Series M · 1/1,000
+  - `USB-PS` / `USB PrS` / `USB$S` · Series O · 1/1,000
+  - `USB-PP` represents Series K. The separate Series P offering represents a 1/25 interest and falls outside this batch. [Series P deposit agreement]({USB_SERIES_P_TERMS})
 - **Bank of America · Ten NYSE preferred-linked listings matched.** The October 30 Form 10-Q, November 12 Nasdaq Trader directory and same-day NYSE report support these matches. Nine depositary shares each represent 1/1,000 of one preferred share. Series L is listed as direct convertible preferred stock. Each row gives the SEC map, filing cover and directory symbols. [Bank of America Form 10-Q]({BAC_COVER}) · [NYSE Series SS certification]({BAC_SERIES_SS_NYSE}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=18)
   - `BAC-PB` / `BAC PrB` / `BAC$B` · Series GG
   - `BAC-PE` / `BAC PrE` / `BAC$E` · Series E
