@@ -253,9 +253,34 @@ The abbreviated `MS$A` and `MS$F` descriptions still return unknown in the origi
 
 SEC submissions bind the Form 10-Q to accession `0000895421-26-000293`, accepted November 5 at 21:21:51 UTC. Its raw SHA-256 was `ebaa1b40987fc219ea2512c1259dcdc7b8d4d6a2770788672bf12c982b18e92b`. The raw November 12 NYSE report digest was `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0`. The SEC and NYSE records were captured November 12 in Toronto. [SEC submissions](https://data.sec.gov/submissions/CIK0000895421.json)
 
-**41 of the original 544 SEC-only records have been reviewed, with 503 unreviewed.** Of the original 282 directory-type gaps, six have dated class evidence and 276 remain unreviewed. SEC-only rows and their directory counterparts can describe the same security. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The Morgan Stanley follow-up brought the reviewed count to 41 of the original 544 SEC-only records. SEC-only rows and their directory counterparts can describe the same security.
 
 The integration passed 251 affected tests, six research route checks and automated desktop and phone checks. The browser checks verified the nine exact mappings, source links, directory gaps and prior PFBC finding. The dated review made zero source requests. All 89 protected files matched the baseline.
+
+#### Bank of America preferred-share follow-up
+
+The next batch matched the ten `BAC`-prefixed NYSE preferred-linked rows for Bank of America Corporation (CIK `0000070858`). The October 30 Form 10-Q for September 30 and the October 14 Form 8-K identify nine depositary share listings, each representing a `1/1,000` interest in the named preferred stock, and one direct listing of Series L convertible preferred stock. All ten match the November 12 Nasdaq Trader directory with venue code `N`, ETF flag `N` and test flag `N`. The same-day NYSE short-sale volume report supplies ten distinct market-`N` rows. That report covers a limited set of activity for one date. [Form 10-Q](https://www.sec.gov/Archives/edgar/data/70858/000007085826000548/bac-20260930.htm) · [Form 8-K](https://www.sec.gov/Archives/edgar/data/70858/000007085826000481/bac-20261014.htm) · [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 18](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=18)
+
+| Preferred series | Listed instrument | SEC map | Filing cover | Directory ACT symbol | NYSE report symbol |
+| --- | --- | --- | --- | --- | --- |
+| GG | Depositary share | `BAC-PB` | `BAC PrB` | `BAC$B` | `BAC PRB` |
+| E | Depositary share | `BAC-PE` | `BAC PrE` | `BAC$E` | `BAC PRE` |
+| HH | Depositary share | `BAC-PK` | `BAC PrK` | `BAC$K` | `BAC PRK` |
+| L | Direct convertible preferred stock | `BAC-PL` | `BAC PrL` | `BAC$L` | `BAC PRL` |
+| KK | Depositary share | `BAC-PM` | `BAC PrM` | `BAC$M` | `BAC PRM` |
+| LL | Depositary share | `BAC-PN` | `BAC PrN` | `BAC$N` | `BAC PRN` |
+| NN | Depositary share | `BAC-PO` | `BAC PrO` | `BAC$O` | `BAC PRO` |
+| PP | Depositary share | `BAC-PP` | `BAC PrP` | `BAC$P` | `BAC PRP` |
+| QQ | Depositary share | `BAC-PQ` | `BAC PrQ` | `BAC$Q` | `BAC PRQ` |
+| SS | Depositary share | `BAC-PS` | `BAC PrS` | `BAC$S` | `BAC PRS` |
+
+The original classifier still returns unknown for the abbreviated `BAC$E` and `BAC$L` descriptions. The exact cover and symbol matches supply dated class evidence for both. The charter exhibit specifies the 7.25% Series L convertible preferred terms, and the Form 10-Q reports a holder conversion of 28 Series L shares on September 25. The full first-quarter redemption involved separate Series DD. The NYSE separately certified the Series SS depositary shares on January 31, 2022. Four `BML`-prefixed depositary rows with a `1/1,200` ratio remain outside this batch. [Series L charter exhibit](https://www.sec.gov/Archives/edgar/data/70858/000007085826000548/bac-0930202610xqex31.htm) · [NYSE Series SS certification](https://www.sec.gov/Archives/edgar/data/70858/000087666122000107/BACPRS013122.pdf)
+
+SEC submissions bind the Form 10-Q to accession `0000070858-26-000548`, accepted October 30 at 21:04:27 UTC. The cover was captured November 13 at 03:26:51 UTC, November 12 in Toronto, with raw SHA-256 `d028a28859783d6f956062bf18919edfbf5b56fa75442cc5fcd44dde25de5e86`. The November 12 NYSE report has raw digest `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0`, and the Series SS certificate has raw digest `5d4bc8e5184cc6a6c3a196cd9cf98d09055cbb0390afdd28c99b2844b877ef44`. [SEC submissions](https://data.sec.gov/submissions/CIK0000070858.json)
+
+**51 of the original 544 SEC-only records have been reviewed, with 493 unreviewed.** Of 282 original directory-type gaps, eight have dated class evidence and 274 remain unreviewed. These are source-row counts. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 252 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the ten mappings, source links, remaining gaps and prior PFBC finding. The dated review made zero source requests. All 89 protected files matched the baseline.
 
 #### Preferred Bank FDIC filing follow-up
 

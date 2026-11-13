@@ -21,6 +21,8 @@ JPM_SERIES_MM_NYSE = 'https://www.sec.gov/Archives/edgar/data/19617/000087666121
 MS_COVER = 'https://www.sec.gov/Archives/edgar/data/895421/000089542126000293/ms-20260930.htm'
 MS_SECURITIES = 'https://www.sec.gov/Archives/edgar/data/895421/000089542126000086/exhibit41q42025_10k.htm'
 MS_NYSE_VOLUME = 'https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf'
+BAC_COVER = 'https://www.sec.gov/Archives/edgar/data/70858/000007085826000548/bac-20260930.htm'
+BAC_SERIES_SS_NYSE = 'https://www.sec.gov/Archives/edgar/data/70858/000087666122000107/BACPRS013122.pdf'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -38,11 +40,23 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 41 were reviewed, with 503 still unreviewed.
-- **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Six now have dated class evidence, with 276 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 51 were reviewed, with 493 still unreviewed.
+- **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Eight now have dated class evidence, with 274 still unreviewed.
 
 **Dated findings**
 
+- **Bank of America · Ten NYSE preferred-linked listings matched.** The October 30 Form 10-Q, November 12 Nasdaq Trader directory and same-day NYSE report support these matches. Nine depositary shares each represent 1/1,000 of one preferred share. Series L is listed as direct convertible preferred stock. Each row gives the SEC map, filing cover and directory symbols. [Bank of America Form 10-Q]({BAC_COVER}) · [NYSE Series SS certification]({BAC_SERIES_SS_NYSE}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({MS_NYSE_VOLUME}#page=18)
+  - `BAC-PB` / `BAC PrB` / `BAC$B` · Series GG
+  - `BAC-PE` / `BAC PrE` / `BAC$E` · Series E
+  - `BAC-PK` / `BAC PrK` / `BAC$K` · Series HH
+  - `BAC-PL` / `BAC PrL` / `BAC$L` · Series L · Direct convertible preferred stock
+  - `BAC-PM` / `BAC PrM` / `BAC$M` · Series KK
+  - `BAC-PN` / `BAC PrN` / `BAC$N` · Series LL
+  - `BAC-PO` / `BAC PrO` / `BAC$O` · Series NN
+  - `BAC-PP` / `BAC PrP` / `BAC$P` · Series PP
+  - `BAC-PQ` / `BAC PrQ` / `BAC$Q` · Series QQ
+  - `BAC-PS` / `BAC PrS` / `BAC$S` · Series SS
+  - The original description rule still leaves the abbreviated `BAC$E` and `BAC$L` unknown. Four `BML`-prefixed listings remain outside this batch.
 - **Morgan Stanley · Nine NYSE depositary share listings matched.** The November 5 Form 10-Q lists each depositary share as a 1/1,000 interest in the named preferred series. The November 12 Nasdaq Trader directory and NYSE short-sale volume report corroborate the dated symbol matches. Each row gives the SEC map, filing cover and directory symbols in that order. [Morgan Stanley Form 10-Q]({MS_COVER}) · [SEC securities description]({MS_SECURITIES}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({MS_NYSE_VOLUME})
   - `MS-PA` / `MS/PA` / `MS$A` · Series A
   - `MS-PE` / `MS/PE` / `MS$E` · Series E

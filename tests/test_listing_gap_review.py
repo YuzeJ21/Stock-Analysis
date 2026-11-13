@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '503 still unreviewed' in review and '276 still unreviewed' in review
+    assert '493 still unreviewed' in review and '274 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -107,6 +107,20 @@ def test_morgan_stanley_review_matches_depositary_shares_and_retains_directory_d
     assert '`Series 1`' in review and '`MS PRI`' in review
     assert '`MS$A` and `MS$F`' in review and 'original description rule' in review
     assert 'https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf' in review
+
+
+def test_bank_of_america_review_distinguishes_direct_preferred_and_depositary_shares():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    assert 'Bank of America · Ten NYSE preferred-linked listings matched' in review
+    assert 'Nine depositary shares each represent 1/1,000' in review
+    for suffix, series in zip('BEKLMNOPQS', ('GG', 'E', 'HH', 'L', 'KK', 'LL', 'NN', 'PP', 'QQ', 'SS')):
+        assert f'`BAC-P{suffix}` / `BAC Pr{suffix}` / `BAC${suffix}` · Series {series}' in review
+    assert 'Series L · Direct convertible preferred stock' in review
+    assert '`BAC$E` and `BAC$L` unknown' in review
+    assert 'Four `BML`-prefixed listings remain outside this batch' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/70858/000007085826000548/bac-20260930.htm' in review
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):
