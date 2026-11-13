@@ -588,9 +588,42 @@ SEC submissions bind the November 5 Form 10-Q for September 30 to accession `000
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**113 of the original 544 SEC-only records have been reviewed, with 431 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The Chimera Investment follow-up brought the reviewed count to 113 of the original 544 SEC-only records, leaving 431 unreviewed at that stage. Eight of the original 282 directory-type gaps had dated class evidence. PFBC's IRS number remained unreconciled.
 
 The integration passed 262 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the four mappings, six source links, the dated floating-rate declarations and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### Fifth Third preferred-share follow-up
+
+The November 3 Form 10-Q for Fifth Third Bancorp (CIK `0000035527`) lists four NYSE depositary share classes. The June 9 transfer Form 8-A and NYSE certification corroborate each class and share fraction. The June 11 Form 25 concerns the Nasdaq withdrawal. The common stock's separate NYSE Texas registration falls outside this review. [November 3 Form 10-Q](https://www.sec.gov/Archives/edgar/data/35527/000003552726000243/fitb-20260930.htm) · [Transfer Form 8-A](https://www.sec.gov/Archives/edgar/data/35527/000119312526263043/d145237d8a12b.htm) · [NYSE certification](https://www.sec.gov/Archives/edgar/data/35527/000087666126000519/FITB060926.pdf) · [Nasdaq withdrawal Form 25](https://www.sec.gov/Archives/edgar/data/35527/000119312526267509/d132955d25.htm)
+
+| SEC map | Filing cover | Directory ACT symbol | NYSE report symbol | Underlying series | Interest in one preferred share |
+| --- | --- | --- | --- | --- | --- |
+| `FITB-PA` | `FITB PrA` | `FITB$A` | `FITB PRA` | Class B, Series A | 1/40 |
+| `FITB-PI` | `FITB PrI` | `FITB$I` | `FITB PRI` | I | 1/1,000 |
+| `FITB-PK` | `FITB PrK` | `FITB$K` | `FITB PRK` | K | 1/1,000 |
+| `FITB-PM` | `FITB PrM` | `FITB$M` | `FITB PRM` | M | 1/40 |
+
+The Form 10-Q reports that Fifth Third issued Series M depositary shares to Comerica Series B holders at the February 1 merger. The June 3 Form 8-K reporting the June 1 transfer announcement records the earlier Nasdaq symbols `FITBP`, `FITBI`, `FITBO` and `FITBM` for A, I, K and M, respectively. [Form 10-Q, acquisition note](https://www.sec.gov/Archives/edgar/data/35527/000003552726000243/fitb-20260930.htm) · [Transfer announcement Form 8-K](https://www.sec.gov/Archives/edgar/data/35527/000119312526255417/d157060d8k.htm)
+
+The transfer Form 8-A gave June 12 as the expected NYSE start. The June 12 NYSE short-sale volume report independently shows activity for all four on page 64. The report supports trading on that date. First executions remain unverified. The November 12 Nasdaq Trader snapshot gives the four counterparts venue code `N`, test and ETF flags `N`, and existing depositary-receipt classifications. The same-day NYSE short-sale volume report has one market-`N` row with positive total volume per class on page 65. Both reports cover limited activity on their dates. Continuous listing and current trading status require separate evidence. [June 12 NYSE report, page 64](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202606/NYSEshvol20260612.pdf#page=64) · [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 65](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=65)
+
+SEC submissions bind the November 3 Form 10-Q for September 30 to accession `0000035527-26-000243`, accepted at 21:49:30 UTC. The June 9 Form 8-A and certification are `0001193125-26-263043` and `0000876661-26-000519`, respectively. The June 11 Form 25 is `0001193125-26-267509`. The SEC files and June 12 NYSE report listed below were observed November 13 from 04:54:14 to 04:55:47 UTC, November 12 in Toronto. [SEC submissions](https://data.sec.gov/submissions/CIK0000035527.json)
+
+| Captured source | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `01187b216badc9aa58a5d845a6e297221109f9ee9928873873480843e49ee411` |
+| November 3 Form 10-Q | `d822180e7c2a86f318a73ec4e9c459ac695502aa43694854d7100d045edb343d` |
+| June 3 transfer announcement Form 8-K | `06e1c2997feb88bcd3023cce7f1a06592a7500f34e2e6d84313dc0c36279ee4b` |
+| June 9 transfer Form 8-A | `b6c75d2dddffe46e6bdd80e07f58f779866237e7f1c347986b1b5a27c0711f59` |
+| June 9 NYSE certification | `732a00506a3e3fda4d8fdfb531a696754ec932debe9ba74fb2292b2e19d9c360` |
+| June 11 Nasdaq withdrawal Form 25 | `91b7a13f7594460bc732fd9d5dda6b2e13382d770ec30fddc72f359bfa9de329` |
+| June 12 NYSE short-sale volume report | `adb6a5e70616d219eeb9466ad5c7ed347f7a786aeceeab98b64a17d19b28880b` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**117 of the original 544 SEC-only records have been reviewed, with 427 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 263 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the four mappings, six source links, the Nasdaq withdrawal and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

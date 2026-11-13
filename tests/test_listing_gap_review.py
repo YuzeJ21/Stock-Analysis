@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '113 were reviewed, with 431 still unreviewed' in review and '274 still unreviewed' in review
+    assert '117 were reviewed, with 427 still unreviewed' in review and '274 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -286,6 +286,23 @@ def test_chimera_review_distinguishes_class_titles_from_floating_dividend_rates(
     assert 'https://www.sec.gov/Archives/edgar/data/1409493/000120677426000594/cim4711711-ex991.htm' in review
     assert 'https://www.sec.gov/Archives/edgar/data/1409493/000087666119000039/CIM8A012219.pdf' in review
     assert 'NYSEshvol20261112.pdf#page=36' in review
+
+
+def test_fifth_third_review_keeps_share_fractions_and_exchange_transfer_distinct():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    assert 'Fifth Third · Four NYSE depositary share listings matched' in review
+    for series, fraction in zip('AIKM', ('1/40', '1/1,000', '1/1,000', '1/40'), strict=True):
+        assert f'`FITB-P{series}` / `FITB Pr{series}` / `FITB${series}` · Series {series} · {fraction}\n' in review
+    assert 'June 11 Form 25 covers withdrawal from Nasdaq' in review
+    assert 'Series M succeeded Comerica’s Series B' in review
+    assert 'NYSE Texas registration applies to the common stock' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/35527/000003552726000243/fitb-20260930.htm' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/35527/000119312526263043/d145237d8a12b.htm' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/35527/000087666126000519/FITB060926.pdf' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/35527/000119312526267509/d132955d25.htm' in review
+    assert 'NYSEshvol20261112.pdf#page=65' in review
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):
