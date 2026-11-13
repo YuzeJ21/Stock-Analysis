@@ -366,9 +366,41 @@ SEC submissions bind the November 12 Form 8-K to accession `0001193125-26-456624
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**77 of the original 544 SEC-only records have been reviewed, with 467 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The Public Storage follow-up brought the reviewed count to 77 of the original 544 SEC-only records, leaving 467 unreviewed at that stage. Eight of the original 282 directory-type gaps had dated class evidence. PFBC's IRS number remained unreconciled.
 
 The integration passed 255 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the 16 mappings, six source links, depositary and direct share distinctions, and prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### Pacific Gas and Electric Company preferred-share follow-up
+
+The November 2 utility-only Form 8-K for an October 29 event names Pacific Gas and Electric Company (CIK `0000075488`) and lists eight direct cumulative first preferred shares with $25 par value on NYSE American LLC. The October 22 joint Form 10-Q for September 30 corroborates all eight. The joint cover separately lists PG&E Corporation's `PCG-PrX` mandatory convertible preferred stock on NYSE under the parent (CIK `0001004980`). The parent's security falls outside this batch. The Series A designation in the utility's filing belongs to `PCG-PE`. [Utility Form 8-K](https://www.sec.gov/Archives/edgar/data/75488/000199937126024070/pcg-8k_102926.htm) · [Joint Form 10-Q](https://www.sec.gov/Archives/edgar/data/75488/000100498026000055/pcg-20260930.htm)
+
+| SEC map and filing symbol | Directory ACT symbol | NYSE American report symbol | Filed class terms |
+| --- | --- | --- | --- |
+| `PCG-PA` | `PCG$A` | `PCG PRA` | 6% nonredeemable |
+| `PCG-PB` | `PCG$B` | `PCG PRB` | 5.50% nonredeemable |
+| `PCG-PC` | `PCG$C` | `PCG PRC` | 5% nonredeemable |
+| `PCG-PD` | `PCG$D` | `PCG PRD` | 5% redeemable |
+| `PCG-PE` | `PCG$E` | `PCG PRE` | 5% Series A redeemable |
+| `PCG-PG` | `PCG$G` | `PCG PRG` | 4.80% redeemable |
+| `PCG-PH` | `PCG$H` | `PCG PRH` | 4.50% redeemable |
+| `PCG-PI` | `PCG$I` | `PCG PRI` | 4.36% redeemable |
+
+The fixed SEC bulk exchange map associates all eight with the utility and labels the venue NYSE. The observed SEC submissions ticker arrays also place seven of the symbols under the parent and only `PCG-PA` under the utility. The utility-only filing cover supplies the registrant and registered venue for each exact symbol. All eight November 12 Nasdaq Trader counterparts have venue code `A`, test and ETF flags `N`, and an existing preferred classification. The November 12 NYSE American short-sale volume report has one market-`A` row with positive total volume per class on page 102. The separate same-day NYSE report has a market-`N` trading observation for `PCG PRA`, which does not establish an NYSE listing. These are dated observations of registration and limited trading activity. Continuous listing and current trading status require separate evidence. [SEC exchange map](https://www.sec.gov/files/company_tickers_exchange.json) · [Utility submissions](https://data.sec.gov/submissions/CIK0000075488.json) · [Parent submissions](https://data.sec.gov/submissions/CIK0001004980.json) · [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [NYSE American report, page 102](https://ftp.nyse.com/ShortData/Amexshvol/Amexshvol2026/Amexshvol202611/Amexshvol20261112.pdf#page=102) · [NYSE report](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf)
+
+SEC submissions bind the November 2 Form 8-K to accession `0001999371-26-024070`, accepted at 13:00:36 UTC, and the October 22 Form 10-Q to `0001004980-26-000055`, accepted at 00:52:37 UTC. The SEC captures and NYSE American report were observed November 13 from 04:12:56 to 04:13:29 UTC, November 12 in Toronto. [Form 8-K filing detail](https://www.sec.gov/Archives/edgar/data/75488/000199937126024070/0001999371-26-024070-index.htm) · [Form 10-Q filing detail](https://www.sec.gov/Archives/edgar/data/75488/000100498026000055/0001004980-26-000055-index.htm)
+
+| Captured source | Raw SHA-256 |
+| --- | --- |
+| November 2 utility Form 8-K | `a92f2285ff76c3bd24ec9d5ff59493603ae107928b502668f71c72bf2151b437` |
+| October 22 joint Form 10-Q | `2fea7e18d78404261d775c9d9da00930755ce8de8edbe3f09a5fd9cf09b30cc6` |
+| Utility SEC submissions | `83b6ef731a5907da0945243fda0af0a70f1bd3a6c5ceb722bee1b13bd78cd1fe` |
+| Parent SEC submissions | `5081bb8a92551ac06f5a183e4fbc6c46b0887e8081c77f0d1ec3f37ad9cbab24` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE American short-sale volume report | `458e1a6d932407be6f4b4ba7f1bcc33364f44de751f5dd039bee5e5fd0c96c8a` |
+
+**85 of the original 544 SEC-only records have been reviewed, with 459 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 256 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the eight mappings, four source links, venue discrepancy, parent security distinction and prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

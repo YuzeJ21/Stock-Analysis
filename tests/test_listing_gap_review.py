@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '77 were reviewed, with 467 still unreviewed' in review and '274 still unreviewed' in review
+    assert '85 were reviewed, with 459 still unreviewed' in review and '274 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -165,6 +165,25 @@ def test_public_storage_review_distinguishes_depositary_and_direct_preferred_sha
     assert 'https://www.sec.gov/Archives/edgar/data/1393311/000087666126000633/PSAPRTPRU.pdf' in review
     for page in (139, 140):
         assert f'NYSEshvol20261112.pdf#page={page}' in review
+
+
+def test_pacific_gas_and_electric_review_preserves_the_venue_conflict_and_issuer():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    assert 'Pacific Gas and Electric Company · Eight NYSE American preferred share listings matched' in review
+    assert 'The SEC exchange map labels all eight NYSE' in review
+    assert 'PG&E Corporation’s separate `PCG-PrX`' in review
+    terms = (
+        ('A', '6% nonredeemable'), ('B', '5.50% nonredeemable'), ('C', '5% nonredeemable'),
+        ('D', '5% redeemable'), ('E', '5% Series A redeemable'), ('G', '4.80% redeemable'),
+        ('H', '4.50% redeemable'), ('I', '4.36% redeemable'),
+    )
+    for suffix, title in terms:
+        assert f'`PCG-P{suffix}` / `PCG${suffix}` · {title}\n' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/75488/000199937126024070/pcg-8k_102926.htm' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/75488/000100498026000055/pcg-20260930.htm' in review
+    assert 'Amexshvol20261112.pdf#page=102' in review
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):

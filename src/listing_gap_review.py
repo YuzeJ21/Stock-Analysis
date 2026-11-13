@@ -30,6 +30,9 @@ USB_SERIES_P_TERMS = 'https://www.sec.gov/Archives/edgar/data/36104/000119312526
 PSA_COVER = 'https://www.sec.gov/Archives/edgar/data/1393311/000119312526456624/d158518d8k.htm'
 PSA_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1393311/000162828026067286/psa-20260930.htm'
 PSA_SERIES_T_U_NYSE = 'https://www.sec.gov/Archives/edgar/data/1393311/000087666126000633/PSAPRTPRU.pdf'
+PCG_UTILITY_COVER = 'https://www.sec.gov/Archives/edgar/data/75488/000199937126024070/pcg-8k_102926.htm'
+PCG_JOINT_QUARTER = 'https://www.sec.gov/Archives/edgar/data/75488/000100498026000055/pcg-20260930.htm'
+NOV12_NYSE_AMERICAN_VOLUME = 'https://ftp.nyse.com/ShortData/Amexshvol/Amexshvol2026/Amexshvol202611/Amexshvol20261112.pdf'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -47,11 +50,21 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 77 were reviewed, with 467 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 85 were reviewed, with 459 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Eight now have dated class evidence, with 274 still unreviewed.
 
 **Dated findings**
 
+- **Pacific Gas and Electric Company · Eight NYSE American preferred share listings matched.** The November 2 utility Form 8-K and October 22 joint Form 10-Q list all eight as direct cumulative first preferred shares with $25 par value. The SEC exchange map labels all eight NYSE. The filing covers and November 12 Nasdaq Trader directory identify NYSE American, and the same-day NYSE American report shows activity for all eight. Each row gives the SEC map and filing symbol followed by the directory symbol. [Utility Form 8-K]({PCG_UTILITY_COVER}) · [Joint Form 10-Q]({PCG_JOINT_QUARTER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE American report]({NOV12_NYSE_AMERICAN_VOLUME}#page=102)
+  - `PCG-PA` / `PCG$A` · 6% nonredeemable
+  - `PCG-PB` / `PCG$B` · 5.50% nonredeemable
+  - `PCG-PC` / `PCG$C` · 5% nonredeemable
+  - `PCG-PD` / `PCG$D` · 5% redeemable
+  - `PCG-PE` / `PCG$E` · 5% Series A redeemable
+  - `PCG-PG` / `PCG$G` · 4.80% redeemable
+  - `PCG-PH` / `PCG$H` · 4.50% redeemable
+  - `PCG-PI` / `PCG$I` · 4.36% redeemable
+  - PG&E Corporation’s separate `PCG-PrX` mandatory convertible preferred share appears on NYSE in the joint filing and falls outside this batch.
 - **Public Storage · Sixteen NYSE preferred-linked listings matched.** The Form 8-K filed November 12, September-quarter Form 10-Q and November 12 exchange records support the matches. Series F through S are depositary shares, each representing 1/1,000 of one preferred share. Series T and U are direct preferred shares covered by the July 21 NYSE certification. Each row gives the SEC map, filing cover and directory symbols. [Public Storage Form 8-K]({PSA_COVER}) · [Public Storage Form 10-Q]({PSA_QUARTER}) · [NYSE Series T and U certification]({PSA_SERIES_T_U_NYSE}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report, F–R]({NOV12_NYSE_VOLUME}#page=139) · [November 12 NYSE report, S–U]({NOV12_NYSE_VOLUME}#page=140)
   - `PSA-PF` / `PSAPrF` / `PSA$F` · Series F
   - `PSA-PG` / `PSAPrG` / `PSA$G` · Series G
