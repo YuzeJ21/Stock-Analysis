@@ -53,6 +53,10 @@ ATH_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1527469/00015274692600008
 ATH_SERIES_E_NYSE = 'https://www.sec.gov/Archives/edgar/data/1527469/000087666122001120/ATHPRE121322.pdf'
 ATH_SECURITIES = 'https://www.sec.gov/Archives/edgar/data/1527469/000152746926000013/q42025exhibit48.htm'
 ATH_SERIES_C = 'https://www.sec.gov/Archives/edgar/data/1527469/000119312525154072/d948326d8k.htm'
+CIM_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1409493/000140949326000068/cim-20260930.htm'
+CIM_DIVIDEND_COVER = 'https://www.sec.gov/Archives/edgar/data/1409493/000120677426000594/cim4711711-8k.htm'
+CIM_DIVIDEND_EXHIBIT = 'https://www.sec.gov/Archives/edgar/data/1409493/000120677426000594/cim4711711-ex991.htm'
+CIM_SERIES_D_NYSE = 'https://www.sec.gov/Archives/edgar/data/1409493/000087666119000039/CIM8A012219.pdf'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -70,11 +74,17 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 109 were reviewed, with 435 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 113 were reviewed, with 431 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Eight now have dated class evidence, with 274 still unreviewed.
 
 **Dated findings**
 
+- **Chimera Investment · Four NYSE preferred share listings matched.** The November 5 Forms 10-Q and 8-K identify four direct cumulative redeemable preferred stock classes. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, filing cover and directory symbols. [Chimera Form 10-Q]({CIM_QUARTER}) · [Preferred dividends Form 8-K]({CIM_DIVIDEND_COVER}) · [NYSE Series D certification]({CIM_SERIES_D_NYSE}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=36)
+  - `CIM-PA` / `CIM PRA` / `CIM$A` · Series A
+  - `CIM-PB` / `CIM PRB` / `CIM$B` · Series B
+  - `CIM-PC` / `CIM PRC` / `CIM$C` · Series C
+  - `CIM-PD` / `CIM PRD` / `CIM$D` · Series D
+  - Series B, C and D use floating rates. The percentages in their class titles identify the original fixed rates. Chimera reported fourth-quarter 2026 annualized dividend rates of 10.14841%, 9.10041% and 9.73641%, respectively, in its November 5 declaration. [Preferred dividends exhibit]({CIM_DIVIDEND_EXHIBIT})
 - **Athene · Four NYSE depositary share listings matched.** The November 12 Form 8-K and November 5 Form 10-Q identify the four classes. These depositary shares each represent 1/1,000 of one preferred share. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, filing cover and directory symbols. [Athene Form 8-K]({ATH_COVER}) · [Athene Form 10-Q]({ATH_QUARTER}) · [NYSE Series E certification]({ATH_SERIES_E_NYSE}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=14)
   - `ATH-PA` / `ATHPrA` / `ATH$A` · Series A
   - `ATH-PB` / `ATHPrB` / `ATH$B` · Series B

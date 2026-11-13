@@ -556,9 +556,41 @@ SEC submissions bind the November 12 Form 8-K to accession `0001527469-26-000090
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**109 of the original 544 SEC-only records have been reviewed, with 435 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The Athene follow-up brought the reviewed count to 109 of the original 544 SEC-only records, leaving 435 unreviewed at that stage. Eight of the original 282 directory-type gaps had dated class evidence. PFBC's IRS number remained unreconciled.
 
 The integration passed 261 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the four mappings, seven source links, the filed rate boundaries, the Series C exclusion and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### Chimera Investment preferred-share follow-up
+
+The November 5 Form 10-Q and preferred-dividend Form 8-K for Chimera Investment Corporation (CIK `0001409493`) identify four direct cumulative redeemable preferred stock classes on NYSE. The January 22, 2019 NYSE certification independently identifies Series D. The Form 10-Q reports all four classes outstanding at September 30 and lists their optional call dates. [November 5 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1409493/000140949326000068/cim-20260930.htm) · [Preferred dividends Form 8-K](https://www.sec.gov/Archives/edgar/data/1409493/000120677426000594/cim4711711-8k.htm) · [NYSE Series D certification](https://www.sec.gov/Archives/edgar/data/1409493/000087666119000039/CIM8A012219.pdf)
+
+| SEC map | Filing cover and NYSE report symbol | Directory ACT symbol | Series | Rate in class title | Q4 2026 dividend per share declared November 5 |
+| --- | --- | --- | --- | --- | --- |
+| `CIM-PA` | `CIM PRA` | `CIM$A` | A | 8.00% fixed | $0.50 |
+| `CIM-PB` | `CIM PRB` | `CIM$B` | B | 8.00% fixed-to-floating | $0.6343 |
+| `CIM-PC` | `CIM PRC` | `CIM$C` | C | 7.75% fixed-to-floating | $0.5751 |
+| `CIM-PD` | `CIM PRD` | `CIM$D` | D | 8.00% fixed-to-floating | $0.6153 |
+
+The Series A designation specifies an 8.00% fixed annual rate despite the wording in the Form 10-Q exhibit index. The Form 10-Q describes floating dividend periods for Series B and D beginning March 30, 2024, and for Series C beginning September 30, 2025. The November 5 exhibit reports annualized rates of 10.14841% for B, 9.10041% for C and 9.73641% for D for the declared fourth-quarter dividend. These rates apply to that declaration. Market yields and subsequent resets require separate evidence. [Series A designation](https://www.sec.gov/Archives/edgar/data/1409493/000119312516736773/d267895dex31.htm) · [Form 10-Q](https://www.sec.gov/Archives/edgar/data/1409493/000140949326000068/cim-20260930.htm) · [Preferred dividends exhibit](https://www.sec.gov/Archives/edgar/data/1409493/000120677426000594/cim4711711-ex991.htm)
+
+The November 12 Nasdaq Trader snapshot gives each counterpart venue code `N`, test and ETF flags `N`, and an existing preferred-stock classification. The same-day NYSE short-sale volume report has one market-`N` row with positive total volume for each symbol on page 36. The report covers limited activity for that date. Continuous listing and current trading status require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 36](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=36)
+
+SEC submissions bind the November 5 Form 10-Q for September 30 to accession `0001409493-26-000068`, accepted at 21:11:48 UTC, and the preferred-dividend Form 8-K to `0001206774-26-000594`, accepted at 11:45:43 UTC. The Series D certification is accession `0000876661-19-000039`. The SEC sources below were observed November 13 from 04:49:48 to 04:51:06 UTC, November 12 in Toronto. [SEC submissions](https://data.sec.gov/submissions/CIK0001409493.json)
+
+| Captured source | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `a6ee3b61f4eaefaa1cc9b12420488aee79d395ec1e518e878cd36be7bef06476` |
+| November 5 Form 10-Q | `46287ca28122b999e1c15af76bda4d659cc85fc242daa72a0d2b811cc83a9fef` |
+| November 5 preferred-dividend Form 8-K | `7f43bd66b3058eee9a65e59808d90b4479911db1d1f8a12d3d48be3b0e981207` |
+| November 5 preferred dividends Exhibit 99.1 | `f674a4b0bbf453fbab4ab0061f5fb389be1d71e186bc5dc54f622718e59c3098` |
+| NYSE Series D certification | `e901af3dec528db38d289ef525f0cd55643c63befd7fa2d4ab21e4e8d16fdf81` |
+| Series A designation, Form 8-K Exhibit 3.1 | `b71dd4f073e1a17236f60553f9e473ae3adeaeb5586ed32ad1ce5e8fe6f38303` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**113 of the original 544 SEC-only records have been reviewed, with 431 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 262 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the four mappings, six source links, the dated floating-rate declarations and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 
