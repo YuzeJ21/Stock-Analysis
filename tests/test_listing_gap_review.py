@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '129 were reviewed, with 415 still unreviewed' in review and '274 still unreviewed' in review
+    assert '133 were reviewed, with 411 still unreviewed' in review and '274 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -353,6 +353,24 @@ def test_mt_bank_review_distinguishes_direct_preferred_and_depositary_shares():
     for certification in ('MTBPRH033122.pdf', 'MTBPRJ051424.pdf', 'MTBPRK110325.pdf', 'MTBPRL072326.pdf'):
         assert certification in batch
     assert 'NYSEshvol20261112.pdf#page=116' in batch
+
+
+def test_pebblebrook_review_distinguishes_listed_shares_from_partnership_units():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    start = '**Pebblebrook Hotel Trust · Four NYSE preferred share listings matched.**'
+    assert start in review
+    batch = review.split(start, 1)[1].split('\n- **', 1)[0]
+    for series, rate in zip('EFGH', ('6.375%', '6.30%', '6.375%', '5.70%'), strict=True):
+        assert f'`PEB-P{series}` / `PEB${series}` · Series {series} · {rate}\n' in batch
+    assert 'all four series outstanding on September 30' in batch
+    assert 'Series Z operating partnership units fall outside this batch' in batch
+    assert '000147409826000072/peb-20260930.htm' in batch
+    assert '000147409826000074/peb-20261029.htm' in batch
+    for certification in ('PEBPRE_PEBPRF8A113018.pdf', 'PEB051221.pdf', 'PEBPRH072721.pdf'):
+        assert certification in batch
+    assert 'NYSEshvol20261112.pdf#page=133' in batch
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):

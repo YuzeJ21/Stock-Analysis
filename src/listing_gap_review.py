@@ -75,6 +75,11 @@ MTB_SERIES_H_NYSE = 'https://www.sec.gov/Archives/edgar/data/36270/0000876661220
 MTB_SERIES_J_NYSE = 'https://www.sec.gov/Archives/edgar/data/36270/000087666124000343/MTBPRJ051424.pdf'
 MTB_SERIES_K_NYSE = 'https://www.sec.gov/Archives/edgar/data/36270/000087666125000827/MTBPRK110325.pdf'
 MTB_SERIES_L_NYSE = 'https://www.sec.gov/Archives/edgar/data/36270/000087666126000638/MTBPRL072326.pdf'
+PEB_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1474098/000147409826000072/peb-20260930.htm'
+PEB_COVER = 'https://www.sec.gov/Archives/edgar/data/1474098/000147409826000074/peb-20261029.htm'
+PEB_SERIES_E_F_NYSE = 'https://www.sec.gov/Archives/edgar/data/1474098/000087666118001270/PEBPRE_PEBPRF8A113018.pdf'
+PEB_SERIES_G_NYSE = 'https://www.sec.gov/Archives/edgar/data/1474098/000087666121000716/PEB051221.pdf'
+PEB_SERIES_H_NYSE = 'https://www.sec.gov/Archives/edgar/data/1474098/000087666121001123/PEBPRH072721.pdf'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -92,11 +97,17 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 129 were reviewed, with 415 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 133 were reviewed, with 411 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Eight now have dated class evidence, with 274 still unreviewed.
 
 **Dated findings**
 
+- **Pebblebrook Hotel Trust · Four NYSE preferred share listings matched.** The October 29 Form 10-Q and Form 8-K identify four direct cumulative redeemable preferred shares of beneficial interest. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the shared SEC map and cover symbol, the directory symbol and the stated class rate. [Pebblebrook Form 10-Q]({PEB_QUARTER}) · [Pebblebrook Form 8-K]({PEB_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=133)
+  - `PEB-PE` / `PEB$E` · Series E · 6.375%
+  - `PEB-PF` / `PEB$F` · Series F · 6.30%
+  - `PEB-PG` / `PEB$G` · Series G · 6.375%
+  - `PEB-PH` / `PEB$H` · Series H · 5.70%
+  - The Form 10-Q shows all four series outstanding on September 30 after partial repurchases. Series Z operating partnership units fall outside this batch. NYSE certifications document the class terms for [Series E and F]({PEB_SERIES_E_F_NYSE}), [Series G]({PEB_SERIES_G_NYSE}) and [Series H]({PEB_SERIES_H_NYSE}).
 - **M&T Bank · Four NYSE preferred-linked listings matched.** The November 5 Form 10-Q and October 16 Form 8-K identify all four NYSE listings. The original NYSE certifications distinguish direct Series H stock from the Series J, K and L depositary shares. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, filing cover and directory symbols. [M&T Bank Form 10-Q]({MTB_QUARTER}) · [M&T Bank Form 8-K]({MTB_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=116)
   - `MTB-PH` / `MTBPrH` / `MTB$H` · Series H · Direct preferred stock
   - `MTB-PJ` / `MTBPrJ` / `MTB$J` · Series J · Depositary share · 1/400

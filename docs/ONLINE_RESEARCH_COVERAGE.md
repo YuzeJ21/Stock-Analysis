@@ -714,9 +714,40 @@ SEC submissions bind the September 30 Form 10-Q to accession `0000036270-26-0000
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**129 of the original 544 SEC-only records have been reviewed, with 415 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The M&T Bank batch brought the SEC-only review to 129 of the original 544 records, with 415 unreviewed at that stage. Eight of the 282 directory-type gaps had dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
 
 The integration passed 266 affected tests, six research route checks and automated browser checks at 1440 × 1000 and 390 × 844. Both browser runs verified the four mappings, eight scoped source links, the Series F exclusion, and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### Pebblebrook Hotel Trust preferred-share follow-up
+
+The October 29 Form 10-Q and Form 8-K for Pebblebrook Hotel Trust (CIK `0001474098`) identify four direct series of cumulative redeemable preferred shares of beneficial interest registered on NYSE. The November 12 Nasdaq Trader directory already classifies all four as preferred, with NYSE venue code `N` and both the test and ETF flags set to `N`. Each SEC map symbol is identical to its SEC cover symbol. [October 29 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1474098/000147409826000072/peb-20260930.htm) · [October 29 Form 8-K](https://www.sec.gov/Archives/edgar/data/1474098/000147409826000074/peb-20261029.htm) · [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt)
+
+| Series | Stated class rate | SEC map and cover | Nasdaq Trader ACT symbol | NYSE certification |
+| --- | --- | --- | --- | --- |
+| E | 6.375% | `PEB-PE` | `PEB$E` | [November 30, 2018](https://www.sec.gov/Archives/edgar/data/1474098/000087666118001270/PEBPRE_PEBPRF8A113018.pdf) |
+| F | 6.30% | `PEB-PF` | `PEB$F` | [November 30, 2018](https://www.sec.gov/Archives/edgar/data/1474098/000087666118001270/PEBPRE_PEBPRF8A113018.pdf) |
+| G | 6.375% | `PEB-PG` | `PEB$G` | [May 12, 2021](https://www.sec.gov/Archives/edgar/data/1474098/000087666121000716/PEB051221.pdf) |
+| H | 5.70% | `PEB-PH` | `PEB$H` | [July 27, 2021](https://www.sec.gov/Archives/edgar/data/1474098/000087666121001123/PEBPRH072721.pdf) |
+
+Note 7 of the Form 10-Q records partial preferred share repurchases and shows all four series outstanding on September 30. The separate Series Z preferred units belong to the operating partnership and fall outside this batch. Page 133 of the November 12 NYSE report shows positive total volume for `PEB PRE`, `PEB PRF`, `PEB PRG` and `PEB PRH`. That report corroborates activity on its date. First trade, continuous listing history, current yield and analysis eligibility require separate evidence. [Form 10-Q](https://www.sec.gov/Archives/edgar/data/1474098/000147409826000072/peb-20260930.htm) · [November 12 NYSE report, page 133](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=133)
+
+SEC submissions bind the September 30 Form 10-Q to accession `0001474098-26-000072`, accepted October 29 at 20:10:00 UTC, and the earnings Form 8-K to `0001474098-26-000074`, accepted the same day at 20:30:17 UTC. The submissions, SEC filings and certifications below were observed November 13 from 13:17:20 to 13:18:07 UTC. [SEC submissions](https://data.sec.gov/submissions/CIK0001474098.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `d796d42bfe9ee9fb730a455ad50b8dd0fea7828e5818c46dbd0011484fba5104` |
+| October 29 Form 10-Q | `a8bee2738498eb490a9220323686364b41ba0cdf117cc4a408f3a4fa285b1612` |
+| October 29 Form 8-K | `d21dfbc3e062ef198c58bf721f743002005a1a87e30b6960bffbf9bf8a2518b2` |
+| [October 29 earnings exhibit](https://www.sec.gov/Archives/edgar/data/1474098/000147409826000074/a8kq3-2026erex991.htm) | `f38935cfb3be6062245c7cf690534d083f728b8dc099a396e44d478ea6f20154` |
+| NYSE Series E and F certification | `066848512ca8201803fa478d73bfba6868dcf2d2a09e52532769a91dd7f8ab30` |
+| NYSE Series G certification | `5d778d60474bf1ecca560d95bc8269fd39e8c1fb2c5fcd29e198fd86aa60757d` |
+| NYSE Series H certification | `1b598424c197d68d985ff13a34d1d176ca6f2c2252977def81420a12ab435416` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**133 of the original 544 SEC-only records have been reviewed, with 411 unreviewed.** All four directory rows already had explicit preferred share labels. Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 267 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the four mappings, seven source links, the Series Z exclusion and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 
