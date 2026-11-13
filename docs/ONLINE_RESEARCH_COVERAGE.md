@@ -778,9 +778,40 @@ SEC submissions bind the September 30 Form 10-Q to accession `0000899689-26-0000
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**137 of the original 544 SEC-only records have been reviewed, with 407 unreviewed.** Nine of the 282 directory-type gaps now have dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The Vornado batch brought the SEC-only review to 137 of the original 544 records, with 407 unreviewed at that stage. Nine of the 282 directory-type gaps had dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
 
 The integration passed 268 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the four mappings, eight source links, the Series L directory finding, the Trust and partnership distinction, and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### Digital Realty Trust preferred-share follow-up
+
+The October 30 Form 10-Q and Form 8-K identify three direct cumulative redeemable preferred stock listings of Digital Realty Trust, Inc. (CIK `0001297996`) on NYSE. The joint filings also cover Digital Realty Trust, L.P. (CIK `0001494877`). Its preferred units are separate instruments. The October 30 Form 8-K concerns a registration for potential resale of common shares issued in the Teraco transaction. [October 30 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1297996/000110465926120710/dlr-20260930x10q.htm) · [October 30 Form 8-K](https://www.sec.gov/Archives/edgar/data/1297996/000119312526441892/d170330d8k.htm) · [Resale prospectus](https://www.sec.gov/Archives/edgar/data/1297996/000119312526441889/d355183d424b7.htm)
+
+| Series | Stated class rate | SEC map | SEC cover | Nasdaq Trader ACT symbol | Registration evidence |
+| --- | --- | --- | --- | --- | --- |
+| J | 5.250% | `DLR-PJ` | `DLR Pr J` | `DLR$J` | [August 4, 2017 Form 8-A](https://www.sec.gov/Archives/edgar/data/1297996/000119312517248824/d425847d8a12b.htm) |
+| K | 5.850% | `DLR-PK` | `DLR Pr K` | `DLR$K` | [March 13, 2019 NYSE certification](https://www.sec.gov/Archives/edgar/data/1297996/000087666119000221/DLR8A031219.pdf) |
+| L | 5.200% | `DLR-PL` | `DLR Pr L` | `DLR$L` | [October 9, 2019 NYSE certification](https://www.sec.gov/Archives/edgar/data/1297996/000087666119001034/DLR8A100919.pdf) |
+
+The November 12 Nasdaq Trader directory gives all three rows explicit preferred descriptions, NYSE code `N`, and test and ETF flags `N`. Page 49 of the November 12 NYSE report shows positive total volume for `DLR PRJ`, `DLR PRK` and `DLR PRL`. This corroborates exchange activity on that date. The Form 10-Q reports dividends for all three through September 30, and the October 29 earnings exhibit reports each class outstanding at quarter-end. First trade, continuous listing history, current yield and analysis eligibility require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 49](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=49) · [October 29 earnings exhibit](https://www.sec.gov/Archives/edgar/data/1297996/000110465926120212/dlr-ex99d1.htm)
+
+SEC submissions bind the September 30 Form 10-Q to accession `0001104659-26-120710`, accepted October 30 at 20:43:38 UTC, and the resale Form 8-K to `0001193125-26-441892`, accepted the same day at 21:28:54 UTC. The eight SEC and certification receipts below were observed November 13 from 14:31:07 to 14:32:05 UTC. [SEC submissions](https://data.sec.gov/submissions/CIK0001297996.json) · [Historical submissions](https://data.sec.gov/submissions/CIK0001297996-submissions-001.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `6e6b59fb95554da58e47e15956fc5c7c0cc465b9941ff4fe22c3c4e5acc7e1f9` |
+| Historical SEC submissions | `e5d4c0288432394c608958e240526c5c3c540e37a52ff8bf5f2278594d8070c9` |
+| October 30 Form 10-Q | `a676aee1254860c8b032a9fdaeade0fe0c707c377c901b366a96c192f8f6059f` |
+| October 30 Form 8-K | `88fc7f49ba0420230fcfcb9e4bd39155cfd77e355938b390a4c0a2af4fffb9c2` |
+| October 30 resale prospectus | `339eb498c3a477b7fa84e660558129432afcd3fb19c5d4b1d03b3db4f621e3d4` |
+| Series J Form 8-A | `adc6971238a6ce599202e6decd8c1eee2ec8631daa0aaea6c3abd2d6ea135ed3` |
+| NYSE Series K certification | `7dabdcd57b3b64b2bc9053f3938790dcb9da4136f3bb355116737d666cefb16e` |
+| NYSE Series L certification | `3367f461bcc631917b9e994e9df58c1cb5920b32ea77e540add283f7159d30fb` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**140 of the original 544 SEC-only records have been reviewed, with 404 unreviewed.** Nine of the 282 directory-type gaps have dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 269 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, seven source links, the issuer and partnership distinction, and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

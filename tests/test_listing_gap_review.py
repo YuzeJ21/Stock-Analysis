@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '137 were reviewed, with 407 still unreviewed' in review and '273 still unreviewed' in review
+    assert '140 were reviewed, with 404 still unreviewed' in review and '273 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -389,6 +389,24 @@ def test_vornado_review_resolves_one_directory_type_and_keeps_registrants_distin
     assert '000089968926000055/vno-20261102.htm' in batch
     assert '000110465913004808/a13-3025_58a12b.htm' in batch
     assert 'NYSEshvol20261112.pdf#page=184' in batch
+
+
+def test_digital_realty_review_links_stock_listings_and_excludes_partnership_units():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    start = '**Digital Realty Trust · Three NYSE preferred share listings matched.**'
+    assert start in review
+    batch = review.split(start, 1)[1].split('\n- **', 1)[0]
+    for series, rate in zip('JKL', ('5.250%', '5.850%', '5.200%'), strict=True):
+        assert f'`DLR-P{series}` / `DLR Pr {series}` / `DLR${series}` · Series {series} · {rate}\n' in batch
+    assert 'Digital Realty Trust, L.P. preferred units fall outside this batch' in batch
+    assert '000110465926120710/dlr-20260930x10q.htm' in batch
+    assert '000119312526441892/d170330d8k.htm' in batch
+    assert '000119312517248824/d425847d8a12b.htm' in batch
+    assert 'DLR8A031219.pdf' in batch
+    assert 'DLR8A100919.pdf' in batch
+    assert 'NYSEshvol20261112.pdf#page=49' in batch
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):

@@ -86,6 +86,11 @@ VNO_SERIES_L_REGISTRATION = 'https://www.sec.gov/Archives/edgar/data/899689/0001
 VNO_SERIES_M_NYSE = 'https://www.sec.gov/Archives/edgar/data/899689/000087666117000755/VNOPRM.8A.12.14.17.pdf'
 VNO_SERIES_N_NYSE = 'https://www.sec.gov/Archives/edgar/data/899689/000087666120001105/VNOPRN8A113020.pdf'
 VNO_SERIES_O_NYSE = 'https://www.sec.gov/Archives/edgar/data/899689/000087666121001398/VNOPRO092721.pdf'
+DLR_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1297996/000110465926120710/dlr-20260930x10q.htm'
+DLR_COVER = 'https://www.sec.gov/Archives/edgar/data/1297996/000119312526441892/d170330d8k.htm'
+DLR_SERIES_J_REGISTRATION = 'https://www.sec.gov/Archives/edgar/data/1297996/000119312517248824/d425847d8a12b.htm'
+DLR_SERIES_K_NYSE = 'https://www.sec.gov/Archives/edgar/data/1297996/000087666119000221/DLR8A031219.pdf'
+DLR_SERIES_L_NYSE = 'https://www.sec.gov/Archives/edgar/data/1297996/000087666119001034/DLR8A100919.pdf'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -103,11 +108,16 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 137 were reviewed, with 407 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 140 were reviewed, with 404 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Nine now have dated class evidence, with 273 still unreviewed.
 
 **Dated findings**
 
+- **Digital Realty Trust · Three NYSE preferred share listings matched.** The October 30 Form 10-Q and Form 8-K identify the three direct cumulative redeemable preferred stock listings of Digital Realty Trust, Inc. Digital Realty Trust, L.P. preferred units fall outside this batch. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, SEC cover and directory symbols, followed by the stated class rate. [Digital Realty Form 10-Q]({DLR_QUARTER}) · [Digital Realty Form 8-K]({DLR_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=49)
+  - `DLR-PJ` / `DLR Pr J` / `DLR$J` · Series J · 5.250%
+  - `DLR-PK` / `DLR Pr K` / `DLR$K` · Series K · 5.850%
+  - `DLR-PL` / `DLR Pr L` / `DLR$L` · Series L · 5.200%
+  - The Form 10-Q reports dividends for all three stock classes through September 30. The historical registration records document the class terms. [Series J Form 8-A]({DLR_SERIES_J_REGISTRATION}) · NYSE certifications for [Series K]({DLR_SERIES_K_NYSE}) and [Series L]({DLR_SERIES_L_NYSE}).
 - **Vornado Realty Trust · Four NYSE preferred share listings matched.** The November 2 joint Form 10-Q and Form 8-K identify four direct cumulative redeemable preferred shares of beneficial interest. The cover assigns all four listings to the Trust. Vornado Realty L.P. units fall outside this batch. Each row gives the SEC map, SEC cover and directory symbols, followed by the stated class rate. [Vornado Form 10-Q]({VNO_QUARTER}) · [Vornado Form 8-K]({VNO_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=184)
   - `VNO-PL` / `VNO/PL` / `VNO$L` · Series L · 5.40%
   - `VNO-PM` / `VNO/PM` / `VNO$M` · Series M · 5.25%
