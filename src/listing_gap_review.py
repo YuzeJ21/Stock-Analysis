@@ -65,6 +65,10 @@ GNL_COVER = 'https://www.sec.gov/Archives/edgar/data/1526113/000110465926123343/
 GNL_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1526113/000162828026070177/gnl-20260930.htm'
 GNL_SERIES_D_E_NYSE = 'https://www.sec.gov/Archives/edgar/data/1526113/000087666123000715/GNLPRDGNLPRE091123.pdf'
 GNL_RTL_MERGER = 'https://www.sec.gov/Archives/edgar/data/1526113/000110465923100026/tm2325830d1_8k.htm'
+KEY_QUARTER = 'https://www.sec.gov/Archives/edgar/data/91576/000009157626000023/key-20260930.htm'
+KEY_COVER = 'https://www.sec.gov/Archives/edgar/data/91576/000119312526443714/d156521d8k.htm'
+KEY_SERIES_H_NYSE = 'https://www.sec.gov/Archives/edgar/data/91576/000087666122000709/KEYPRL082522.pdf'
+KEY_DIVIDEND_TERMS = 'https://www.sec.gov/Archives/edgar/data/91576/000009157626000020/a3q26earningspresentatio.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -82,11 +86,18 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 121 were reviewed, with 423 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 125 were reviewed, with 419 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Eight now have dated class evidence, with 274 still unreviewed.
 
 **Dated findings**
 
+- **KeyCorp · Four NYSE depositary share listings matched.** The November 3 Form 10-Q and November 2 Form 8-K identify the four classes. These depositary shares each represent 1/40 of one preferred share. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, filing cover and directory symbols. [KeyCorp Form 10-Q]({KEY_QUARTER}) · [KeyCorp Form 8-K]({KEY_COVER}) · [NYSE Series H certification]({KEY_SERIES_H_NYSE}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=100)
+  - `KEY-PI` / `KEY PrI` / `KEY$I` · Series E
+  - `KEY-PJ` / `KEY PrJ` / `KEY$J` · Series F
+  - `KEY-PK` / `KEY PrK` / `KEY$K` · Series G
+  - `KEY-PL` / `KEY PrL` / `KEY$L` · Series H
+  - The directory omits the reset feature for Series H. The SEC cover and NYSE certification identify it as fixed-rate reset. KeyCorp’s October 20 exhibit gives December 15, 2026 for the Series E floating-rate transition and December 15, 2027 for the first Series H reset. [KeyCorp preferred dividend terms]({KEY_DIVIDEND_TERMS})
+  - Series D’s 1/25 depositary shares were redeemed on September 15, 2026 and fall outside this batch.
 - **Global Net Lease · Four NYSE preferred share listings matched.** The November 5 Form 8-K and November 4 Form 10-Q identify four direct cumulative redeemable preferred stock classes. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, filing cover and directory symbols, followed by the series and stated class rate. [Global Net Lease Form 8-K]({GNL_COVER}) · [Global Net Lease Form 10-Q]({GNL_QUARTER}) · [NYSE Series D and E certification]({GNL_SERIES_D_E_NYSE}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=76)
   - `GNL-PA` / `GNL PR A` / `GNL$A` · Series A · 7.25%
   - `GNL-PB` / `GNL PR B` / `GNL$B` · Series B · 6.875%

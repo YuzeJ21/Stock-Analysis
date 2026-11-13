@@ -653,9 +653,38 @@ SEC submissions bind the November 5 Form 8-K to accession `0001104659-26-123343`
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**121 of the original 544 SEC-only records have been reviewed, with 423 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The Global Net Lease follow-up brought the reviewed count to 121 of the original 544 SEC-only records, leaving 423 unreviewed at that stage. Eight of the original 282 directory-type gaps had dated class evidence. PFBC's IRS number remained unreconciled.
 
 The integration passed 264 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the four mappings, six source links, the Series D and E predecessor classes and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### KeyCorp preferred-share follow-up
+
+The November 3 Form 10-Q and November 2 Form 8-K for KeyCorp (CIK `0000091576`) identify four NYSE depositary share listings. Each share represents 1/40 of an underlying preferred share. The August 25, 2022 NYSE certification independently identifies the Series H depositary shares. The November 12 Nasdaq Trader description of `KEY$L` omits the reset feature shown in both SEC covers and the certification. The original directory wording remains the dated source observation. [November 3 Form 10-Q](https://www.sec.gov/Archives/edgar/data/91576/000009157626000023/key-20260930.htm) · [November 2 Form 8-K](https://www.sec.gov/Archives/edgar/data/91576/000119312526443714/d156521d8k.htm) · [NYSE Series H certification](https://www.sec.gov/Archives/edgar/data/91576/000087666122000709/KEYPRL082522.pdf)
+
+| SEC map | Filing cover | Directory ACT symbol | NYSE report symbol | Underlying series | Filed rate structure |
+| --- | --- | --- | --- | --- | --- |
+| `KEY-PI` | `KEY PrI` | `KEY$I` | `KEY PRI` | E | Fixed-to-floating |
+| `KEY-PJ` | `KEY PrJ` | `KEY$J` | `KEY PRJ` | F | Fixed |
+| `KEY-PK` | `KEY PrK` | `KEY$K` | `KEY PRK` | G | Fixed |
+| `KEY-PL` | `KEY PrL` | `KEY$L` | `KEY PRL` | H | Fixed-rate reset |
+
+The October 20 earnings exhibit gives December 15, 2026 for the scheduled Series E floating-rate transition and December 15, 2027 for the first Series H reset. These dates describe the filed terms. The Form 10-Q's Note 16 confirms completion of the separate September 15, 2026 redemption of Series D and its 1/25 depositary shares. Series D falls outside these four matches. [October 20 preferred dividend terms](https://www.sec.gov/Archives/edgar/data/91576/000009157626000020/a3q26earningspresentatio.htm) · [Form 10-Q, Note 16](https://www.sec.gov/Archives/edgar/data/91576/000009157626000023/key-20260930.htm)
+
+The November 12 Nasdaq Trader snapshot gives each counterpart venue code `N`, test and ETF flags `N`, and an existing depositary-receipt classification. The same-day NYSE short-sale volume report has one market-`N` row with positive total volume per class on page 100. The report covers limited activity for that date. Continuous listing and current trading status require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 100](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=100)
+
+SEC submissions bind the November 3 Form 10-Q for September 30 to accession `0000091576-26-000023`, accepted at 21:45:12 UTC, and the November 2 Form 8-K to `0001193125-26-443714`, accepted at 21:23:17 UTC. The three SEC files in the digest table were observed November 13 from 12:57:34 to 12:58:20 UTC. The Series H certification is accession `0000876661-22-000709`. The official SEC web copies of the certification and October 20 exhibit were inspected. The local certificate request returned HTTP 503, so those two supporting sources have no local digest in this review. [SEC submissions](https://data.sec.gov/submissions/CIK0000091576.json)
+
+| Captured source | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `2e7bab0cf58d7b8ddccda5902e5b4c3d52f4e9c459e2b7d3b2b30339a1e7483b` |
+| November 3 Form 10-Q | `b96a1bdd2c99e33ddc68942d9018300d23affb07b3900ad238406e597e696b9b` |
+| November 2 Form 8-K | `f74d5ca79701ec10ec0e75f6ef88daf42bf85511cdb062e826bd10b9527572c8` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**125 of the original 544 SEC-only records have been reviewed, with 419 unreviewed.** Eight of the 282 directory-type gaps have dated class evidence, with 274 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 265 affected tests, six research route checks and automated desktop and phone checks. Both browser runs verified the four mappings, six source links, the rate-term distinctions, the Series D exclusion and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

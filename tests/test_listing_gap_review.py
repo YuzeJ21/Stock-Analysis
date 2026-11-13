@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '121 were reviewed, with 423 still unreviewed' in review and '274 still unreviewed' in review
+    assert '125 were reviewed, with 419 still unreviewed' in review and '274 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -318,6 +318,23 @@ def test_global_net_lease_review_matches_four_direct_classes_and_their_lineage()
     assert 'https://www.sec.gov/Archives/edgar/data/1526113/000087666123000715/GNLPRDGNLPRE091123.pdf' in review
     assert 'https://www.sec.gov/Archives/edgar/data/1526113/000110465923100026/tm2325830d1_8k.htm' in review
     assert 'NYSEshvol20261112.pdf#page=76' in review
+
+
+def test_keycorp_review_keeps_filing_series_reset_terms_and_redemption_distinct():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    assert 'KeyCorp · Four NYSE depositary share listings matched' in review
+    assert 'each represent 1/40 of one preferred share' in review
+    for suffix, series in zip('IJKL', 'EFGH', strict=True):
+        assert f'`KEY-P{suffix}` / `KEY Pr{suffix}` / `KEY${suffix}` · Series {series}\n' in review
+    assert 'The directory omits the reset feature for Series H' in review
+    assert 'Series D’s 1/25 depositary shares were redeemed on September 15, 2026' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/91576/000009157626000023/key-20260930.htm' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/91576/000119312526443714/d156521d8k.htm' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/91576/000087666122000709/KEYPRL082522.pdf' in review
+    assert 'https://www.sec.gov/Archives/edgar/data/91576/000009157626000020/a3q26earningspresentatio.htm' in review
+    assert 'NYSEshvol20261112.pdf#page=100' in review
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):
