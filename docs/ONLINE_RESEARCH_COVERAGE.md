@@ -841,9 +841,44 @@ SEC submissions bind the September 30 Form 10-Q to accession `0001628280-26-0715
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**143 of the original 544 SEC-only records have been reviewed, with 401 unreviewed.** Nine of the 282 directory-type gaps have dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+The Ellington Financial batch brought the SEC-only review to 143 of the original 544 records, with 401 unreviewed at that stage. Nine of the 282 directory-type gaps had dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
 
 The integration passed 270 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, seven source links, the scheduled reset dates, the Series A exclusion and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
+
+#### Kimco Realty preferred-share follow-up
+
+The October 29 joint Form 10-Q and Form 8-K assign the three NYSE depositary share listings to Kimco Realty Corporation (CIK `0000879101`). Each listed security represents 1/1,000 of an underlying preferred share. The separate Kimco Realty OP, LLC (CIK `0001959472`) cover lists no securities under Section 12(b). Its preferred units fall outside the batch. The November 5 Form S-3 covers potential resale of parent common stock issuable on exchange of the operating company's senior notes. [October 29 Form 10-Q](https://www.sec.gov/Archives/edgar/data/879101/000119312526437341/kim-20260930.htm) · [October 29 Form 8-K](https://www.sec.gov/Archives/edgar/data/879101/000119312526436941/kim-20261029.htm) · [November 5 Form S-3](https://www.sec.gov/Archives/edgar/data/879101/000114036126042124/ny20084857x1_s3.htm)
+
+| Underlying class | Stated rate and terms | SEC map | SEC cover | Nasdaq Trader ACT symbol | NYSE certification |
+| --- | --- | --- | --- | --- | --- |
+| L | 5.125%, cumulative redeemable | `KIM-PL` | `KIMprL` | `KIM$L` | [August 15, 2017, predecessor](https://www.sec.gov/Archives/edgar/vprr/1701/17010527.pdf) |
+| M | 5.250%, cumulative redeemable | `KIM-PM` | `KIMprM` | `KIM$M` | [December 15, 2017, predecessor](https://www.sec.gov/Archives/edgar/data/879101/000087666117000757/KIMPRM.8A.12.15.17.pdf) |
+| N | 7.250%, cumulative convertible perpetual | `KIM-PN` | `KIMprN` | `KIM$N` | [December 29, 2023](https://www.sec.gov/Archives/edgar/data/879101/000087666123001022/KIMPRN122923.pdf) |
+
+The January 1, 2023 reorganization substituted corresponding Class L and M depositary shares of the new holding company under the existing symbols. The January 3 SEC filing and NYSE notice tie the predecessor registration to that substitution. The January 2, 2024 RPT Realty merger issued Class N depositary shares in exchange for RPT Series D preferred shares. [Holding-company succession Form 8-K](https://www.sec.gov/Archives/edgar/data/879101/000114036123000046/ny20006479x6_8k12b.htm) · [NYSE predecessor removal notice](https://www.sec.gov/Archives/edgar/data/876661/000087666123000012/ruleprovisionnotice.htm) · [RPT merger Form 8-K](https://www.sec.gov/Archives/edgar/data/879101/000114036124000247/ny20017682x2_8k.htm)
+
+Note 15 of the Form 10-Q reports all three classes outstanding on September 30 and documents partial repurchases in the nine months then ended. Class N's conversion ratio was 2.3087 common shares per depositary share as of September 30 and is subject to adjustment. The November 12 directory already labels all three as depositary shares, with NYSE code `N` and test and ETF flags `N`. Page 100 of the November 12 NYSE report shows positive total volume for `KIM PRL`, `KIM PRM` and `KIM PRN`. This corroborates exchange activity on that date. First trade, continuous listing history, current yield and analysis eligibility require separate evidence. [Form 10-Q, Note 15](https://www.sec.gov/Archives/edgar/data/879101/000119312526437341/kim-20260930.htm) · [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 100](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=100)
+
+SEC submissions bind the September 30 Form 10-Q to accession `0001193125-26-437341`, accepted October 29 at 16:10:11 UTC, and the Form 8-K to `0001193125-26-436941`, accepted the same day at 10:54:49 UTC. The ten SEC and exchange receipts below were observed November 13 from 14:42:39 to 14:43:55 UTC. [SEC submissions](https://data.sec.gov/submissions/CIK0000879101.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `e903fe14ec22a75722beaff3ce33e89f134191644a3a0dc8512bee8a213901ab` |
+| October 29 Form 10-Q | `468aeafe8d95e7d32d0a72d34d628342e1abd5b80e4f6dd4bbb274844b527fd7` |
+| October 29 Form 8-K | `e3463ba9dd472a5c55eede0c5877592a57ec43de39d4c3486bc68eabe8ab1a1c` |
+| November 5 Form S-3 | `1d07c215029a35fe7ceb7e01408f1cc2fdbc9647ba84604f1efb13dbf0286f02` |
+| Holding-company succession Form 8-K | `b5a06192fc79bfa3a5790541a1e73e3e5e6ceb408406c35bfa8e478530024816` |
+| NYSE predecessor removal notice | `3d5fb6e94fde851e921546bfa5895b78493d08521217d99300ca9df78af35343` |
+| RPT merger Form 8-K | `a108df6ef49c70f1b7b0d78aec5c481308261208568c5ea54974ee97a8e4eb5d` |
+| NYSE Class L certification | `5e36ddd4375ca764f8e0a2dc9814a3d504cd976e4093c8fa1d227e45a79cd53c` |
+| NYSE Class M certification | `f9c73468fc33d3f7920b770264db6866a86f10912cc038ae5a07d00f40358fd0` |
+| NYSE Class N certification | `4b53fe48ae82155d3e11a970058a242c6823464e51640dcc19fa012ce9128b70` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**146 of the original 544 SEC-only records have been reviewed, with 398 unreviewed.** Nine of the 282 directory-type gaps have dated class evidence, with 273 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 271 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three mappings, six source links, the depositary terms, the issuer and operating company distinction, and the prior PFBC finding. Opening the dated review made zero source requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

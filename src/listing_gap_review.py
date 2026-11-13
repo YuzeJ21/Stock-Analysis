@@ -96,6 +96,10 @@ EFC_COVER = 'https://www.sec.gov/Archives/edgar/data/1411342/000162828026073150/
 EFC_SERIES_B_NYSE = 'https://www.sec.gov/Archives/edgar/data/1411342/000087666121001738/EFC121321.pdf'
 EFC_SERIES_C_NYSE = 'https://www.sec.gov/Archives/edgar/data/1411342/000087666123000092/EFCPRC020623.pdf'
 EFC_SERIES_D_E_NYSE = 'https://www.sec.gov/Archives/edgar/data/1411342/000087666123000966/EFCPRDPRE121323.pdf'
+KIM_QUARTER = 'https://www.sec.gov/Archives/edgar/data/879101/000119312526437341/kim-20260930.htm'
+KIM_COVER = 'https://www.sec.gov/Archives/edgar/data/879101/000119312526436941/kim-20261029.htm'
+KIM_SUCCESSION = 'https://www.sec.gov/Archives/edgar/data/879101/000114036123000046/ny20006479x6_8k12b.htm'
+KIM_CLASS_N_NYSE = 'https://www.sec.gov/Archives/edgar/data/879101/000087666123001022/KIMPRN122923.pdf'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -113,11 +117,16 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 143 were reviewed, with 401 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 146 were reviewed, with 398 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Nine now have dated class evidence, with 273 still unreviewed.
 
 **Dated findings**
 
+- **Kimco Realty · Three NYSE depositary share listings matched.** The October 29 Form 10-Q and Form 8-K identify three listings of Kimco Realty Corporation. Each listed depositary share represents 1/1,000 of its underlying preferred share. Kimco Realty OP, LLC is a separate registrant. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, SEC cover and directory symbols, followed by the stated class rate. [Kimco Form 10-Q]({KIM_QUARTER}) · [Kimco Form 8-K]({KIM_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=100)
+  - `KIM-PL` / `KIMprL` / `KIM$L` · Class L · 5.125%
+  - `KIM-PM` / `KIMprM` / `KIM$M` · Class M · 5.250%
+  - `KIM-PN` / `KIMprN` / `KIM$N` · Class N · 7.250%
+  - Classes L and M are cumulative redeemable preferred stock. Class N is convertible perpetual preferred stock with cumulative dividends. The Form 10-Q shows all three classes outstanding on September 30 after partial repurchases. [Class L and M succession filing]({KIM_SUCCESSION}) · [NYSE Class N certification]({KIM_CLASS_N_NYSE})
 - **Ellington Financial · Three NYSE preferred share listings matched.** The November 6 Form 10-Q and November 12 Form 8-K identify three direct cumulative redeemable preferred share classes. The November 12 Nasdaq Trader directory and same-day NYSE report corroborate the matches. Each row gives the SEC map, SEC cover and directory symbols, followed by the stated class rate. [Ellington Form 10-Q]({EFC_QUARTER}) · [Ellington Form 8-K]({EFC_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=54)
   - `EFC-PB` / `EFC PR B` / `EFC$B` · Series B · 6.250% fixed-rate reset
   - `EFC-PC` / `EFC PR C` / `EFC$C` · Series C · 8.625% fixed-rate reset

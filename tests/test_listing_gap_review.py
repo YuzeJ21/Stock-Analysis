@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '143 were reviewed, with 401 still unreviewed' in review and '273 still unreviewed' in review
+    assert '146 were reviewed, with 398 still unreviewed' in review and '273 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -426,6 +426,25 @@ def test_ellington_review_preserves_exact_aliases_and_reset_terms():
     for certification in ('EFC121321.pdf', 'EFCPRC020623.pdf', 'EFCPRDPRE121323.pdf'):
         assert certification in batch
     assert 'NYSEshvol20261112.pdf#page=54' in batch
+
+
+def test_kimco_review_keeps_depositary_listings_and_underlying_classes_distinct():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    start = '**Kimco Realty · Three NYSE depositary share listings matched.**'
+    assert start in review
+    batch = review.split(start, 1)[1].split('\n- **', 1)[0]
+    for cls, rate in zip('LMN', ('5.125%', '5.250%', '7.250%'), strict=True):
+        assert f'`KIM-P{cls}` / `KIMpr{cls}` / `KIM${cls}` · Class {cls} · {rate}\n' in batch
+    assert '1/1,000 of its underlying preferred share' in batch
+    assert 'Class N is convertible perpetual preferred stock' in batch
+    assert 'Kimco Realty OP, LLC is a separate registrant' in batch
+    assert 'all three classes outstanding on September 30 after partial repurchases' in batch
+    assert '000119312526437341/kim-20260930.htm' in batch
+    assert '000119312526436941/kim-20261029.htm' in batch
+    assert '000114036123000046/ny20006479x6_8k12b.htm' in batch
+    assert 'KIMPRN122923.pdf' in batch and 'NYSEshvol20261112.pdf#page=100' in batch
 
 
 def test_dated_listing_gap_review_is_limited_to_personal_research(monkeypatch):
