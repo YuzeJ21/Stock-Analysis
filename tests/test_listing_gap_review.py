@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '200 were reviewed, with 344 still unreviewed' in review
+    assert '202 were reviewed, with 342 still unreviewed' in review
     assert 'Fifteen now have dated class evidence, with 267 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
@@ -801,6 +801,23 @@ def test_american_homes_review_distinguishes_listed_preferred_shares_from_partne
     assert 'Series F was redeemed on May 5, 2022' in batch
     for source in ('000156240126000058/amh-20260930.htm', '000156240126000061/amh-20261112.htm',
                    'NYSEshvol20261112.pdf#page=9'):
+        assert source in batch
+
+
+def test_rexford_review_maps_both_listed_classes_and_preserves_the_redemption_boundary():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    heading = '**Rexford Industrial Realty · Two NYSE preferred share listings matched.**'
+    assert heading in review
+    batch = review.split(heading, 1)[1].split('\n- **', 1)[0]
+    for series, rate in zip('BC', ('5.875%', '5.625%'), strict=True):
+        assert f'`REXR-P{series}` / `REXR PR{series}` / `REXR${series}` · Series {series} · {rate}\n' in batch
+    assert 'cumulative redeemable preferred stock' in batch
+    assert 'operating partnership units are separate' in batch
+    assert 'Series A was redeemed on August 16, 2021' in batch
+    for source in ('000157128326000064/rexr-20260930.htm', '000157128326000058/rexr-20261022.htm',
+                   '000157128321000045/rexr-20210930.htm', 'NYSEshvol20261112.pdf#page=146'):
         assert source in batch
 
 

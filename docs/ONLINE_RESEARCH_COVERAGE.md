@@ -1528,9 +1528,44 @@ SEC submissions tie the September 30 Form 10-Q to accession `0001562401-26-00005
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**200 of the original 544 SEC-only records have been reviewed, with 344 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+This batch brought the review to 200 of the original 544 SEC-only records, with 344 unreviewed. Fifteen of the 282 directory-type gaps had dated class evidence, with 267 unreviewed.
 
 The integration passed 238 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the two symbol mappings, 222 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
+
+#### Rexford Industrial Realty preferred-share follow-up
+
+The October 27 Form 10-Q and October 22 Form 8-K identify Series B and C as NYSE-listed cumulative redeemable preferred stock of Rexford Industrial Realty, Inc. (CIK `0001571283`). Historical Forms 8-A identify both classes, and the September 19, 2019 NYSE certification confirms Series C. The October 23 shelf registration separately describes the operating partnership units, which the issuer states are unlisted. [October 27 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1571283/000157128326000064/rexr-20260930.htm) · [October 22 Form 8-K](https://www.sec.gov/Archives/edgar/data/1571283/000157128326000058/rexr-20261022.htm) · [Series B Form 8-A](https://www.sec.gov/Archives/edgar/data/1571283/000119312517338848/d685845d8a12b.htm) · [Series C Form 8-A](https://www.sec.gov/Archives/edgar/data/1571283/000119312519249584/d745176d8a12b.htm) · [NYSE Series C certification](https://www.sec.gov/Archives/edgar/data/1571283/000087666119000985/REXR8A091919.pdf) · [October 23 shelf registration](https://www.sec.gov/Archives/edgar/data/1571283/000157128326000061/rexrs-3asr10x22x2026.htm)
+
+| Series | SEC map and cover | NYSE report | Nasdaq Trader ACT symbol | Stated annual dividend rate |
+| --- | --- | --- | --- | --- |
+| B | `REXR-PB` | `REXR PRB` | `REXR$B` | 5.875% |
+| C | `REXR-PC` | `REXR PRC` | `REXR$C` | 5.625% |
+
+The September 30 statements report 3,000,000 Series B and 3,450,000 Series C shares outstanding. The October 20 declaration sets December 31 payment to December 15 record holders at $0.367188 per Series B share and $0.351563 per Series C share. The September 2021 Form 10-Q confirms full redemption of the separate Series A class on August 16, 2021, and NYSE filed a Form 25 for that class. [October 22 earnings exhibit](https://www.sec.gov/Archives/edgar/data/1571283/000157128326000058/rexrex991q3-2026.htm) · [2021 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1571283/000157128321000045/rexr-20210930.htm) · [NYSE Series A Form 25](https://www.sec.gov/Archives/edgar/data/876661/000087666121001202/primary_doc.xml)
+
+The November 12 Nasdaq Trader directory assigns NYSE venue code `N` and ETF and test flags `N` to both rows. The saved rules already classified both as preferred shares. The NYSE report shows 1,868 total shares traded for Series B and 100 for Series C. Series C had zero short volume in the report. The common `REXR` listing falls outside this batch. First execution, continuous listing, market yields and analysis eligibility require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 146](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=146)
+
+SEC submissions tie the September 30 Form 10-Q to accession `0001571283-26-000064`, accepted October 27 at 01:28:32 UTC, and the October 22 Form 8-K to `0001571283-26-000058`, accepted at 20:28:26 UTC. The linked SEC documents were observed November 14 at 02:00:42–02:01:23 UTC. The exchange map, directory and NYSE report use the preserved November 12 receipts. [SEC submissions](https://data.sec.gov/submissions/CIK0001571283.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `577b59b931d61e64ab19ceb7600808313e96449d3d8924f3327f0786f3ea39ba` |
+| October 27 Form 10-Q | `67a683cebdd623006d07cf2407b3a05d2f8b5654b0400019feb1fc33869f30e0` |
+| October 22 Form 8-K | `023096af1db80f6bedaf9e672346030e83b0f499760b522cac7e4592e6bbba4e` |
+| October 22 earnings exhibit | `a492e4f40d1ec2cd4168a5616ff65bf63c3499dc0b090fb6934c4d136b9203eb` |
+| Series B Form 8-A | `7e35dd0afa2033cb5ce31037e835f35337aecd007aab8a2979a1577269a76432` |
+| Series C Form 8-A | `39886d8083d0c69d329ee30c749a48a0cfed8c9bceeb0c7738d284ca0ef56812` |
+| NYSE Series C certification | `6238496c8f7a586f1fe7a2e267525600a990dfd30c6d293accff5ad195fa2023` |
+| October 23 shelf registration | `95186f67cac2134de17c9cbfb704a1d73ae0e44969c6a162d375021e6e80cfe0` |
+| 2021 Form 10-Q | `3f1639da2b55b894563d0b40a060276d786d55b65e1e646b67ab7cff2cf96017` |
+| NYSE Series A Form 25 | `9035cbf42b549df3b2fd1ca9f9fe94eb860b6940a5f572db89953607d0772af5` |
+| November 12 SEC exchange map | `98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**202 of the original 544 SEC-only records have been reviewed, with 342 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 239 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the two symbol mappings, 225 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

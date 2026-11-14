@@ -176,6 +176,9 @@ SYF_SERIES_B_NYSE = 'https://www.sec.gov/Archives/edgar/data/1601712/00008766612
 AMH_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1562401/000156240126000058/amh-20260930.htm'
 AMH_COVER = 'https://www.sec.gov/Archives/edgar/data/1562401/000156240126000061/amh-20261112.htm'
 AMH_SERIES_F_REDEMPTION = 'https://www.sec.gov/Archives/edgar/data/1562401/000156240122000098/R25.htm'
+REXR_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1571283/000157128326000064/rexr-20260930.htm'
+REXR_COVER = 'https://www.sec.gov/Archives/edgar/data/1571283/000157128326000058/rexr-20261022.htm'
+REXR_SERIES_A_REDEMPTION = 'https://www.sec.gov/Archives/edgar/data/1571283/000157128321000045/rexr-20210930.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -193,11 +196,15 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 200 were reviewed, with 344 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 202 were reviewed, with 342 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Fifteen now have dated class evidence, with 267 still unreviewed.
 
 **Dated findings**
 
+- **Rexford Industrial Realty · Two NYSE preferred share listings matched.** The October 27 Form 10-Q and October 22 Form 8-K identify Series B and C as cumulative redeemable preferred stock. The SEC map and filing covers use the same symbols. Each row also gives the November 12 NYSE report and Nasdaq Trader directory symbols. The NYSE report shows positive total trading volume for both series on that date. [Rexford Form 10-Q]({REXR_QUARTER}) · [Rexford Form 8-K]({REXR_COVER}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=146) · [Nasdaq Trader directory]({_SOURCES[1][2]})
+  - `REXR-PB` / `REXR PRB` / `REXR$B` · Series B · 5.875%
+  - `REXR-PC` / `REXR PRC` / `REXR$C` · Series C · 5.625%
+  - The operating partnership units are separate from the listed shares. Series A was redeemed on August 16, 2021. [Series A redemption in Form 10-Q]({REXR_SERIES_A_REDEMPTION})
 - **American Homes 4 Rent · Two NYSE preferred share listings matched.** The November 5 Form 10-Q and November 12 Form 8-K identify the trust's Series G and H. Both are cumulative redeemable perpetual preferred shares of beneficial interest. Each row gives the SEC map, filing cover and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows trading activity in both series. [American Homes 4 Rent Form 10-Q]({AMH_QUARTER}) · [American Homes 4 Rent Form 8-K]({AMH_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=9)
   - `AMH-PG` / `AMH-G` / `AMH$G` · Series G · 5.875%
   - `AMH-PH` / `AMH-H` / `AMH$H` · Series H · 6.250%
