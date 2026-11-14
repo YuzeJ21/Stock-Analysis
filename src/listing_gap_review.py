@@ -155,6 +155,10 @@ CMRE_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1503584/0001171843260068
 CODI_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1345126/000134512626000071/codi-20260930.htm'
 CODI_COVER = 'https://www.sec.gov/Archives/edgar/data/1345126/000134512626000072/codi-20261104.htm'
 CODI_DISTRIBUTIONS = 'https://www.sec.gov/Archives/edgar/data/1345126/000134512626000065/codidistributionpressrelea.htm'
+PNFP_QUARTER = 'https://www.sec.gov/Archives/edgar/data/2082866/000208286626000092/pnfp-20260930.htm'
+PNFP_COVER = 'https://www.sec.gov/Archives/edgar/data/2082866/000208286626000094/pnfp-20261104.htm'
+PNFP_MERGER = 'https://www.sec.gov/Archives/edgar/data/2082866/000114036126000050/ef20061822_8k12b.htm'
+PNFP_NYSE_CERT = 'https://www.sec.gov/Archives/edgar/data/2082866/000087666125001026/PNFP123125.pdf'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -172,11 +176,17 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 186 were reviewed, with 358 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 189 were reviewed, with 355 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Fourteen now have dated class evidence, with 268 still unreviewed.
 
 **Dated findings**
 
+- **Pinnacle Financial Partners · Three NYSE preferred security listings matched.** The November 2 Form 10-Q and November 4 Form 8-K identify three series of noncumulative perpetual preferred stock, with Series C listed through depositary shares. Each row gives the SEC map, filing cover and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows activity in all three. [Pinnacle Form 10-Q]({PNFP_QUARTER}) · [Pinnacle Form 8-K]({PNFP_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=137)
+  - `PNFP-PA` / `PNFP - PrA` / `PNFP$A` · Series A · fixed-to-floating preferred stock
+  - `PNFP-PB` / `PNFP - PrB` / `PNFP$B` · Series B · fixed-rate reset preferred stock
+  - `PNFP-PC` / `PNFP - PrC` / `PNFP$C` · Series C · depositary shares, each representing 1/40 of a 6.75% fixed-rate preferred share
+  - The directory describes both B and C as fixed-to-floating stock. The SEC filings and NYSE certification establish the classes shown here. [December 31 NYSE certification]({PNFP_NYSE_CERT})
+  - In the January 1, 2026 merger, Synovus Series D and E became Series A and B of the new Pinnacle. Legacy Pinnacle's `PNFPP` depositary shares converted into the new Series C depositary shares. [January 2 merger filing]({PNFP_MERGER})
 - **Compass Diversified Holdings · Three NYSE preferred share listings matched.** The November 4 Form 10-Q and Form 8-K identify the preferred shares as beneficial interests in the trust. Compass Group Diversified Holdings LLC is a separate co-registrant. Each row gives the SEC map, filing cover and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows activity in all three classes. [Compass Form 10-Q]({CODI_QUARTER}) · [Compass Form 8-K]({CODI_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=39)
   - `CODI-PA` / `CODI PR A` / `CODI$A` · Series A · 7.250% fixed, noncumulative
   - `CODI-PB` / `CODI PR B` / `CODI$B` · Series B · 7.875% fixed-to-floating, cumulative

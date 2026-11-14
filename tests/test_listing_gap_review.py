@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '186 were reviewed, with 358 still unreviewed' in review
+    assert '189 were reviewed, with 355 still unreviewed' in review
     assert 'Fourteen now have dated class evidence, with 268 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
@@ -693,6 +693,27 @@ def test_compass_review_distinguishes_the_trust_preferred_share_series():
     assert 'common shares are outside this batch' in batch
     for source in ('000134512626000071/codi-20260930.htm', '000134512626000072/codi-20261104.htm',
                    '000134512626000065/codidistributionpressrelea.htm', 'NYSEshvol20261112.pdf#page=39'):
+        assert source in batch
+
+
+def test_pinnacle_review_uses_post_merger_classes_and_documents_directory_conflicts():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    heading = '**Pinnacle Financial Partners · Three NYSE preferred security listings matched.**'
+    assert heading in review
+    batch = review.split(heading, 1)[1].split('\n- **', 1)[0]
+    terms = ('fixed-to-floating preferred stock', 'fixed-rate reset preferred stock',
+             'depositary shares, each representing 1/40 of a 6.75% fixed-rate preferred share')
+    for series, term in zip('ABC', terms, strict=True):
+        assert f'`PNFP-P{series}` / `PNFP - Pr{series}` / `PNFP${series}` · Series {series} · {term}\n' in batch
+    assert 'noncumulative perpetual preferred stock' in batch
+    assert 'directory describes both B and C as fixed-to-floating stock' in batch
+    assert 'Series D and E became Series A and B' in batch
+    assert '`PNFPP` depositary shares converted into the new Series C depositary shares' in batch
+    for source in ('000208286626000092/pnfp-20260930.htm', '000208286626000094/pnfp-20261104.htm',
+                   '000114036126000050/ef20061822_8k12b.htm', '000087666125001026/PNFP123125.pdf',
+                   'NYSEshvol20261112.pdf#page=137'):
         assert source in batch
 
 

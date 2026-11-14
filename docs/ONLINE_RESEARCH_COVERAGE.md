@@ -1322,9 +1322,43 @@ Both submissions files tie the September 30 Form 10-Q to `0001345126-26-000071` 
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**186 of the original 544 SEC-only records have been reviewed, with 358 unreviewed.** Fourteen of the 282 directory-type gaps have dated evidence, with 268 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+This batch brought the review to 186 of the original 544 SEC-only records, with 358 unreviewed. Fourteen of the 282 directory-type gaps had dated evidence, with 268 unreviewed.
 
 The integration passed 232 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three symbol mappings, 196 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
+
+#### Pinnacle Financial Partners preferred-security follow-up
+
+The November 2 Form 10-Q and November 4 Form 8-K identify three NYSE listings for Pinnacle Financial Partners, Inc. under CIK `0002082866`. The December 31, 2025 Form 8-A and NYSE certification register the classes for Steel Newco Inc., which took the Pinnacle name at the merger. All three underlying preferred classes are noncumulative and perpetual. [November 2 Form 10-Q](https://www.sec.gov/Archives/edgar/data/2082866/000208286626000092/pnfp-20260930.htm) · [November 4 Form 8-K](https://www.sec.gov/Archives/edgar/data/2082866/000208286626000094/pnfp-20261104.htm) · [December 31 Form 8-A](https://www.sec.gov/Archives/edgar/data/2082866/000114036125046956/ef20061821_8a12b.htm) · [December 31 NYSE certification](https://www.sec.gov/Archives/edgar/data/2082866/000087666125001026/PNFP123125.pdf)
+
+| Series | SEC map | SEC cover | Nasdaq Trader ACT symbol | NYSE report | Filed class |
+| --- | --- | --- | --- | --- | --- |
+| A | `PNFP-PA` | `PNFP - PrA` | `PNFP$A` | `PNFP PRA` | Fixed-to-floating preferred stock |
+| B | `PNFP-PB` | `PNFP - PrB` | `PNFP$B` | `PNFP PRB` | Fixed-rate reset preferred stock |
+| C | `PNFP-PC` | `PNFP - PrC` | `PNFP$C` | `PNFP PRC` | Depositary shares, each representing 1/40 of a 6.75% fixed-rate preferred share |
+
+The January 1, 2026 merger converted Synovus Series D and E into new Pinnacle Series A and B, respectively. Legacy Pinnacle's `PNFPP` depositary shares converted into the new Series C depositary shares. The successor filing records cessation of the predecessor Nasdaq and NYSE listings before the January 2 market opening. The predecessor listings fall outside the three matched rows. The Form 8-A explanatory note and Note 2 of the November 2 Form 10-Q describe the legacy underlying stock as Series C. The two January 2 merger filings identify it as legacy Series B, consistent with the dated Nasdaq alert. [Successor Form 8-K12B](https://www.sec.gov/Archives/edgar/data/2082866/000114036126000050/ef20061822_8k12b.htm) · [Legacy Pinnacle Form 8-K](https://www.sec.gov/Archives/edgar/data/1115055/000111505526000002/pnfp-20260102.htm) · [Nasdaq corporate action alert](https://www.nasdaqtrader.com/TraderNews.aspx?id=eca2025-721)
+
+The November 12 Nasdaq Trader directory confirms the aliases under NYSE venue code `N`, with ETF and test flags `N`. Its descriptions label both Series B and C as fixed-to-floating preferred stock. The SEC covers and NYSE certification establish the detailed classes above. The saved directory rules had already classified these rows in the broad preferred category, so this review adds no rows to the separate directory-type gap count. The NYSE report shows trading in all three on November 12. First execution, continuous listing, market yields and analysis eligibility require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 137](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=137)
+
+SEC submissions tie the September 30 Form 10-Q to `0002082866-26-000092`, accepted November 2 at 17:55:21 UTC, and the November 4 Form 8-K to `0002082866-26-000094`, accepted November 4 at 22:10:04 UTC. The filing and corporate action sources in the table were observed November 14 at 00:31:34–35 UTC. The snapshot inputs and NYSE volume report use the preserved November 12 receipts. [SEC submissions](https://data.sec.gov/submissions/CIK0002082866.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| Successor SEC submissions | `9142825ea900469f801b149a35c60367eafcce24eca30f423faf4bf9d1520f59` |
+| November 2 Form 10-Q | `a44d8cf690e0b37173a444f709d225251d6c7a57f5e21be86cca20063fd2efe2` |
+| November 4 Form 8-K | `088fa1ac4e1b36f83e2db53a4dd3b34e52323d2827048fb86f12ab2c32d1c5da` |
+| December 31 Form 8-A | `d9ebf3f2d0af80fe5bf58d9ee4da568f8ff077e8bb358eb9025bf74e2f4447f1` |
+| December 31 NYSE certification | `2c924494b6c5ee9ab0fc56312a31908cb6d676dcbc6c2dd5bd4bfa50c5f241a1` |
+| January 2 successor Form 8-K12B | `25ec61f7fe72cfd66424ca9612c56711a096e0094c52bec6295ae4e60bfcce15` |
+| January 2 legacy Pinnacle Form 8-K | `441533da2d0f293e79b5210aa5beb7e42f30a97c6b9d5033a501d818dbbe5db4` |
+| Nasdaq corporate action alert | `8ce9323f4e29f609ecd950ceb242d2b643bd10fdf34c0766cafeafb3e715f07b` |
+| November 12 SEC exchange map | `98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**189 of the original 544 SEC-only records have been reviewed, with 355 unreviewed.** Fourteen of the 282 directory-type gaps have dated class evidence, with 268 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 233 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three symbol mappings, 200 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 
