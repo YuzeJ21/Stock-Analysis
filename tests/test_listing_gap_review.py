@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '180 were reviewed, with 364 still unreviewed' in review
+    assert '183 were reviewed, with 361 still unreviewed' in review
     assert 'Fourteen now have dated class evidence, with 268 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
@@ -655,6 +655,24 @@ def test_tpg_mortgage_review_distinguishes_fixed_and_floating_preferred_shares_f
     assert '`MITN` and `MITP` are separate senior notes' in batch
     for source in ('000162828026071791/mitt-20260930.htm', '000162828026069770/mitt-20261104.htm',
                    '000162828025057427/a8k-121625xexhibit31.htm', 'NYSEshvol20261112.pdf#page=112'):
+        assert source in batch
+
+
+def test_costamare_review_maps_three_listed_series_and_excludes_other_preferred_shares():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    heading = '**Costamare · Three NYSE preferred share listings matched.**'
+    assert heading in review
+    batch = review.split(heading, 1)[1].split('\n- **', 1)[0]
+    for series, rate in zip('BCD', ('7.625%', '8.50%', '8.75%'), strict=True):
+        assert f'`CMRE-P{series}` / `CMRE.PR{series}` / `CMRE PR {series}` / `CMRE${series}` · Series {series} · {rate}\n' in batch
+    assert 'cumulative redeemable perpetual preferred stock' in batch
+    assert 'Series E was fully redeemed on July 15, 2024' in batch
+    assert 'Series F sits outside the listed preferred classes' in batch
+    assert 'Costamare Bulkers (`CMDB`) is a separate issuer' in batch
+    for source in ('000114036126007868/ef20064083_20f.htm', '000117184326006324/exh_991.htm',
+                   '000117184326006884/exh_991.htm', 'NYSEshvol20261112.pdf#page=38'):
         assert source in batch
 
 

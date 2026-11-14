@@ -1251,9 +1251,41 @@ SEC submissions bind the September 30 Form 10-Q to accession `0001628280-26-0717
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**180 of the original 544 SEC-only records have been reviewed, with 364 unreviewed.** Fourteen of the 282 directory-type gaps have dated evidence, with 268 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+This batch brought the review to 180 of the original 544 SEC-only records, with 364 unreviewed. Fourteen of the 282 directory-type gaps had dated evidence, with 268 unreviewed.
 
 The integration passed 230 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs checked the three symbol mappings, 189 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
+
+#### Costamare preferred-share follow-up
+
+Costamare Inc. (CIK `0001503584`) lists Series B, C and D on the NYSE in its Form 20-F for the year ended December 31, 2025. The October 1 Form 6-K exhibit identifies them as cumulative redeemable perpetual preferred stock. The October 28 Form 6-K exhibit confirms the October 15 dividend payments. The annual filing gives the issuer's incorporation as the Marshall Islands and its principal executive office as Monaco. The November 12 filing for Costamare Bulkers Holdings Limited (`CMDB`, CIK `0002033535`) belongs to a separate issuer. [Form 20-F](https://www.sec.gov/Archives/edgar/data/1503584/000114036126007868/ef20064083_20f.htm) · [October 1 dividend declaration](https://www.sec.gov/Archives/edgar/data/1503584/000117184326006324/exh_991.htm) · [October 28 results](https://www.sec.gov/Archives/edgar/data/1503584/000117184326006884/exh_991.htm) · [Costamare Bulkers Form 6-K](https://www.sec.gov/Archives/edgar/data/2033535/000117184326007345/f6k_111126.htm)
+
+| Series | SEC map | Form 20-F cover | Issuer trading symbol | Nasdaq Trader ACT symbol | NYSE report | Stated annual dividend rate |
+| --- | --- | --- | --- | --- | --- | --- |
+| B | `CMRE-PB` | `CMRE.PRB` | `CMRE PR B` | `CMRE$B` | `CMRE PRB` | 7.625% |
+| C | `CMRE-PC` | `CMRE.PRC` | `CMRE PR C` | `CMRE$C` | `CMRE PRC` | 8.50% |
+| D | `CMRE-PD` | `CMRE.PRD` | `CMRE PR D` | `CMRE$D` | `CMRE PRD` | 8.75% |
+
+The existing rules already classified all three Nasdaq Trader directory rows as preferred shares. The November 12 directory records NYSE venue code `N`, with ETF and test flags `N`. The NYSE report shows positive volume for each class on November 12. The annual filing reports full redemption of Series E on July 15, 2024, and NYSE filed the corresponding Form 25. Series F and the preferred stock purchase rights sit outside the three matched share classes. The stated rates apply to the contractual liquidation preference. First execution, continuous listing, market yields and analysis eligibility require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 38](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=38) · [NYSE Series E Form 25](https://www.sec.gov/Archives/edgar/data/876661/000087666124000573/primary_doc.xml)
+
+SEC submissions bind the Form 20-F to accession `0001140361-26-007868`, accepted March 4 at 21:16:56 UTC, and the Forms 6-K to accessions `0001171843-26-006324` and `0001171843-26-006884`, accepted October 1 at 10:45:41 UTC and October 28 at 11:23:39 UTC. The Costamare SEC documents below were observed November 14 at 00:21:04–05 UTC. The separate Costamare Bulkers filing was observed at 00:23:09 UTC. The exchange map, directory and NYSE report use the preserved November 12 receipts. [SEC submissions](https://data.sec.gov/submissions/CIK0001503584.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `e53f8c64ef19c0d5b2d30d0626d41f0fff02190b68cbd0a87cd485a8935dda26` |
+| March 4 Form 20-F | `b66a955dd3080f5f6f39d06dd5d1cd655c36fe6ea914778acd55dcefe1431c22` |
+| October 1 Form 6-K | `aa8fd953cfa6c0dd31f4974113c58d45a3cef4f6d107da1d42ce64f04489e597` |
+| October 1 Exhibit 99.1 | `73febe529f8cc649d0238f700329ed5f68066ac14c4ea7dabd7ca381b1551f6d` |
+| October 28 Form 6-K | `f436f2914dfb20d72db98f597084b6813192cff9ed97a07f5b363dfea6cdf0ae` |
+| October 28 Exhibit 99.1 | `65074ca0e353949558fdf574de75edab812dca9a62379de6ced91fab5977bacb` |
+| NYSE Series E Form 25 | `8b8fff4f872ebebc6e4aaf72391f34a22c6c9cd42b3267587c9ecff4b1eb27e5` |
+| November 12 Costamare Bulkers Form 6-K | `2649aaaa7157fa5abeb335faada9a1f48663fc17ade3b2cb4532431725b5d1b3` |
+| November 12 SEC exchange map | `98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**183 of the original 544 SEC-only records have been reviewed, with 361 unreviewed.** Fourteen of the 282 directory-type gaps have dated evidence, with 268 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 231 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three symbol mappings, 193 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 
