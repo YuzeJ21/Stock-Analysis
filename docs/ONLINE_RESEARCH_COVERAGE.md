@@ -1456,9 +1456,45 @@ SEC submissions bind the September 30 Form 10-Q to accession `0000046195-26-0000
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**196 of the original 544 SEC-only records have been reviewed, with 348 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+This batch brought the review to 196 of the original 544 SEC-only records, with 348 unreviewed. Fifteen of the 282 directory-type gaps had dated class evidence, with 267 unreviewed.
 
 The integration passed 236 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the two symbol mappings, 214 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
+
+#### Synchrony Financial preferred-share follow-up
+
+The October 22 Form 10-Q and November 10 Form 8-K identify two NYSE-listed depositary share classes of Synchrony Financial (CIK `0001601712`). Each depositary share represents 1/40 of its underlying noncumulative perpetual preferred share. NYSE certified the two depositary classes in November 2019 and February 2024. [October 22 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1601712/000160171226000043/syf-20260930.htm) · [November 10 Form 8-K](https://www.sec.gov/Archives/edgar/data/1601712/000160171226000045/syf-20261110.htm) · [NYSE Series A certification](https://www.sec.gov/Archives/edgar/data/1601712/000087666119001148/SYFPRA111819.pdf) · [NYSE Series B certification](https://www.sec.gov/Archives/edgar/data/1601712/000087666124000111/SYFPRB022324.pdf)
+
+| Series | SEC map | SEC cover | Nasdaq Trader ACT symbol | NYSE report | Annual dividend terms |
+| --- | --- | --- | --- | --- | --- |
+| A | `SYF-PA` | `SYFPrA` | `SYF$A` | `SYF PRA` | 5.625% fixed |
+| B | `SYF-PB` | `SYFPrB` | `SYF$B` | `SYF PRB` | 8.250% through May 14, 2029. Resets May 15, 2029 and every five years thereafter to the five-year Treasury rate plus 4.044 percentage points. |
+
+The 10-Q reports both underlying classes outstanding as of September 30, with a $1,000 liquidation preference per preferred share, equivalent to $25 per depositary share. It gives November 15, 2024 and May 15, 2029 as the respective ordinary optional redemption start dates. The October 20 issuer announcement records dividends declared for November 16 payment to November 5 record holders, at $0.351563 for Series A and $0.515625 for Series B per depositary share. [October 20 issuer announcement](https://www.synchrony.com/contenthub/newsroom/synchrony-reports-third-quarter-2026-results.html)
+
+Series C is a separate 1/100 depositary issuance. Its June prospectus says the issuer did not intend to seek an exchange listing or automated dealer quotation for those depositary shares. The two Section 12(b) covers and the saved listing inventory match Series A and B. Item 1 of the historical Series B Form 8-A names Series A in a parenthetical about the liquidation preference. The registration table, Series B designation and NYSE certification identify the Series B class and its 1/40 interest. [Series C prospectus](https://www.sec.gov/Archives/edgar/data/1601712/000119312526255668/d44908d424b5.htm) · [Series B Form 8-A](https://www.sec.gov/Archives/edgar/data/1601712/000119312524044542/d750239d8a12b.htm) · [Series B designation](https://www.sec.gov/Archives/edgar/data/1601712/000119312524044482/d745125dex41.htm)
+
+The November 12 Nasdaq Trader directory assigns NYSE venue code `N` and ETF and test flags `N` to both rows. The existing rules already classified both as depositary receipts. The NYSE report shows trading activity in both on that date. The common `SYF` listing falls outside the batch. First execution, continuous listing, market yields and analysis eligibility require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 167](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=167)
+
+SEC submissions bind the September 30 Form 10-Q to accession `0001601712-26-000043`, accepted October 22 at 20:17:33 UTC, and the November 10 Form 8-K to `0001601712-26-000045`, accepted November 9 at 22:42:02 UTC. The listed filings, certificates and issuer release were observed November 14 at 01:50:19–01:51:38 UTC. The snapshot inputs and NYSE trading evidence use the preserved November 12 receipts. [SEC submissions](https://data.sec.gov/submissions/CIK0001601712.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `b11b1043743e33b8c9d195efe79c1ee75005e2da56dbe9a40e0ea877aeb88ddc` |
+| October 22 Form 10-Q | `0dec4b77b552550a50875e2ee067228742cffd783dbca709ffb6a0f958bafdf6` |
+| November 10 Form 8-K | `5bdbb48fb730902447b7f3a66daf797296f9bf59f9452dcb338b88b8e4ed3884` |
+| October 20 issuer announcement | `2f19068180514e5fda84ea06bbbd5b50ef3341258ca833391b90c7dd9801b452` |
+| June 3 Series C prospectus | `885f4add6ff6c2c688dbb3e6e2f61ac06d3c8a8beb9b077aec3685dd51c2c642` |
+| Series B Form 8-A | `e70fbcf331c3831b0e86a482300ffbbc6320f546dfbcf80d8cb8bcd6217e1b12` |
+| Series B designation | `05a18d7988e60c8ee7d7e975cd601ea74be1983c62de4667382b0e551bad7473` |
+| NYSE Series A certification | `09ddf2c44bf4b625e3b82332299fd913c77bd261a92858943076e924cc7e66fa` |
+| NYSE Series B certification | `352047acbbcba1097cf31419a92db3a7d81e6ed3836ceeaa1e79bfdd11a02d6e` |
+| November 12 SEC exchange map | `98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**198 of the original 544 SEC-only records have been reviewed, with 346 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 237 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the two symbol mappings, 218 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

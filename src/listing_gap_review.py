@@ -170,6 +170,9 @@ BOH_COVER = 'https://www.sec.gov/Archives/edgar/data/46195/000004619526000062/bo
 BOH_ANNUAL = 'https://www.sec.gov/Archives/edgar/data/46195/000004619526000015/boh-20251231.htm'
 BOH_SERIES_A_NYSE = 'https://www.sec.gov/Archives/edgar/data/46195/000087666121000894/BOH061521.pdf'
 BOH_SERIES_B_NYSE = 'https://www.sec.gov/Archives/edgar/data/46195/000087666124000513/BOHPRB062424.pdf'
+SYF_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1601712/000160171226000043/syf-20260930.htm'
+SYF_COVER = 'https://www.sec.gov/Archives/edgar/data/1601712/000160171226000045/syf-20261110.htm'
+SYF_SERIES_B_NYSE = 'https://www.sec.gov/Archives/edgar/data/1601712/000087666124000111/SYFPRB022324.pdf'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -187,11 +190,15 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 196 were reviewed, with 348 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 198 were reviewed, with 346 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Fifteen now have dated class evidence, with 267 still unreviewed.
 
 **Dated findings**
 
+- **Synchrony Financial · Two NYSE depositary share listings matched.** The October 22 Form 10-Q and November 10 Form 8-K identify both classes. Each depositary share represents 1/40 of the corresponding noncumulative perpetual preferred share. Each row gives the SEC map, filing cover and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows trading activity in both series. [Synchrony Form 10-Q]({SYF_QUARTER}) · [Synchrony Form 8-K]({SYF_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=167)
+  - `SYF-PA` / `SYFPrA` / `SYF$A` · Series A · 5.625% fixed
+  - `SYF-PB` / `SYFPrB` / `SYF$B` · Series B · 8.250% initial fixed rate
+  - Series B resets on May 15, 2029 and every five years after that to the five-year Treasury rate plus 4.044 percentage points. Series C is a separate 1/100 depositary issuance outside these two NYSE matches. [NYSE Series B certification]({SYF_SERIES_B_NYSE})
 - **Bank of Hawaii · Two NYSE depositary share listings matched.** The October 26 Form 10-Q and Form 8-K identify both listed classes. Each depositary share represents 1/40 of the corresponding fixed-rate noncumulative perpetual preferred share. Each row gives the SEC map, filing cover and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows trading activity in both series. [Bank of Hawaii Form 10-Q]({BOH_QUARTER}) · [Bank of Hawaii Form 8-K]({BOH_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=26)
   - `BOH-PA` / `BOH.PRA` / `BOH$A` · Series A · 4.375%
   - `BOH-PB` / `BOH.PRB` / `BOH$B` · Series B · 8.000%

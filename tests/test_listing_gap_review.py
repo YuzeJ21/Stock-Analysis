@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '196 were reviewed, with 348 still unreviewed' in review
+    assert '198 were reviewed, with 346 still unreviewed' in review
     assert 'Fifteen now have dated class evidence, with 267 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
@@ -766,6 +766,24 @@ def test_bank_of_hawaii_review_maps_both_depositary_classes_and_distinguishes_th
     for source in ('000004619526000065/boh-20260930.htm', '000004619526000062/boh-20261026.htm',
                    '000087666121000894/BOH061521.pdf', '000087666124000513/BOHPRB062424.pdf',
                    'NYSEshvol20261112.pdf#page=26'):
+        assert source in batch
+
+
+def test_synchrony_review_maps_listed_depositary_classes_and_preserves_the_reset_terms():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    heading = '**Synchrony Financial · Two NYSE depositary share listings matched.**'
+    assert heading in review
+    batch = review.split(heading, 1)[1].split('\n- **', 1)[0]
+    for series, terms in zip('AB', ('5.625% fixed', '8.250% initial fixed rate'), strict=True):
+        assert f'`SYF-P{series}` / `SYFPr{series}` / `SYF${series}` · Series {series} · {terms}\n' in batch
+    assert '1/40 of the corresponding noncumulative perpetual preferred share' in batch
+    assert 'May 15, 2029 and every five years after that' in batch
+    assert 'five-year Treasury rate plus 4.044 percentage points' in batch
+    assert 'Series C is a separate 1/100 depositary issuance' in batch
+    for source in ('000160171226000043/syf-20260930.htm', '000160171226000045/syf-20261110.htm',
+                   '000087666124000111/SYFPRB022324.pdf', 'NYSEshvol20261112.pdf#page=167'):
         assert source in batch
 
 
