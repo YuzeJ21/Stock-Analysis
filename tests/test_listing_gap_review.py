@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '204 were reviewed, with 340 still unreviewed' in review
+    assert '207 were reviewed, with 337 still unreviewed' in review
     assert 'Fifteen now have dated class evidence, with 267 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
@@ -835,6 +835,29 @@ def test_sunstone_review_maps_listed_preferred_shares_and_keeps_repurchase_scope
     assert 'Series G was privately issued' in batch
     for source in ('000129581026000007/sho-20260930.htm', '000129581026000005/sho-20261106.htm',
                    '000155837021005092/sho-20210422x8k.htm', 'NYSEshvol20261112.pdf#page=156'):
+        assert source in batch
+
+
+def test_bread_financial_review_maps_depositary_shares_with_separate_series_c_evidence():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    heading = '**Bread Financial · Three NYSE depositary share listings matched.**'
+    assert heading in review
+    batch = review.split(heading, 1)[1].split('\n- **', 1)[0]
+    for series, terms in zip('ABC', ('8.625%', '8.875% fixed-rate reset', '9.375% fixed-rate reset'), strict=True):
+        assert f'`BFH-P{series}` / `BFH Pr{series}` / `BFH${series}` · Series {series} · {terms}\n' in batch
+    assert '1/40 of a share' in batch
+    assert 'The November 10 cover lists Series A and B.' in batch
+    assert 'Series C is supported by its separate registration, exchange certification and dated trading activity.' in batch
+    assert 'Comenity Capital Bank’s preferred shares are separate from these parent-company listings.' in batch
+    for source in (
+        '000110121526000092/bfh-20260930.htm',
+        '000110121526000102/bfh-20261110.htm',
+        '000119312526444983/d193019d8a12b.htm',
+        '000087666126000889/BFHPRC110326.pdf',
+        'NYSEshvol20261112.pdf#page=21',
+    ):
         assert source in batch
 
 

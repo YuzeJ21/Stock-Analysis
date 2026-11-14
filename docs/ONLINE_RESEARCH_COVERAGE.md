@@ -1596,9 +1596,46 @@ SEC submissions tie the September 30 Form 10-Q to accession `0001295810-26-00000
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**204 of the original 544 SEC-only records have been reviewed, with 340 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+This batch brought the review to 204 of the original 544 SEC-only records, with 340 unreviewed. Fifteen of the 282 directory-type gaps had dated class evidence, with 267 unreviewed.
 
 The integration passed 240 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the two symbol mappings, 229 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
+
+#### Bread Financial depositary-share follow-up
+
+The October 27 Form 10-Q and November 10 Form 8-K cover pages identify Series A and B of Bread Financial Holdings, Inc. (CIK `0001101215`) as NYSE-listed depositary shares. Both covers omit Series C. The Series C final prospectus names `BFH PrC`. On November 3, Bread Financial reported issuing 5 million Series C depositary shares, filed Form 8-A for that class, and received the dated NYSE listing certification. The November 12 NYSE report independently establishes trading activity for Series C on that date. [October 27 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1101215/000110121526000092/bfh-20260930.htm) · [November 10 Form 8-K](https://www.sec.gov/Archives/edgar/data/1101215/000110121526000102/bfh-20261110.htm) · [Series C final prospectus](https://www.sec.gov/Archives/edgar/data/1101215/000119312526436417/d166831d424b5.htm) · [November 3 Series C Form 8-K](https://www.sec.gov/Archives/edgar/data/1101215/000119312526444703/d163000d8k.htm) · [Series C Form 8-A](https://www.sec.gov/Archives/edgar/data/1101215/000119312526444983/d193019d8a12b.htm) · [Series C NYSE certification](https://www.sec.gov/Archives/edgar/data/1101215/000087666126000889/BFHPRC110326.pdf)
+
+| Series | SEC exchange map | Filing or prospectus | Nasdaq Trader | NYSE report | Stated initial annual dividend rate | Nov. 12 NYSE reported volume |
+| --- | --- | --- | --- | --- | --- | ---: |
+| A | `BFH-PA` | `BFH PrA` | `BFH$A` | `BFH PRA` | 8.625% fixed | 1,083 |
+| B | `BFH-PB` | `BFH PrB` | `BFH$B` | `BFH PRB` | 8.875% fixed-rate reset | 13,673 |
+| C | `BFH-PC` | `BFH PrC` | `BFH$C` | `BFH PRC` | 9.375% fixed-rate reset | 42,601 |
+
+All three listed depositary shares represent 1/40 of one share of the underlying noncumulative perpetual preferred stock. The original registrations and NYSE certifications also confirm Series A and B. The quarterly filing describes a separate transaction with Comenity Capital Bank, which issued preferred stock to the parent. That subsidiary stock was eliminated in consolidation and falls outside the three listing matches. [Series A registration](https://www.sec.gov/Archives/edgar/data/1101215/000119312525295250/d823900d8a12b.htm) · [Series A NYSE certification](https://www.sec.gov/Archives/edgar/data/1101215/000087666125000913/BFHPRA112525.pdf) · [Series B registration](https://www.sec.gov/Archives/edgar/data/1101215/000119312526219015/d854451d8a12b.htm) · [Series B NYSE certification](https://www.sec.gov/Archives/edgar/data/1101215/000087666126000426/BFHPRB051226.pdf)
+
+The November 12 Nasdaq Trader directory assigns NYSE venue code `N` and ETF and test flags `N` to all three rows. The saved directory rules already classify all three as depositary receipts. The November 12 NYSE volumes are for the report's market and date. First execution, continuous listing, market yields and analysis eligibility require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 21](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=21)
+
+SEC submissions record accession `0001101215-26-000092` as filed October 27 and accepted October 26 at 21:48:26 UTC. The November 10 Form 8-K, accession `0001101215-26-000102`, was accepted at 22:00:58 UTC. The Series C Form 8-A and certification were accepted on November 3 at 18:48:08 and 19:34:00 UTC, respectively. The linked SEC documents were observed November 14 from 02:20:33 through 02:21:02 UTC, November 13 in Toronto. The exchange map, directory and NYSE report use the preserved November 12 receipts. [SEC submissions](https://data.sec.gov/submissions/CIK0001101215.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `8e06aca060989f4a6c623aaa3c3d80fee44ba2d9daa3340d1b6027f71ecdbb6b` |
+| October 27 Form 10-Q | `5346bc41dad248e582cee0a2626cf07d12ddf515669e88e041efd5d92b653bae` |
+| November 10 Form 8-K | `ad358121593306356dd5f58bb7edb96e6a0dbf7adba717bfcc18daf25105dc6f` |
+| Series C final prospectus | `f5c454f6a898cd3e1c9e7df16a00fc712827320ad42ce60f571d3030a2144f59` |
+| November 3 Series C Form 8-K | `7a8c03c2bfade3a825cea8340d9376d4ee54f384434bbb8356ebba2583987a56` |
+| Series A Form 8-A | `8ce4ea54b2094ec5b8a2df46f8b44613d94c6243edc0a817adaaceb190dd70e7` |
+| Series A NYSE certification | `db67d2d2ca5908a396e125f4ddaf6ca1449cc2c26f1d3a7d276c54ef278c37e3` |
+| Series B Form 8-A | `79538120dcc4341273d0cc4292d2907d0605e854b9600744be7615ded0bebcd9` |
+| Series B NYSE certification | `9aad1e60ddc9913cd1663c3886913786654bc5d82950080f80a230683725fbd2` |
+| Series C Form 8-A | `70b87372ae7c663a8f8744e30f36237974aead14cda24fb984e889ef159ea679` |
+| Series C NYSE certification | `59f5273b8adf7da7bd92f383747babe8b2d4d43dbd2204f0c23b115886a58da3` |
+| November 12 SEC exchange map | `98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**207 of the original 544 SEC-only records have been reviewed, with 337 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 241 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three symbol mappings, 234 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

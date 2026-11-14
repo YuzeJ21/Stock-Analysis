@@ -182,6 +182,10 @@ REXR_SERIES_A_REDEMPTION = 'https://www.sec.gov/Archives/edgar/data/1571283/0001
 SHO_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1295810/000129581026000007/sho-20260930.htm'
 SHO_COVER = 'https://www.sec.gov/Archives/edgar/data/1295810/000129581026000005/sho-20261106.htm'
 SHO_SERIES_G_ISSUANCE = 'https://www.sec.gov/Archives/edgar/data/1295810/000155837021005092/sho-20210422x8k.htm'
+BFH_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1101215/000110121526000092/bfh-20260930.htm'
+BFH_COVER = 'https://www.sec.gov/Archives/edgar/data/1101215/000110121526000102/bfh-20261110.htm'
+BFH_SERIES_C_REGISTRATION = 'https://www.sec.gov/Archives/edgar/data/1101215/000119312526444983/d193019d8a12b.htm'
+BFH_SERIES_C_CERTIFICATION = 'https://www.sec.gov/Archives/edgar/data/1101215/000087666126000889/BFHPRC110326.pdf'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -199,11 +203,16 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 204 were reviewed, with 340 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 207 were reviewed, with 337 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Fifteen now have dated class evidence, with 267 still unreviewed.
 
 **Dated findings**
 
+- **Bread Financial · Three NYSE depositary share listings matched.** Each depositary share represents 1/40 of a share of the corresponding noncumulative perpetual preferred stock. Each row gives the SEC map, filing or NYSE report, and Nasdaq Trader directory symbols. [Bread Financial Form 10-Q]({BFH_QUARTER}) · [November 10 Form 8-K]({BFH_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=21)
+  - `BFH-PA` / `BFH PrA` / `BFH$A` · Series A · 8.625%
+  - `BFH-PB` / `BFH PrB` / `BFH$B` · Series B · 8.875% fixed-rate reset
+  - `BFH-PC` / `BFH PrC` / `BFH$C` · Series C · 9.375% fixed-rate reset
+  - The November 10 cover lists Series A and B. Series C is supported by its separate registration, exchange certification and dated trading activity. Comenity Capital Bank’s preferred shares are separate from these parent-company listings. [Series C Form 8-A]({BFH_SERIES_C_REGISTRATION}) · [Series C NYSE certification]({BFH_SERIES_C_CERTIFICATION})
 - **Sunstone Hotel Investors · Two NYSE preferred share listings matched.** The November 6 Form 10-Q and Form 8-K identify both classes as cumulative redeemable preferred stock. Each row gives the SEC map, filing cover and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows trading activity in both classes. [Sunstone Form 10-Q]({SHO_QUARTER}) · [Sunstone Form 8-K]({SHO_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=156)
   - `SHO-PH` / `SHO.PRH` / `SHO$H` · Series H · 6.125%
   - `SHO-PI` / `SHO.PRI` / `SHO$I` · Series I · 5.70%
