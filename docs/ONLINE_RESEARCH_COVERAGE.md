@@ -1283,9 +1283,48 @@ SEC submissions bind the Form 20-F to accession `0001140361-26-007868`, accepted
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**183 of the original 544 SEC-only records have been reviewed, with 361 unreviewed.** Fourteen of the 282 directory-type gaps have dated evidence, with 268 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+This batch brought the review to 183 of the original 544 SEC-only records, with 361 unreviewed. Fourteen of the 282 directory-type gaps had dated evidence, with 268 unreviewed.
 
 The integration passed 231 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three symbol mappings, 193 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
+
+#### Compass Diversified Holdings preferred-share follow-up
+
+The November 4 joint Forms 10-Q and 8-K identify three NYSE-listed classes representing preferred beneficial interests in Compass Diversified Holdings, a Delaware statutory trust (CIK `0001345126`). Compass Group Diversified Holdings LLC (CIK `0001345122`) is the separate co-registrant. Both SEC filing indexes carry the same accessions, and the 10-Q copies under the two CIKs have the same digest. [November 4 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1345126/000134512626000071/codi-20260930.htm) · [Co-registrant Form 10-Q copy](https://www.sec.gov/Archives/edgar/data/1345122/000134512626000071/codi-20260930.htm) · [November 4 Form 8-K](https://www.sec.gov/Archives/edgar/data/1345126/000134512626000072/codi-20261104.htm)
+
+The original Forms 8-A separately identify the trust’s preferred shares and the LLC’s corresponding preferred interests. The NYSE certification letters for Series B and C expressly name the trust’s shares. The three current matches follow the ticker-bearing trust rows on the November 4 covers. [Series A Form 8-A](https://www.sec.gov/Archives/edgar/data/1345126/000119312517216498/d418910d8a12b.htm) · [Series B Form 8-A](https://www.sec.gov/Archives/edgar/data/1345126/000119312518080805/d437438d8a12b.htm) · [Series C Form 8-A](https://www.sec.gov/Archives/edgar/data/1345126/000119312519296654/d836955d8a12b.htm) · [March 14, 2018 NYSE Series B certification](https://www.sec.gov/Archives/edgar/data/1345126/000087666118000256/CODIPRB.03.14.18.pdf) · [November 21, 2019 NYSE Series C certification](https://www.sec.gov/Archives/edgar/data/1345126/000087666119001161/CODI8A112119.pdf)
+
+| Series | SEC map | SEC cover | Nasdaq Trader ACT symbol | NYSE report | Stated annual distribution terms |
+| --- | --- | --- | --- | --- | --- |
+| A | `CODI-PA` | `CODI PR A` | `CODI$A` | `CODI PRA` | 7.250% fixed, discretionary and noncumulative |
+| B | `CODI-PB` | `CODI PR B` | `CODI$B` | `CODI PRB` | 7.875% fixed until the April 30, 2028 floating-rate reset, cumulative |
+| C | `CODI-PC` | `CODI PR C` | `CODI$C` | `CODI PRC` | 7.875% fixed, cumulative |
+
+The Form 10-Q gives a $25 liquidation preference for each class and describes the Series B reset as the applicable successor to three-month LIBOR plus 4.985 percentage points. The October 1 declaration sets payment for October 30 for record holders on October 15, at $0.453125 per Series A share and $0.4921875 per Series B and C share. The trust common-share distribution suspension is a separate observation. [October 1 distribution exhibit](https://www.sec.gov/Archives/edgar/data/1345126/000134512626000065/codidistributionpressrelea.htm) · [November 4 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1345126/000134512626000071/codi-20260930.htm)
+
+The existing rules already classified all three November 12 directory rows as preferred. The rows carry NYSE venue code `N`, with ETF and test flags `N`. The dated NYSE report shows trading in all three series. The common `CODI` directory-type gap is outside this preferred-share batch. First execution, continuous listing, market yields and analysis eligibility require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 39](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=39)
+
+Both submissions files tie the September 30 Form 10-Q to `0001345126-26-000071` and the earnings Form 8-K to `0001345126-26-000072`, accepted November 4 at 21:12:27 and 21:18:21 UTC. The distribution Form 8-K is `0001345126-26-000065`, accepted October 1 at 20:16:22 UTC. The filings and historical certifications below were observed November 14 at 00:24:50–00:26:38 UTC. The exchange map, directory and NYSE report use the preserved November 12 receipts. [Trust SEC submissions](https://data.sec.gov/submissions/CIK0001345126.json) · [LLC SEC submissions](https://data.sec.gov/submissions/CIK0001345122.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| Trust SEC submissions | `4fa75b25450b9ac11400d6df9b437b2c8779d4e648f04f0109a59b8445ff8f6c` |
+| LLC SEC submissions | `46f7d0a9ba289b3e16524d346a14d94cd01ab52b69eb87e36c0f6e0edfd8937f` |
+| November 4 Form 10-Q, both CIKs | `4836761df516bdbb1aeb7ed86cbdd3265566abf13dbc41cef8d52c05a29af379` |
+| November 4 Form 8-K | `70b76a90f904a42f9d6e20b3a8bb9c178db53220a1c94118dc61726855ae1c43` |
+| October 1 Form 8-K | `f457024e1488f614dfbd36dc2b3c4a0eff7fa5c02c894cadcd59a4b7b6c42b52` |
+| October 1 Exhibit 99.1 | `655117f840ee7efbbf558ac9d159ba712b34f3a568d9a0c777f4fdef0a7aab27` |
+| Series A Form 8-A | `5151c8d2e402404f8c94fe8a27d786e366b091bedc0ad3f6f891274aa44dc307` |
+| Series B Form 8-A | `665b9011db531786e8189983bb9ece651e030fbbb2b009d7847dbeb071f589b7` |
+| Series C Form 8-A | `7294b64e8fdd0134ad4fa2e1651a8b7ad917844edc03c1476224ac26663b618f` |
+| NYSE Series B certification | `a605945ed7ea0298aaa03c760af3b88da2ac3c5258463189162cc42ebb695a26` |
+| NYSE Series C certification | `2bc4a3edb1f2f87efe2ac57304303f3b8b17e49f6c529b832cda2a233b189884` |
+| November 12 SEC exchange map | `98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**186 of the original 544 SEC-only records have been reviewed, with 358 unreviewed.** Fourteen of the 282 directory-type gaps have dated evidence, with 268 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 232 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three symbol mappings, 196 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

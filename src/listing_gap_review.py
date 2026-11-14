@@ -152,6 +152,9 @@ MITT_NAME_AMENDMENT = 'https://www.sec.gov/Archives/edgar/data/1514281/000162828
 CMRE_ANNUAL = 'https://www.sec.gov/Archives/edgar/data/1503584/000114036126007868/ef20064083_20f.htm'
 CMRE_DIVIDENDS = 'https://www.sec.gov/Archives/edgar/data/1503584/000117184326006324/exh_991.htm'
 CMRE_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1503584/000117184326006884/exh_991.htm'
+CODI_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1345126/000134512626000071/codi-20260930.htm'
+CODI_COVER = 'https://www.sec.gov/Archives/edgar/data/1345126/000134512626000072/codi-20261104.htm'
+CODI_DISTRIBUTIONS = 'https://www.sec.gov/Archives/edgar/data/1345126/000134512626000065/codidistributionpressrelea.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -169,11 +172,16 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 183 were reviewed, with 361 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 186 were reviewed, with 358 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Fourteen now have dated class evidence, with 268 still unreviewed.
 
 **Dated findings**
 
+- **Compass Diversified Holdings · Three NYSE preferred share listings matched.** The November 4 Form 10-Q and Form 8-K identify the preferred shares as beneficial interests in the trust. Compass Group Diversified Holdings LLC is a separate co-registrant. Each row gives the SEC map, filing cover and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows activity in all three classes. [Compass Form 10-Q]({CODI_QUARTER}) · [Compass Form 8-K]({CODI_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=39)
+  - `CODI-PA` / `CODI PR A` / `CODI$A` · Series A · 7.250% fixed, noncumulative
+  - `CODI-PB` / `CODI PR B` / `CODI$B` · Series B · 7.875% fixed-to-floating, cumulative
+  - `CODI-PC` / `CODI PR C` / `CODI$C` · Series C · 7.875% fixed, cumulative
+  - Series B is scheduled to switch to a floating rate on April 30, 2028. Preferred distributions were declared for payment on October 30, 2026. The common shares are outside this batch. [October 1 distribution declaration]({CODI_DISTRIBUTIONS})
 - **Costamare · Three NYSE preferred share listings matched.** The March 4 Form 20-F lists Series B, C and D. The October 1 dividend declaration identifies each as cumulative redeemable perpetual preferred stock, and the October 28 results confirm the October 15 payments. Each row lists the SEC map, annual filing cover, issuer and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows activity in each class. [Costamare Form 20-F]({CMRE_ANNUAL}) · [October 1 dividend declaration]({CMRE_DIVIDENDS}) · [October 28 results]({CMRE_QUARTER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=38)
   - `CMRE-PB` / `CMRE.PRB` / `CMRE PR B` / `CMRE$B` · Series B · 7.625%
   - `CMRE-PC` / `CMRE.PRC` / `CMRE PR C` / `CMRE$C` · Series C · 8.50%

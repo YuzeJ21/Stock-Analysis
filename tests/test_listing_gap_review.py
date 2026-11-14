@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '183 were reviewed, with 361 still unreviewed' in review
+    assert '186 were reviewed, with 358 still unreviewed' in review
     assert 'Fourteen now have dated class evidence, with 268 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
@@ -673,6 +673,26 @@ def test_costamare_review_maps_three_listed_series_and_excludes_other_preferred_
     assert 'Costamare Bulkers (`CMDB`) is a separate issuer' in batch
     for source in ('000114036126007868/ef20064083_20f.htm', '000117184326006324/exh_991.htm',
                    '000117184326006884/exh_991.htm', 'NYSEshvol20261112.pdf#page=38'):
+        assert source in batch
+
+
+def test_compass_review_distinguishes_the_trust_preferred_share_series():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    heading = '**Compass Diversified Holdings · Three NYSE preferred share listings matched.**'
+    assert heading in review
+    batch = review.split(heading, 1)[1].split('\n- **', 1)[0]
+    terms = ('7.250% fixed, noncumulative', '7.875% fixed-to-floating, cumulative', '7.875% fixed, cumulative')
+    for series, term in zip('ABC', terms, strict=True):
+        assert f'`CODI-P{series}` / `CODI PR {series}` / `CODI${series}` · Series {series} · {term}\n' in batch
+    assert 'beneficial interests in the trust' in batch
+    assert 'LLC is a separate co-registrant' in batch
+    assert 'April 30, 2028' in batch
+    assert 'declared for payment on October 30, 2026' in batch
+    assert 'common shares are outside this batch' in batch
+    for source in ('000134512626000071/codi-20260930.htm', '000134512626000072/codi-20261104.htm',
+                   '000134512626000065/codidistributionpressrelea.htm', 'NYSEshvol20261112.pdf#page=39'):
         assert source in batch
 
 
