@@ -1389,9 +1389,44 @@ SEC submissions identify the April 1 Form 424B4 as `0001829126-26-003035`, accep
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**192 of the original 544 SEC-only records have been reviewed, with 352 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+This batch brought the review to 192 of the original 544 SEC-only records, with 352 unreviewed. Fifteen of the 282 directory-type gaps had dated class evidence, with 267 unreviewed.
 
 The integration passed 234 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three symbol mappings, the Series H directory finding, 204 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
+
+#### RenaissanceRe preferred-share follow-up
+
+The October 28 Form 10-Q and October 27 Form 8-K identify two NYSE-listed depositary shares of Bermuda-incorporated RenaissanceRe Holdings Ltd. (CIK `0000913144`). The November 13 Form 8-K/A repeats both listings on its cover. The NYSE certified the classes in June 2018 and July 2021, respectively. [October 28 Form 10-Q](https://www.sec.gov/Archives/edgar/data/913144/000091314426000098/rnr-20260930.htm) · [October 27 Form 8-K](https://www.sec.gov/Archives/edgar/data/913144/000091314426000096/rnr-20261027.htm) · [November 13 Form 8-K/A](https://www.sec.gov/Archives/edgar/data/913144/000091314426000105/rnr-20260511.htm) · [NYSE Series F certification](https://www.sec.gov/Archives/edgar/data/913144/000087666118000730/RNRPRF.8A.06.19.18.pdf) · [NYSE Series G certification](https://www.sec.gov/Archives/edgar/data/913144/000087666121001031/RNR071221.pdf)
+
+| Series | SEC map | SEC cover and NYSE report | Nasdaq Trader ACT symbol | Terms of the underlying preference shares |
+| --- | --- | --- | --- | --- |
+| F | `RNR-PF` | `RNR PRF` | `RNR$F` | 5.750% fixed, noncumulative |
+| G | `RNR-PG` | `RNR PRG` | `RNR$G` | 4.20% fixed, noncumulative |
+
+Each depositary share represents 1/1,000 of the relevant preference share. The annual filing gives a $25,000 liquidation preference per underlying share, equivalent to $25 per depositary share. The September 2026 Form 10-Q reports quarterly dividend amounts of $0.359375 and $0.2625 per listed depositary share. The November 11 issuer announcement concerns the common-share dividend and share repurchase program. The 2021 Form 10-Q records full redemption of Series E on August 11, 2021, and the NYSE filed a Form 25 for that class. [2025 Form 10-K](https://www.sec.gov/Archives/edgar/data/913144/000091314426000012/rnr-20251231.htm) · [November 11 issuer announcement](https://investor.renre.com/news-events/press-releases/detail/397/renaissancere-holdings-ltd-announces-quarterly-dividend-and-renewal-of-share-repurchase-program) · [2021 Form 10-Q](https://www.sec.gov/Archives/edgar/data/913144/000091314421000110/rnr-20210930.htm) · [NYSE Series E Form 25](https://www.sec.gov/Archives/edgar/data/876661/000087666121001182/primary_doc.xml)
+
+The November 12 Nasdaq Trader directory assigns NYSE venue code `N` and ETF and test flags `N` to both rows. The existing rules already classified both as depositary receipts. The NYSE report shows trading activity in both on November 12. First execution, continuous listing, market yields and analysis eligibility require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 148](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=148)
+
+SEC submissions bind the October 28 Form 10-Q to accession `0000913144-26-000098`, accepted at 20:24:13 UTC, the October 27 Form 8-K to `0000913144-26-000096`, accepted at 20:54:44 UTC, and the November 13 Form 8-K/A to `0000913144-26-000105`, accepted at 21:21:28 UTC. The linked filings, certifications and issuer announcement were observed November 14 at 00:50:59–00:52:10 UTC. The inventory, directory and NYSE trading evidence use the preserved November 12 receipts. [SEC submissions](https://data.sec.gov/submissions/CIK0000913144.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `0f9244b223b443068f0db96c8c763c1c24a46eb3eb6a8c44b35d6288b37c0642` |
+| October 28 Form 10-Q | `1ad49b756882b065cd56dbfec0ad330a0f495ec8775840c3e34a1eeec4ed9528` |
+| October 27 Form 8-K | `95a15ec36f5e1ffad7d37ad2c66394a4f884c533d6cac273e7280444f60f9046` |
+| November 13 Form 8-K/A | `368e89f6c4c64976e0687eea43d10a0dfc0049f283cfa1125c0f176537b21396` |
+| NYSE Series F certification | `34741d7817d607dbf9c1426bea598be3fad9d933ecb326a1cfa5e7aca264530b` |
+| NYSE Series G certification | `c06e04b869346ef32348ffd16454dbde4144bdddb05ef5492e1c2c368843cc4e` |
+| 2025 Form 10-K | `81bcd4ac1506d91e60b843e6771a99b944966e01e69fa32dc58763de5e8cbcda` |
+| November 11 issuer announcement | `405c566325a62bf2eaa3e49b8bebc8e83d378777ebbf31241a48735c9c087fbd` |
+| 2021 Form 10-Q | `cbbbfbf99b2c02304efe2775b58889bb501470b530259c2583bc40e782ff220f` |
+| NYSE Series E Form 25 | `7240129caa8ae31d6e74ce256fa9bd2021c8b6399cb45f9c99fd0cde423999b4` |
+| November 12 SEC exchange map | `98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**194 of the original 544 SEC-only records have been reviewed, with 350 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 235 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the two symbol mappings, the Series E exclusion, 208 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

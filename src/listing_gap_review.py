@@ -162,6 +162,9 @@ PNFP_NYSE_CERT = 'https://www.sec.gov/Archives/edgar/data/2082866/00008766612500
 GAB_COVER = 'https://www.sec.gov/Archives/edgar/data/794685/000182912626004782/gab_8k.htm'
 GAB_SEMIANNUAL = 'https://www.sec.gov/Archives/edgar/data/794685/000182912626009842/gab_ncsrs.htm'
 GAB_PROSPECTUS = 'https://www.sec.gov/Archives/edgar/data/794685/000182912626003035/gabelliequitytrust_424b4.htm'
+RNR_QUARTER = 'https://www.sec.gov/Archives/edgar/data/913144/000091314426000098/rnr-20260930.htm'
+RNR_COVER = 'https://www.sec.gov/Archives/edgar/data/913144/000091314426000096/rnr-20261027.htm'
+RNR_SERIES_E_REDEMPTION = 'https://www.sec.gov/Archives/edgar/data/913144/000091314421000110/rnr-20210930.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -179,11 +182,15 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 192 were reviewed, with 352 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 194 were reviewed, with 350 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Fifteen now have dated class evidence, with 267 still unreviewed.
 
 **Dated findings**
 
+- **RenaissanceRe · Two NYSE depositary share listings matched.** The October 28 Form 10-Q and October 27 Form 8-K identify the listed depositary shares. Each represents 1/1,000 of the corresponding noncumulative preference share. Each row gives the SEC map, filing cover and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows trading activity in both series. [RenaissanceRe Form 10-Q]({RNR_QUARTER}) · [RenaissanceRe Form 8-K]({RNR_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=148)
+  - `RNR-PF` / `RNR PRF` / `RNR$F` · Series F · 5.750%
+  - `RNR-PG` / `RNR PRG` / `RNR$G` · Series G · 4.20%
+  - Series E was redeemed on August 11, 2021. The issuer's common shares are outside this batch. [Series E redemption in Form 10-Q]({RNR_SERIES_E_REDEMPTION})
 - **Gabelli Equity Trust · Three NYSE preferred share listings matched.** The May 7 Form 8-K identifies Series G, H and K, and the semiannual shareholder report records all three as 5.00% fixed cumulative preferred stock as of June 30. Each row gives the SEC map, filing cover and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows trading activity in all three. [Gabelli Form 8-K]({GAB_COVER}) · [Semiannual shareholder report]({GAB_SEMIANNUAL}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=71)
   - `GAB-PG` / `GAB Pr G` / `GAB$G` · Series G
   - `GAB-PH` / `GAB Pr H` / `GAB$H` · Series H

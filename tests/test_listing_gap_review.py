@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '192 were reviewed, with 352 still unreviewed' in review
+    assert '194 were reviewed, with 350 still unreviewed' in review
     assert 'Fifteen now have dated class evidence, with 267 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
@@ -732,6 +732,22 @@ def test_gabelli_equity_trust_review_matches_listed_series_and_resolves_the_h_ty
     assert 'auction-rate Series C and E were redeemed in 2024' in batch
     for source in ('000182912626004782/gab_8k.htm', '000182912626009842/gab_ncsrs.htm',
                    '000182912626003035/gabelliequitytrust_424b4.htm', 'NYSEshvol20261112.pdf#page=71'):
+        assert source in batch
+
+
+def test_renaissancere_review_maps_the_two_depositary_classes_and_separates_redeemed_series():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    heading = '**RenaissanceRe · Two NYSE depositary share listings matched.**'
+    assert heading in review
+    batch = review.split(heading, 1)[1].split('\n- **', 1)[0]
+    for series, rate in zip('FG', ('5.750%', '4.20%'), strict=True):
+        assert f'`RNR-P{series}` / `RNR PR{series}` / `RNR${series}` · Series {series} · {rate}\n' in batch
+    assert '1/1,000 of the corresponding noncumulative preference share' in batch
+    assert 'Series E was redeemed on August 11, 2021' in batch
+    for source in ('000091314426000098/rnr-20260930.htm', '000091314426000096/rnr-20261027.htm',
+                   '000091314421000110/rnr-20210930.htm', 'NYSEshvol20261112.pdf#page=148'):
         assert source in batch
 
 
