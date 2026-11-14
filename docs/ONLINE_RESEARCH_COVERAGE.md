@@ -1563,9 +1563,42 @@ SEC submissions tie the September 30 Form 10-Q to accession `0001571283-26-00006
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**202 of the original 544 SEC-only records have been reviewed, with 342 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+This batch brought the review to 202 of the original 544 SEC-only records, with 342 unreviewed. Fifteen of the 282 directory-type gaps had dated class evidence, with 267 unreviewed.
 
 The integration passed 239 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the two symbol mappings, 225 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
+
+#### Sunstone Hotel Investors preferred-share follow-up
+
+The November 6 Form 10-Q and Form 8-K identify Series H and I of Sunstone Hotel Investors, Inc. (CIK `0001295810`) as NYSE-listed cumulative redeemable preferred stock. The September 30 balance sheet reports a $25 liquidation preference per share for both classes. The original May 20 and July 15, 2021 Forms 8-A and the corresponding NYSE certifications confirm the two Section 12(b) registrations. [November 6 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1295810/000129581026000007/sho-20260930.htm) · [November 6 Form 8-K](https://www.sec.gov/Archives/edgar/data/1295810/000129581026000005/sho-20261106.htm) · [Series H registration](https://www.sec.gov/Archives/edgar/data/1295810/000110465921069899/tm2117004d1_8a12b.htm) · [Series H NYSE certification](https://www.sec.gov/Archives/edgar/data/1295810/000087666121000767/SHO052121.pdf) · [Series I registration](https://www.sec.gov/Archives/edgar/data/1295810/000110465921092597/tm2122271d1_8a12b.htm) · [Series I NYSE certification](https://www.sec.gov/Archives/edgar/data/1295810/000087666121001068/SHO071521.pdf)
+
+| Series | SEC exchange map | SEC filing cover | Nasdaq Trader | NYSE report | Stated annual dividend rate |
+| --- | --- | --- | --- | --- | --- |
+| H | `SHO-PH` | `SHO.PRH` | `SHO$H` | `SHO PRH` | 6.125% |
+| I | `SHO-PI` | `SHO.PRI` | `SHO$I` | `SHO PRI` | 5.70% |
+
+The Form 10-Q reports 3,644,584 Series H shares and 2,836,743 Series I shares outstanding at September 30. The first nine months' repurchases totaled 901,319 H and 1,154,230 I shares. Note 15 reports a further 487,085 combined preferred share repurchases after quarter end. The 2021 issuance filing describes Series G as privately issued acquisition consideration and states the class would be unlisted. [November 6 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1295810/000129581026000007/sho-20260930.htm) · [Series G issuance filing](https://www.sec.gov/Archives/edgar/data/1295810/000155837021005092/sho-20210422x8k.htm)
+
+The November 12 Nasdaq Trader directory assigns venue code `N` and ETF and test flags `N` to both rows. The saved rules already classify both as preferred shares. The SEC map also has a `SHO.PRI` alias with no exchange field. It falls outside the exchange-bearing review count. The NYSE report records 233 total shares traded for Series H and one for Series I. Dated trading activity supports both matches. First execution, continuous listing, market yields and analysis eligibility require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 156](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=156)
+
+SEC submissions tie the September 30 Form 10-Q to accession `0001295810-26-000007`, accepted November 6 at 19:28:45 UTC, and the November 6 Form 8-K to `0001295810-26-000005`, accepted at 12:35:19 UTC. The linked SEC documents were observed November 14 from 02:13:55 through 02:15:15 UTC, November 13 in Toronto. The exchange map, directory and NYSE report use the preserved November 12 receipts. [SEC submissions](https://data.sec.gov/submissions/CIK0001295810.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `445fa0bae3fdca93e0be62c07c0a4bd24bc1f30df87023f59ae5ec1617a1dbfd` |
+| November 6 Form 10-Q | `cc7a128b2f6629ff85a55cfd5d519201b46f06e7b08274e59da647e9718a2762` |
+| November 6 Form 8-K | `44ce192feef9f159e76e4faae5e020d72f050c0875366cfa65782c1edf5445d1` |
+| Series H Form 8-A | `8941f9e126e066727fb420cf6b225310f2b04c34f21167c0c5f7ee2aacc62974` |
+| Series H NYSE certification | `17d869aefdd541519cd2e8530336011d05e9484c88d88427d43d25688aab0d81` |
+| Series I Form 8-A | `2f6b906620990c71f06f6a214c2405afd9d568f38284894a533b8f95b0d58f7b` |
+| Series I NYSE certification | `75ae1f5bab7111cca8f76dc1df7167a575d963130f5c067f3bc1502e72a36c44` |
+| Series G issuance filing | `8bf0d45146b8e0eb89a3e7057cff8da4fec961c49c91ac352a77a6afec64f05e` |
+| November 12 SEC exchange map | `98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**204 of the original 544 SEC-only records have been reviewed, with 340 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 240 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the two symbol mappings, 229 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

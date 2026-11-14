@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '202 were reviewed, with 342 still unreviewed' in review
+    assert '204 were reviewed, with 340 still unreviewed' in review
     assert 'Fifteen now have dated class evidence, with 267 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
@@ -818,6 +818,23 @@ def test_rexford_review_maps_both_listed_classes_and_preserves_the_redemption_bo
     assert 'Series A was redeemed on August 16, 2021' in batch
     for source in ('000157128326000064/rexr-20260930.htm', '000157128326000058/rexr-20261022.htm',
                    '000157128321000045/rexr-20210930.htm', 'NYSEshvol20261112.pdf#page=146'):
+        assert source in batch
+
+
+def test_sunstone_review_maps_listed_preferred_shares_and_keeps_repurchase_scope():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    heading = '**Sunstone Hotel Investors · Two NYSE preferred share listings matched.**'
+    assert heading in review
+    batch = review.split(heading, 1)[1].split('\n- **', 1)[0]
+    for series, rate in zip('HI', ('6.125%', '5.70%'), strict=True):
+        assert f'`SHO-P{series}` / `SHO.PR{series}` / `SHO${series}` · Series {series} · {rate}\n' in batch
+    assert 'cumulative redeemable preferred stock' in batch
+    assert 'repurchases reduced outstanding shares in both series' in batch
+    assert 'Series G was privately issued' in batch
+    for source in ('000129581026000007/sho-20260930.htm', '000129581026000005/sho-20261106.htm',
+                   '000155837021005092/sho-20210422x8k.htm', 'NYSEshvol20261112.pdf#page=156'):
         assert source in batch
 
 
