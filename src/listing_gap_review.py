@@ -173,6 +173,9 @@ BOH_SERIES_B_NYSE = 'https://www.sec.gov/Archives/edgar/data/46195/0000876661240
 SYF_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1601712/000160171226000043/syf-20260930.htm'
 SYF_COVER = 'https://www.sec.gov/Archives/edgar/data/1601712/000160171226000045/syf-20261110.htm'
 SYF_SERIES_B_NYSE = 'https://www.sec.gov/Archives/edgar/data/1601712/000087666124000111/SYFPRB022324.pdf'
+AMH_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1562401/000156240126000058/amh-20260930.htm'
+AMH_COVER = 'https://www.sec.gov/Archives/edgar/data/1562401/000156240126000061/amh-20261112.htm'
+AMH_SERIES_F_REDEMPTION = 'https://www.sec.gov/Archives/edgar/data/1562401/000156240122000098/R25.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -190,11 +193,15 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 198 were reviewed, with 346 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 200 were reviewed, with 344 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Fifteen now have dated class evidence, with 267 still unreviewed.
 
 **Dated findings**
 
+- **American Homes 4 Rent · Two NYSE preferred share listings matched.** The November 5 Form 10-Q and November 12 Form 8-K identify the trust's Series G and H. Both are cumulative redeemable perpetual preferred shares of beneficial interest. Each row gives the SEC map, filing cover and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows trading activity in both series. [American Homes 4 Rent Form 10-Q]({AMH_QUARTER}) · [American Homes 4 Rent Form 8-K]({AMH_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=9)
+  - `AMH-PG` / `AMH-G` / `AMH$G` · Series G · 5.875%
+  - `AMH-PH` / `AMH-H` / `AMH$H` · Series H · 6.250%
+  - The operating partnership units are separate from the listed trust shares. Series F was redeemed on May 5, 2022. [Series F redemption in Form 10-Q]({AMH_SERIES_F_REDEMPTION})
 - **Synchrony Financial · Two NYSE depositary share listings matched.** The October 22 Form 10-Q and November 10 Form 8-K identify both classes. Each depositary share represents 1/40 of the corresponding noncumulative perpetual preferred share. Each row gives the SEC map, filing cover and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows trading activity in both series. [Synchrony Form 10-Q]({SYF_QUARTER}) · [Synchrony Form 8-K]({SYF_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=167)
   - `SYF-PA` / `SYFPrA` / `SYF$A` · Series A · 5.625% fixed
   - `SYF-PB` / `SYFPrB` / `SYF$B` · Series B · 8.250% initial fixed rate

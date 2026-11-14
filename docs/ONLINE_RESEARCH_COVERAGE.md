@@ -1492,9 +1492,45 @@ SEC submissions bind the September 30 Form 10-Q to accession `0001601712-26-0000
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**198 of the original 544 SEC-only records have been reviewed, with 346 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+This batch brought the review to 198 of the original 544 SEC-only records, with 346 unreviewed. Fifteen of the 282 directory-type gaps had dated class evidence, with 267 unreviewed.
 
 The integration passed 237 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the two symbol mappings, 218 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
+
+#### American Homes 4 Rent preferred-share follow-up
+
+The November 5 Form 10-Q and November 12 Form 8-K identify two NYSE-listed classes of American Homes 4 Rent, a Maryland trust (CIK `0001562401`). American Homes 4 Rent, L.P. (CIK `0001716558`) is a separate co-registrant. Its Series G and H preferred units correspond to the trust shares. Both CIKs carry copies of the joint reports with identical digests. [November 5 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1562401/000156240126000058/amh-20260930.htm) · [November 12 Form 8-K](https://www.sec.gov/Archives/edgar/data/1562401/000156240126000061/amh-20261112.htm) · [Operating partnership SEC submissions](https://data.sec.gov/submissions/CIK0001716558.json)
+
+| Series | SEC map | SEC cover | Nasdaq Trader ACT symbol | NYSE report | Stated annual dividend rate |
+| --- | --- | --- | --- | --- | --- |
+| G | `AMH-PG` | `AMH-G` | `AMH$G` | `AMH PRG` | 5.875% |
+| H | `AMH-PH` | `AMH-H` | `AMH$H` | `AMH PRH` | 6.250% |
+
+The trust's original Forms 8-A identify the two classes as cumulative redeemable perpetual preferred shares of beneficial interest. NYSE's September 19, 2018 certification confirms the Series H class. The November 5 Form 10-Q reports 4.6 million shares outstanding for each series at September 30, 2026. Its table gives July 17, 2022 for G and September 19, 2023 for H as the earliest redemption dates. The annual filing states a $25 liquidation preference per share. An earlier Form 10-Q confirms full redemption of Series F on May 5, 2022. [Series G Form 8-A](https://www.sec.gov/Archives/edgar/data/1562401/000119312517227048/d239674d8a12b.htm) · [Series H Form 8-A](https://www.sec.gov/Archives/edgar/data/1562401/000119312518274247/d625279d8a12b.htm) · [NYSE Series H certification](https://www.sec.gov/Archives/edgar/data/1562401/000087666118001009/AMHPRH8A091918.pdf) · [2025 Form 10-K](https://www.sec.gov/Archives/edgar/data/1562401/000156240126000010/amh-20251231.htm) · [2022 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1562401/000156240122000098/amh-20220630.htm) · [Series F redemption footnote](https://www.sec.gov/Archives/edgar/data/1562401/000156240122000098/R25.htm) · [NYSE Series F Form 25](https://www.sec.gov/Archives/edgar/data/876661/000087666122000395/primary_doc.xml)
+
+The November 12 Nasdaq Trader directory assigns NYSE venue code `N` and ETF and test flags `N` to both rows. The saved directory rules already classified both as preferred shares. The NYSE report shows trading in both on November 12. First execution, continuous listing, market yields and analysis eligibility require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 9](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=9)
+
+SEC submissions tie the September 30 Form 10-Q to accession `0001562401-26-000058`, accepted November 5 at 19:24:16 UTC, and the November 12 Form 8-K to `0001562401-26-000061`, accepted at 21:16:56 UTC. The linked filings and certifications were observed November 14 at 01:55:14–01:56:31 UTC. The exchange map, directory and NYSE report use the preserved November 12 receipts. [Trust SEC submissions](https://data.sec.gov/submissions/CIK0001562401.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| Trust SEC submissions | `011621f61218ec7d2533883996452457452e735e06b2547b0ac15ac485397db8` |
+| Operating partnership SEC submissions | `3081c4f8abcd02515a522287c38002d94d46349d55c360eb05f1d7758cbb6877` |
+| November 5 Form 10-Q, both CIKs | `bf5dcafea0602337ac550ce5001ae4e335ec33d6605ca1fbdfbce917275c4e7d` |
+| November 12 Form 8-K, both CIKs | `428b0dd911b83fa816a71f433dadc2137e0922bb6481d87974ff7191400b994b` |
+| Series G Form 8-A | `f8ac91dd469040fb973efc8a40f3a726f95cb5682447fe43722e6942bf89ccfe` |
+| Series H Form 8-A | `e25c3f5993b406d1bcc18d8f19d21fee7114c58a8e09ee87fd6daad1d3d539f0` |
+| NYSE Series H certification | `7734689c11d262bb550c78c19fab13d93ce56ec51cbcbc8def1c2a0e2886d292` |
+| 2025 Form 10-K | `2ca2a646572891572b9aea0566ad3ba7868408dc60484016dc772c4078f58910` |
+| 2022 Form 10-Q | `0b92ee56a9eaf3fa1d304f14bc31967577b9aac6b02638b4f8cf102b1873af7d` |
+| 2022 Form 10-Q redemption footnote | `9e348470904ecf8caef1adab5c70702ec754824052dcd26f8ca886d2f869e0f1` |
+| NYSE Series F Form 25 | `0ebd8759cd80ca8b3406622f2cd826638839afb70e7a11e79acfa8491350d669` |
+| November 12 SEC exchange map | `98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**200 of the original 544 SEC-only records have been reviewed, with 344 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 238 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the two symbol mappings, 222 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 
