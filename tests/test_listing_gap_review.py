@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '211 were reviewed, with 333 still unreviewed' in review
+    assert '213 were reviewed, with 331 still unreviewed' in review
     assert 'Fifteen now have dated class evidence, with 267 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
@@ -899,6 +899,27 @@ def test_dynex_review_distinguishes_series_c_floating_rate_from_series_d_fixed_r
         '000082667526000112/dx-20260929.htm',
         '000087666126000796/DXPRD092926.pdf',
         'NYSEshvol20261112.pdf#page=52',
+    ):
+        assert source in batch
+
+
+def test_acres_review_distinguishes_floating_rate_floor_and_existing_listing():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    heading = '**ACRES Commercial Realty · Two NYSE preferred share listings matched.**'
+    assert heading in review
+    batch = review.split(heading, 1)[1].split('\n- **', 1)[0]
+    for series, terms in zip('CD', ('8.625% floor', '7.875% fixed'), strict=True):
+        assert f'`ACR-P{series}` / `ACRPr{series}` / `ACR${series}` · Series {series} · {terms}\n' in batch
+    assert 'direct cumulative redeemable preferred shares' in batch
+    assert 'Series C has floated since July 30, 2024, with an 8.625% floor.' in batch
+    assert 'The August offering added shares to the existing Series C listing.' in batch
+    for source in (
+        '000119312526453824/acr-20260930.htm',
+        '000119312526451872/acr-20261102.htm',
+        '000119312526346890/acr-20260810.htm',
+        'NYSEshvol20261112.pdf#page=3)',
     ):
         assert source in batch
 

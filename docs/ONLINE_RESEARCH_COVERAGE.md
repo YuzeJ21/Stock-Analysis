@@ -1703,9 +1703,46 @@ SEC submissions list the October 27 Form 10-Q, accession `0000826675-26-000127`,
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**211 of the original 544 SEC-only records have been reviewed, with 333 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+This batch brought the review to 211 of the original 544 SEC-only records, with 333 unreviewed. Fifteen of the 282 directory-type gaps had dated class evidence, with 267 unreviewed.
 
 The integration passed 243 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the two symbol mappings, 242 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
+
+#### ACRES Commercial Realty preferred-share follow-up
+
+The November 9 Form 10-Q and November 6 Form 8-K identify Series C and D of ACRES Commercial Realty Corp. (CIK `0001332551`) as direct cumulative redeemable preferred shares on NYSE. The June 2014 Series C Form 8-A and NYSE certification use the issuer's former name, Resource Capital Corp., under the same CIK. The May 2021 Series D Form 8-A and NYSE certification confirm the separate Series D registration. [November 9 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1332551/000119312526453824/acr-20260930.htm) · [November 6 Form 8-K](https://www.sec.gov/Archives/edgar/data/1332551/000119312526451872/acr-20261102.htm) · [Series C Form 8-A](https://www.sec.gov/Archives/edgar/data/1332551/000119312514230445/d741022d8a12b.htm) · [Series C NYSE certification](https://www.sec.gov/Archives/edgar/vprr/1400/14007450.pdf) · [Series D Form 8-A](https://www.sec.gov/Archives/edgar/data/1332551/000119312521175702/d142987d8a12b.htm) · [Series D NYSE certification](https://www.sec.gov/Archives/edgar/data/1332551/000087666121000801/ACR052821.pdf)
+
+| Series | SEC exchange map | SEC filing cover | Nasdaq Trader | NYSE report | Dividend terms | Nov. 12 NYSE reported volume |
+| --- | --- | --- | --- | --- | --- | ---: |
+| C | `ACR-PC` | `ACRPrC` | `ACR$C` | `ACR PRC` | Three-month Term SOFR plus 5.927 percentage points, with an 8.625% floor since July 30, 2024 | 2,471 |
+| D | `ACR-PD` | `ACRPrD` | `ACR$D` | `ACR PRD` | 7.875% fixed | 2,361 |
+
+The offering that closed August 12 added 2,220,000 shares to the existing Series C class. At September 30, ACRES reported 7,020,000 Series C and 4,507,857 Series D shares outstanding, with a $25 liquidation preference per share for both. The September 3 at-the-market agreement allowed future sales in both classes. The 10-Q reports zero sales under that agreement through September 30. The 2018 annual filing and NYSE Forms 25 document the full redemptions and delistings of earlier Series A and B. [August 12 offering filing](https://www.sec.gov/Archives/edgar/data/1332551/000119312526346890/acr-20260810.htm) · [Series C and D prospectus supplement](https://www.sec.gov/Archives/edgar/data/1332551/000119312526382342/acr-series_cd_pro_sup_20.htm) · [2018 Form 10-K](https://www.sec.gov/Archives/edgar/data/1332551/000156459019007054/xan-10k_20181231.htm) · [Series A Form 25](https://www.sec.gov/Archives/edgar/data/876661/000087666118000094/primary_doc.xml) · [Series B Form 25](https://www.sec.gov/Archives/edgar/data/876661/000087666118000307/primary_doc.xml)
+
+The November 12 Nasdaq Trader directory assigns NYSE venue code `N` and ETF and test flags `N` to both rows. The saved directory rules already classify both as preferred shares. The NYSE report establishes trading activity on November 12. First execution, continuous listing, market yields and analysis eligibility require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 3](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=3)
+
+SEC submissions list the November 9 Form 10-Q, accession `0001193125-26-453824`, accepted at 22:08:28 UTC, and November 6 Form 8-K, accession `0001193125-26-451872`, accepted at 21:18:06 UTC for the November 2 report date. The August offering Form 8-K, accession `0001193125-26-346890`, was accepted August 12 at 20:16:02 UTC. The linked SEC sources were observed November 14 from 14:51:23 through 14:53:24 UTC. The exchange map, directory and NYSE report use the preserved November 12 receipts. [SEC submissions](https://data.sec.gov/submissions/CIK0001332551.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `d0c814baa8f5bfa823c71dae70e274b3c650e918c4c880c544882f7e2de2df72` |
+| November 9 Form 10-Q | `d49337d053e07983da5573ff6b5cc6e808432242e4724ca4db6af084f2c424c2` |
+| November 6 Form 8-K | `f5ffaa379226c2c0bfffd8d60c89a55b87b40600fcb327c24a227a68c06dc749` |
+| Series C Form 8-A | `054bc9d8cb1e14281d3c57584d8bffa58263369aaede81e13214d2d96c573825` |
+| Series C NYSE certification | `f522624a6f0286f106daacb03d2bc1c2768df3f266983bb18157b29b421b53d9` |
+| Series D Form 8-A | `6ec211bb91ef18df643f26d35d40bee3581a17e2dc35953d638ac67c89e06b33` |
+| Series D NYSE certification | `061a2e9de7c02d40e74d476ca4711c7686059262d0efc8956446e5878e75673f` |
+| August 12 offering Form 8-K | `1fce9e787d7f35ded4d81d2655a9b34f0875200daa2789828065abe6300e2828` |
+| Series C and D prospectus supplement | `bcc185400dd9fbb10a3b34da80b6c326afbc87142c8e896beb060ad681ef13bd` |
+| 2018 Form 10-K | `7f6318514a72fd9a5e0cb291f08b4970ed8a61d26a57c981a2b9227264896825` |
+| Series A Form 25 | `f8a49556ad050a6d97570934167501978a34df95eb8778360fd135add994cc76` |
+| Series B Form 25 | `0e33dd550137cca725ad7ff52a127a15476a4e7bbc6bb404475bfe82d44f4411` |
+| November 12 SEC exchange map | `98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**213 of the original 544 SEC-only records have been reviewed, with 331 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 244 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the two symbol mappings, 246 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

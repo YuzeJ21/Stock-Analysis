@@ -192,6 +192,9 @@ CHMI_MERGER_PROXY = 'https://www.sec.gov/Archives/edgar/data/1571776/00011046592
 DX_QUARTER = 'https://www.sec.gov/Archives/edgar/data/826675/000082667526000127/dx-20260930.htm'
 DX_SERIES_D_ISSUANCE = 'https://www.sec.gov/Archives/edgar/data/826675/000082667526000112/dx-20260929.htm'
 DX_SERIES_D_CERTIFICATION = 'https://www.sec.gov/Archives/edgar/data/826675/000087666126000796/DXPRD092926.pdf'
+ACR_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1332551/000119312526453824/acr-20260930.htm'
+ACR_COVER = 'https://www.sec.gov/Archives/edgar/data/1332551/000119312526451872/acr-20261102.htm'
+ACR_SERIES_C_OFFERING = 'https://www.sec.gov/Archives/edgar/data/1332551/000119312526346890/acr-20260810.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -209,11 +212,15 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 211 were reviewed, with 333 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 213 were reviewed, with 331 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Fifteen now have dated class evidence, with 267 still unreviewed.
 
 **Dated findings**
 
+- **ACRES Commercial Realty · Two NYSE preferred share listings matched.** The Form 10-Q identifies both classes as direct cumulative redeemable preferred shares. Each row gives the SEC map, filing cover and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows trading activity in both series. [ACRES Form 10-Q]({ACR_QUARTER}) · [ACRES Form 8-K]({ACR_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=3)
+  - `ACR-PC` / `ACRPrC` / `ACR$C` · Series C · 8.625% floor
+  - `ACR-PD` / `ACRPrD` / `ACR$D` · Series D · 7.875% fixed
+  - Series C has floated since July 30, 2024, with an 8.625% floor. The August offering added shares to the existing Series C listing. [Series C offering filing]({ACR_SERIES_C_OFFERING})
 - **Dynex Capital · Two NYSE preferred share listings matched.** The October 27 Form 10-Q identifies both classes as direct cumulative redeemable preferred shares. Each row gives the SEC map, filing cover and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows trading activity in both series. [Dynex Form 10-Q]({DX_QUARTER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=52)
   - `DX-PC` / `DXPRC` / `DX$C` · Series C · 6.900% initial fixed rate
   - `DX-PD` / `DXPRD` / `DX$D` · Series D · 9.375% fixed
