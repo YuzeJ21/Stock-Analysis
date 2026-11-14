@@ -186,6 +186,9 @@ BFH_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1101215/00011012152600009
 BFH_COVER = 'https://www.sec.gov/Archives/edgar/data/1101215/000110121526000102/bfh-20261110.htm'
 BFH_SERIES_C_REGISTRATION = 'https://www.sec.gov/Archives/edgar/data/1101215/000119312526444983/d193019d8a12b.htm'
 BFH_SERIES_C_CERTIFICATION = 'https://www.sec.gov/Archives/edgar/data/1101215/000087666126000889/BFHPRC110326.pdf'
+CHMI_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1571776/000114036126041174/ef20080519_10q.htm'
+CHMI_COVER = 'https://www.sec.gov/Archives/edgar/data/1571776/000114036126041175/ef20084463_8k.htm'
+CHMI_MERGER_PROXY = 'https://www.sec.gov/Archives/edgar/data/1571776/000110465926114707/tm2626009-2_defm14a.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -203,11 +206,15 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 207 were reviewed, with 337 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 209 were reviewed, with 335 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Fifteen now have dated class evidence, with 267 still unreviewed.
 
 **Dated findings**
 
+- **Cherry Hill Mortgage Investment · Two NYSE preferred share listings matched.** The Form 10-Q identifies both classes as direct cumulative redeemable preferred shares. Each row gives the SEC map, filing cover and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows trading activity in both series. [Cherry Hill Form 10-Q]({CHMI_QUARTER}) · [Cherry Hill Form 8-K]({CHMI_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=35)
+  - `CHMI-PA` / `CHMI-PRA` / `CHMI$A` · Series A · 8.20% fixed
+  - `CHMI-PB` / `CHMI-PRB` / `CHMI$B` · Series B · 8.250% initial fixed rate
+  - Series B has been floating since April 15, 2024. The proposed merger would exchange A and B for MITT Series D and E, respectively, if it closes. [Definitive merger proxy]({CHMI_MERGER_PROXY})
 - **Bread Financial · Three NYSE depositary share listings matched.** Each depositary share represents 1/40 of a share of the corresponding noncumulative perpetual preferred stock. Each row gives the SEC map, filing or NYSE report, and Nasdaq Trader directory symbols. [Bread Financial Form 10-Q]({BFH_QUARTER}) · [November 10 Form 8-K]({BFH_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=21)
   - `BFH-PA` / `BFH PrA` / `BFH$A` · Series A · 8.625%
   - `BFH-PB` / `BFH PrB` / `BFH$B` · Series B · 8.875% fixed-rate reset

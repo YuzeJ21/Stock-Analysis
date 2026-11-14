@@ -1633,9 +1633,42 @@ SEC submissions record accession `0001101215-26-000092` as filed October 27 and 
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**207 of the original 544 SEC-only records have been reviewed, with 337 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+This batch brought the review to 207 of the original 544 SEC-only records, with 337 unreviewed. Fifteen of the 282 directory-type gaps had dated class evidence, with 267 unreviewed.
 
 The integration passed 241 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three symbol mappings, 234 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
+
+#### Cherry Hill Mortgage Investment preferred-share follow-up
+
+The October 29 Form 10-Q and Form 8-K covers identify both direct preferred shares of Cherry Hill Mortgage Investment Corporation (CIK `0001571776`) on the NYSE. The 10-Q gives the full legal title for Series B. The original Forms 8-A document both registrations, and the February 11, 2019 NYSE certification confirms Series B. [October 29 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1571776/000114036126041174/ef20080519_10q.htm) · [October 29 Form 8-K](https://www.sec.gov/Archives/edgar/data/1571776/000114036126041175/ef20084463_8k.htm) · [Series A registration](https://www.sec.gov/Archives/edgar/data/1571776/000156761917001719/s001826x4_8a12b.htm) · [Series B registration](https://www.sec.gov/Archives/edgar/data/1571776/000114036119002775/s002648x4_8a12b.htm) · [Series B NYSE certification](https://www.sec.gov/Archives/edgar/data/1571776/000087666119000124/CHMI8A021119.pdf)
+
+| Series | SEC exchange map | SEC filing cover | Nasdaq Trader | NYSE report | Dividend terms in the Form 10-Q | Nov. 12 NYSE reported volume |
+| --- | --- | --- | --- | --- | --- | ---: |
+| A | `CHMI-PA` | `CHMI-PRA` | `CHMI$A` | `CHMI PRA` | 8.20% fixed | 2,607 |
+| B | `CHMI-PB` | `CHMI-PRB` | `CHMI$B` | `CHMI PRB` | Initially 8.250%. Three-month CME Term SOFR plus 5.89261 percentage points since April 15, 2024 | 512 |
+
+The November 12 Nasdaq Trader directory assigns venue code `N` and ETF and test flags `N` to both rows. The saved directory rules already classify both as preferred shares. The NYSE report establishes trading activity on November 12. First execution, continuous listing, market yields and analysis eligibility require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 35](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=35)
+
+The October 8 definitive proxy schedules a December 2 stockholder vote. It provides for a one-for-one exchange of CHMI Series A into TPG Mortgage Investment Trust Series D and CHMI Series B into Series E if the merger closes. TPG's November 6 Form 10-Q describes the merger as proposed. The two prospective successor classes require separate confirmation of issuance and listing. [Definitive merger proxy](https://www.sec.gov/Archives/edgar/data/1571776/000110465926114707/tm2626009-2_defm14a.htm) · [TPG November 6 Form 10-Q](https://www.sec.gov/Archives/edgar/data/1514281/000162828026071791/mitt-20260930.htm)
+
+SEC submissions list the October 29 Form 10-Q, accession `0001140361-26-041174`, accepted at 20:31:04 UTC, and the same-day Form 8-K, accession `0001140361-26-041175`, accepted at 20:31:52 UTC. The October 8 definitive proxy, accession `0001104659-26-114707`, was accepted at 20:16:26 UTC. The linked SEC documents were observed November 14 from 14:43:01 through 14:43:59 UTC. The exchange map, directory and NYSE report use the preserved November 12 receipts. [SEC submissions](https://data.sec.gov/submissions/CIK0001571776.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `0d0ebc458dde71220e1df1547db626769cc2f0d9aec76d2f561fc32010514bb1` |
+| October 29 Form 10-Q | `a9bcfdcaad3e3ae4b1ebbd17aaad52de4d17767d065c4eb70364dfba9ecd8261` |
+| October 29 Form 8-K | `493fec382141308c54363303f5bdc892312e00d659098f468b8bc8b3167446fc` |
+| Series A Form 8-A | `4183f820497ffb2390c7245ed689b732f2978ebc98a37965bf87f5a2bcd0c1e1` |
+| Series B Form 8-A | `2bb1cc4ab7f119be77ac546b3171173e116c2ed096aeb88dc58ffe6fa4b4af85` |
+| Series B NYSE certification | `9f28f8be57c2e586cceecaa1d1373d465d5d0faa62b206c9bf468cb0a02a80e2` |
+| October 8 definitive proxy | `bb099d02b9f6964956b2ae72662534c8103fc793c919ccc84369ad3963ce4466` |
+| November 6 TPG Form 10-Q | `d6dca821dc405010ea0df52c2682c2f43a21937d81687f89294bba2b6fbe6582` |
+| November 12 SEC exchange map | `98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**209 of the original 544 SEC-only records have been reviewed, with 335 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 242 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the two symbol mappings, 238 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

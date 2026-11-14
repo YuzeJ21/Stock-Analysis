@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '207 were reviewed, with 337 still unreviewed' in review
+    assert '209 were reviewed, with 335 still unreviewed' in review
     assert 'Fifteen now have dated class evidence, with 267 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
@@ -857,6 +857,27 @@ def test_bread_financial_review_maps_depositary_shares_with_separate_series_c_ev
         '000119312526444983/d193019d8a12b.htm',
         '000087666126000889/BFHPRC110326.pdf',
         'NYSEshvol20261112.pdf#page=21',
+    ):
+        assert source in batch
+
+
+def test_cherry_hill_review_preserves_floating_rate_and_proposed_successor_scope():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    heading = '**Cherry Hill Mortgage Investment · Two NYSE preferred share listings matched.**'
+    assert heading in review
+    batch = review.split(heading, 1)[1].split('\n- **', 1)[0]
+    for series, terms in zip('AB', ('8.20% fixed', '8.250% initial fixed rate'), strict=True):
+        assert f'`CHMI-P{series}` / `CHMI-PR{series}` / `CHMI${series}` · Series {series} · {terms}\n' in batch
+    assert 'direct cumulative redeemable preferred shares' in batch
+    assert 'Series B has been floating since April 15, 2024.' in batch
+    assert 'The proposed merger would exchange A and B for MITT Series D and E, respectively, if it closes.' in batch
+    for source in (
+        '000114036126041174/ef20080519_10q.htm',
+        '000114036126041175/ef20084463_8k.htm',
+        '000110465926114707/tm2626009-2_defm14a.htm',
+        'NYSEshvol20261112.pdf#page=35',
     ):
         assert source in batch
 
