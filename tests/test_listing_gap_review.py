@@ -5,7 +5,7 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '213 were reviewed, with 331 still unreviewed' in review
+    assert '215 were reviewed, with 329 still unreviewed' in review
     assert 'Fifteen now have dated class evidence, with 267 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
@@ -920,6 +920,30 @@ def test_acres_review_distinguishes_floating_rate_floor_and_existing_listing():
         '000119312526451872/acr-20261102.htm',
         '000119312526346890/acr-20260810.htm',
         'NYSEshvol20261112.pdf#page=3)',
+    ):
+        assert source in batch
+
+
+def test_summit_review_separates_listed_preferred_shares_from_units_and_redeemed_series():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    heading = '**Summit Hotel Properties · Two NYSE preferred share listings matched.**'
+    assert heading in review
+    batch = review.split(heading, 1)[1].split('\n- **', 1)[0]
+    for series, rate in zip('EF', ('6.250%', '5.875%'), strict=True):
+        assert f'`INN-P{series}` / `INN-P{series}` / `INN${series}` · Series {series} · {rate} fixed\n' in batch
+    assert 'direct cumulative redeemable preferred shares' in batch
+    assert 'The operating partnership’s preferred units are separate from the listed shares.' in batch
+    assert 'Summit fully redeemed Series D in 2021.' in batch
+    assert 'The saved directory match for INN$F points to Innocan Pharma’s OTC common stock (INNPF).' in batch
+    assert 'That issuer link is unresolved in the automated inventory.' in batch
+    for source in (
+        '000149764526000077/inn-20260930.htm',
+        '000149764526000080/inn-20261103.htm',
+        '000110465921133679/tm2131790d1_ex99-1.htm',
+        '000164117225020718/formf-1.htm',
+        'NYSEshvol20261112.pdf#page=91',
     ):
         assert source in batch
 

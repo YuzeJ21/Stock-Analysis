@@ -1740,9 +1740,48 @@ SEC submissions list the November 9 Form 10-Q, accession `0001193125-26-453824`,
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**213 of the original 544 SEC-only records have been reviewed, with 331 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+This batch brought the review to 213 of the original 544 SEC-only records, with 331 unreviewed. Fifteen of the 282 directory-type gaps had dated class evidence, with 267 unreviewed.
 
 The integration passed 244 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the two symbol mappings, 246 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
+
+#### Summit Hotel Properties preferred-share follow-up
+
+The November 3 Form 10-Q and Form 8-K list Series E and F of Summit Hotel Properties, Inc. (CIK `0001497645`) as direct cumulative redeemable preferred shares on NYSE. The original Forms 8-A and NYSE certifications corroborate each class. The September 30 balance sheet reports 6,400,000 Series E shares and 4,000,000 Series F shares outstanding. [Form 10-Q](https://www.sec.gov/Archives/edgar/data/1497645/000149764526000077/inn-20260930.htm) · [Form 8-K](https://www.sec.gov/Archives/edgar/data/1497645/000149764526000080/inn-20261103.htm) · [Series E Form 8-A](https://www.sec.gov/Archives/edgar/data/1497645/000110465917066993/a17-26130_18a12b.htm) · [Series E NYSE certification](https://www.sec.gov/Archives/edgar/vprr/1701/17010775.pdf) · [Series F Form 8-A](https://www.sec.gov/Archives/edgar/data/1497645/000110465921103462/tm2124093d5_8a12b.htm) · [Series F NYSE certification](https://www.sec.gov/Archives/edgar/data/1497645/000087666121001186/INNPRF081121.pdf)
+
+| Series | SEC exchange map and filing cover | Nasdaq Trader | NYSE report | Fixed annual dividend rate | Nov. 12 NYSE reported volume |
+| --- | --- | --- | --- | --- | ---: |
+| E | `INN-PE` | `INN$E` | `INN PRE` | 6.250% | 953 |
+| F | `INN-PF` | `INN$F` | `INN PRF` | 5.875% | 771 |
+
+The parent owns the operating partnership's Series E and F preferred units. The operating partnership also issued separate Series Z preferred units to NewcrestImage. Those units fall outside the two parent-company listings. Summit fully redeemed its earlier Series D on September 4, 2021, and NYSE filed Form 25 on September 7. [Form 10-Q](https://www.sec.gov/Archives/edgar/data/1497645/000149764526000077/inn-20260930.htm) · [2021 redemption disclosure](https://www.sec.gov/Archives/edgar/data/1497645/000110465921133679/tm2131790d1_ex99-1.htm) · [Series D Form 25](https://www.sec.gov/Archives/edgar/data/876661/000087666121001288/primary_doc.xml)
+
+The November 12 Nasdaq Trader directory assigns NYSE venue code `N` and ETF and test flags `N` to both rows. The saved directory rules already classify both as preferred shares. The NYSE report establishes trading activity on November 12. First execution, continuous listing, market yields and analysis eligibility require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 91](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=91)
+
+The saved automated issuer match for `INN$F` resolves its CQS symbol `INNpF` to `INNPF` after uppercasing. Innocan Pharma's July 23, 2025 Form F-1 identifies `INNPF` as OTCQB common shares for CIK `0001889791`. The matching issuer, class, venue and trading evidence for Summit comes from the records above. The saved automated association remains flagged for repair. [Innocan Form F-1](https://www.sec.gov/Archives/edgar/data/1889791/000164117225020718/formf-1.htm) · [Innocan SEC submissions](https://data.sec.gov/submissions/CIK0001889791.json)
+
+SEC submissions list the November 3 Form 10-Q, accession `0001497645-26-000077`, accepted at 21:48:40 UTC, and same-day Form 8-K, accession `0001497645-26-000080`, accepted at 21:54:37 UTC. Linked SEC sources were observed November 14 from 14:55:58 through 14:59:32 UTC. The SEC ticker and exchange maps, directory and NYSE report use the preserved November 12 receipts. [SEC submissions](https://data.sec.gov/submissions/CIK0001497645.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| Summit SEC submissions | `f4a48f51217565e1a7f83ab1bd4e835c3bb88fe5a2bae728667345aa7af1a01a` |
+| November 3 Form 10-Q | `85d30487ab384446e775ea859e60c7960bceb96a2a73c7a6e957412c70738856` |
+| November 3 Form 8-K | `4f513497c39cb16e5a6200bb5f9ca5745a60c0c75ed7187d1c281dc63a91a0e4` |
+| Series E Form 8-A | `24a2d6043bbc83869e13c59a2f756a08711c141aacd16698482d8a584d94bbe8` |
+| Series E NYSE certification | `aa915146fd98eebe219eb0c98a2b4d84ae33299b4c23b0a706fa99be7add154e` |
+| Series F Form 8-A | `3b26434759098bcf69e7600b972ea2c6791d601dcfedc302a22a49a2bd493ef8` |
+| Series F NYSE certification | `abd93dc10b4909a4efa3814c311011a32691c94a60a5df51e620b389d01a8008` |
+| Series D redemption disclosure | `063c9d50a4801cbb8e78b4b4243dada8a334d7f9ee0c4395d3eca7c7d54d00d4` |
+| Series D Form 25 | `6b0569a8f0f02ca3126493d8ce0d884a18d376365402aafa75f6399ac7fa0862` |
+| Innocan Form F-1 | `6d137f01bd2b92e4e15aa80ac8297eee9a46ded76569de822d3b6bedccae41ed` |
+| Innocan SEC submissions | `623c8ccf6f805c9d0b40831a4c4146d7b368ec8ec501db0e45949aec949dea93` |
+| November 12 SEC exchange map | `98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e` |
+| November 12 SEC ticker map | `391effc6a807ae1752c9d2c351dbecab8f15aa1c59b035a9a28f7955a94feb0f` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**215 of the original 544 SEC-only records have been reviewed, with 329 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 245 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the two symbol mappings, the automated issuer mismatch, 251 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 
