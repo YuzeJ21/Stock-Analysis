@@ -1666,9 +1666,46 @@ SEC submissions list the October 29 Form 10-Q, accession `0001140361-26-041174`,
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**209 of the original 544 SEC-only records have been reviewed, with 335 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+This batch brought the review to 209 of the original 544 SEC-only records, with 335 unreviewed. Fifteen of the 282 directory-type gaps had dated class evidence, with 267 unreviewed.
 
 The integration passed 242 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the two symbol mappings, 238 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
+
+#### Dynex Capital preferred-share follow-up
+
+The October 27 Form 10-Q and October 19 Form 8-K identify Series C and D of Dynex Capital, Inc. (CIK `0000826675`) as direct cumulative redeemable preferred shares on NYSE. Both classes have a $25 per-share liquidation preference. Original Forms 8-A and NYSE certifications corroborate the listings. [October 27 Form 10-Q](https://www.sec.gov/Archives/edgar/data/826675/000082667526000127/dx-20260930.htm) · [October 19 Form 8-K](https://www.sec.gov/Archives/edgar/data/826675/000082667526000114/dx-20261019.htm) · [Series C Form 8-A](https://www.sec.gov/Archives/edgar/data/826675/000110465920022487/tm209286d1_8a12b.htm) · [Series C NYSE certification](https://www.sec.gov/Archives/edgar/data/826675/000087666120000124/DX8A022020.pdf) · [Series D Form 8-A](https://www.sec.gov/Archives/edgar/data/826675/000082667526000110/form8-aseriesd.htm) · [Series D NYSE certification](https://www.sec.gov/Archives/edgar/data/826675/000087666126000796/DXPRD092926.pdf)
+
+| Series | SEC exchange map | SEC filing cover | Nasdaq Trader | NYSE report | Dividend terms in the Form 10-Q | Nov. 12 NYSE reported volume |
+| --- | --- | --- | --- | --- | --- | ---: |
+| C | `DX-PC` | `DXPRC` | `DX$C` | `DX PRC` | Initially 6.900%. Since April 15, 2025, three-month term SOFR plus a 0.26161 percentage point statutory adjustment and a 5.461 point contractual spread | 3,016 |
+| D | `DX-PD` | `DXPRD` | `DX$D` | `DX PRD` | 9.375% fixed | 11,868 |
+
+The September 29 Form 8-K confirms the Series D offering closed that day. The October 27 Form 10-Q reports 4,800,000 Series D shares sold and 4,460,000 Series C shares outstanding at September 30. Series D's first scheduled dividend payment is January 15, 2027. Historical annual filings and NYSE Forms 25 document the separate full redemptions and delistings of Series A and B. [Series D issuance filing](https://www.sec.gov/Archives/edgar/data/826675/000082667526000112/dx-20260929.htm) · [2020 Form 10-K](https://www.sec.gov/Archives/edgar/data/826675/000082667521000015/dx-20201231.htm) · [2021 Form 10-K](https://www.sec.gov/Archives/edgar/data/826675/000082667522000006/dx-20211231.htm) · [Series A Form 25](https://www.sec.gov/Archives/edgar/data/876661/000087666120000214/primary_doc.xml) · [Series B Form 25](https://www.sec.gov/Archives/edgar/data/876661/000087666121000213/primary_doc.xml)
+
+The November 12 Nasdaq Trader directory assigns NYSE venue code `N` and ETF and test flags `N` to both rows. The saved directory rules already classify both as preferred shares. The NYSE report establishes trading activity on November 12. First execution, continuous listing, market yields and analysis eligibility require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 52](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=52)
+
+SEC submissions list the October 27 Form 10-Q, accession `0000826675-26-000127`, accepted at 20:50:56 UTC, and October 19 Form 8-K, accession `0000826675-26-000114`, accepted at 12:01:54 UTC. The Series D issuance Form 8-K, accession `0000826675-26-000112`, was accepted September 29 at 20:13:25 UTC. The linked SEC sources were observed November 14 from 14:47:18 through 14:48:04 UTC. The exchange map, directory and NYSE report use the preserved November 12 receipts. [SEC submissions](https://data.sec.gov/submissions/CIK0000826675.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `b12877a8d6b20999fd71d325d0357243cb442f8ec89e82b70cda2a7bdb8e8f73` |
+| October 27 Form 10-Q | `c52f2967d10069485ea8203bcce86047576637dfa02549139b53eefe62c97ca1` |
+| October 19 Form 8-K | `af4cee403fc97ad23cae90fa2cc1f53b1abb53d8e1f50800ef2e8c09719590ea` |
+| Series C Form 8-A | `85eab9102c5e42484b5770cc4ba693cc290e61c5afdc0925723bd58177969dd4` |
+| Series C NYSE certification | `6d314575580af44f118c9e932a7a09cc68dff7b42fa653a065c09bf8d41b88bf` |
+| Series D Form 8-A | `abc7d96d5b26744762e4ac164fd095cbcb2e1a73f200ad8c64c8ed90002d1851` |
+| Series D NYSE certification | `86eb34e5e490956ec547503b47f58b5d18bb0c0125b8a456e320f3cf89201aab` |
+| Series D issuance Form 8-K | `ec3c820475c7952b9b35d8b3f3c2585bc08ac5072b71706e55d041a98db32a76` |
+| 2020 Form 10-K | `293e7f2c25613f21f27e5a7c2667b17f7fd01dbc835a4d86b89a9871d6595a19` |
+| 2021 Form 10-K | `36feca1c17a588cd42c9fbff6cd86a604026c4c336f5bcb6d548d2b459f5cd90` |
+| Series A Form 25 | `54be66c3fec20e9add42247cb2b38513de16f34ddd6dec82f1cfebb5c457832d` |
+| Series B Form 25 | `01a510305418e734f9835d2716b862e62ec443dc6f2e10b6bcd46476acd9ed02` |
+| November 12 SEC exchange map | `98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**211 of the original 544 SEC-only records have been reviewed, with 333 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 243 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the two symbol mappings, 242 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

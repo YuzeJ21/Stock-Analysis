@@ -189,6 +189,9 @@ BFH_SERIES_C_CERTIFICATION = 'https://www.sec.gov/Archives/edgar/data/1101215/00
 CHMI_QUARTER = 'https://www.sec.gov/Archives/edgar/data/1571776/000114036126041174/ef20080519_10q.htm'
 CHMI_COVER = 'https://www.sec.gov/Archives/edgar/data/1571776/000114036126041175/ef20084463_8k.htm'
 CHMI_MERGER_PROXY = 'https://www.sec.gov/Archives/edgar/data/1571776/000110465926114707/tm2626009-2_defm14a.htm'
+DX_QUARTER = 'https://www.sec.gov/Archives/edgar/data/826675/000082667526000127/dx-20260930.htm'
+DX_SERIES_D_ISSUANCE = 'https://www.sec.gov/Archives/edgar/data/826675/000082667526000112/dx-20260929.htm'
+DX_SERIES_D_CERTIFICATION = 'https://www.sec.gov/Archives/edgar/data/826675/000087666126000796/DXPRD092926.pdf'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -206,11 +209,15 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 209 were reviewed, with 335 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 211 were reviewed, with 333 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Fifteen now have dated class evidence, with 267 still unreviewed.
 
 **Dated findings**
 
+- **Dynex Capital · Two NYSE preferred share listings matched.** The October 27 Form 10-Q identifies both classes as direct cumulative redeemable preferred shares. Each row gives the SEC map, filing cover and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows trading activity in both series. [Dynex Form 10-Q]({DX_QUARTER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=52)
+  - `DX-PC` / `DXPRC` / `DX$C` · Series C · 6.900% initial fixed rate
+  - `DX-PD` / `DXPRD` / `DX$D` · Series D · 9.375% fixed
+  - Series C has been floating since April 15, 2025. Series D was issued on September 29, 2026. [Series D issuance filing]({DX_SERIES_D_ISSUANCE}) · [Series D NYSE certification]({DX_SERIES_D_CERTIFICATION})
 - **Cherry Hill Mortgage Investment · Two NYSE preferred share listings matched.** The Form 10-Q identifies both classes as direct cumulative redeemable preferred shares. Each row gives the SEC map, filing cover and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows trading activity in both series. [Cherry Hill Form 10-Q]({CHMI_QUARTER}) · [Cherry Hill Form 8-K]({CHMI_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=35)
   - `CHMI-PA` / `CHMI-PRA` / `CHMI$A` · Series A · 8.20% fixed
   - `CHMI-PB` / `CHMI-PRB` / `CHMI$B` · Series B · 8.250% initial fixed rate
