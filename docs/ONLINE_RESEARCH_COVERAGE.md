@@ -1356,9 +1356,42 @@ SEC submissions tie the September 30 Form 10-Q to `0002082866-26-000092`, accept
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**189 of the original 544 SEC-only records have been reviewed, with 355 unreviewed.** Fourteen of the 282 directory-type gaps have dated class evidence, with 268 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+This batch brought the review to 189 of the original 544 SEC-only records, with 355 unreviewed. Fourteen of the 282 directory-type gaps had dated class evidence, with 268 unreviewed.
 
 The integration passed 233 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three symbol mappings, 200 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
+
+#### Gabelli Equity Trust preferred-share follow-up
+
+The May 7 Form 8-K and April 1 prospectus supplement identify Series G, H and K of The Gabelli Equity Trust Inc. (CIK `0000794685`) on NYSE. The June 30 semiannual shareholder report confirms all three were outstanding then and had a 5.00% fixed cumulative dividend rate on a $25 liquidation preference. This is a closed-end fund listing review. [May 7 Form 8-K](https://www.sec.gov/Archives/edgar/data/794685/000182912626004782/gab_8k.htm) · [April 1 prospectus supplement](https://www.sec.gov/Archives/edgar/data/794685/000182912626003035/gabelliequitytrust_424b4.htm) · [June 30 semiannual shareholder report](https://www.sec.gov/Archives/edgar/data/794685/000182912626009842/gab_ncsrs.htm)
+
+| Series | SEC map | Form 8-K cover | Prospectus | Nasdaq Trader ACT symbol | NYSE report |
+| --- | --- | --- | --- | --- | --- |
+| G | `GAB-PG` | `GAB Pr G` | `GAB PrG` | `GAB$G` | `GAB PRG` |
+| H | `GAB-PH` | `GAB Pr H` | `GAB PrH` | `GAB$H` | `GAB PRH` |
+| K | `GAB-PK` | `GAB Pr K` | `GAB PrK` | `GAB$K` | `GAB PRK` |
+
+The Series H Form 8-A identifies 5.00% cumulative preferred stock on NYSE and resolves the saved directory-type gap for `GAB$H`, whose abbreviated description is `Pfd Ser H`. For Series K, the December 13, 2019 certification names NYSE Arca. The December 16 certification expressly amends that filing and certifies listing on the New York Stock Exchange. [Series H Form 8-A](https://www.sec.gov/Archives/edgar/data/794685/000119312512406927/d417915d8a12b.htm) · [December 13 Series K certification](https://www.sec.gov/Archives/edgar/data/794685/000087666119001248/GAB8A121319.pdf) · [December 16 amended NYSE certification](https://www.sec.gov/Archives/edgar/data/794685/000087666119001252/GAB8A121619.pdf)
+
+The November 12 directory lists the three symbols with NYSE venue code `N` and ETF and test flags `N`. The NYSE report shows trading activity in all three on that date. The April prospectus describes Series M and Q as off-exchange, and the shareholder report records full redemption of auction-rate Series C and E on June 26 and June 28, 2024, respectively. First execution, continuous listing, market yields and analysis eligibility require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 71](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=71)
+
+SEC submissions identify the April 1 Form 424B4 as `0001829126-26-003035`, accepted at 20:05:42 UTC, the May 7 Form 8-K as `0001829126-26-004782`, accepted at 21:06:38 UTC, and the June 30 Form N-CSRS as `0001829126-26-009842`, accepted September 8 at 14:20:14 UTC. The SEC documents in the table were observed November 14 at 00:45:11–29 UTC. The snapshot inputs and NYSE report use preserved November 12 receipts. [SEC submissions](https://data.sec.gov/submissions/CIK0000794685.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `230cc15b33ac27f3f0c6b589ee4040d458a98e5a3bf592416aeb0e55f3c36519` |
+| April 1 prospectus supplement | `fdc5f578d9fdd4578c8574039fe6a417a37077e8cb72ffec69ca3bb93a77fe6a` |
+| May 7 Form 8-K | `0c6aa4baee6af93d62368ffef8cc2db34c0362230f88afc6186ac5f3a7be2ed1` |
+| June 30 Form N-CSRS | `d448c017b449e38d61043c13a7a632d73eaa95f81dc66053a4cd26b0829ff0d1` |
+| Series H Form 8-A | `6756237b805068af62525872a4c8c2bf0421f9eaa64c2ca1136ca57997c763d2` |
+| December 13 Series K certification | `7eb20692a5879b38f8d9603a0a938d220787dc06e2e022f14ba841777443c712` |
+| December 16 amended NYSE certification | `525e0cecc7b5fbf498b5410ecd346107291f6bf3d0256491f8830d359ea0f2e2` |
+| November 12 SEC exchange map | `98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**192 of the original 544 SEC-only records have been reviewed, with 352 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 234 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the three symbol mappings, the Series H directory finding, 204 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

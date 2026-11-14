@@ -5,8 +5,8 @@ def test_dated_listing_gap_review_preserves_both_populations_and_the_original_in
     assert '2026-11-12' in review and '13,791' in review and '38 test issues excluded' in review
     assert '544 SEC-only' in review and '282 unresolved directory types' in review
     assert '246' in review and '19' in review and '17' in review
-    assert '189 were reviewed, with 355 still unreviewed' in review
-    assert 'Fourteen now have dated class evidence, with 268 still unreviewed' in review
+    assert '192 were reviewed, with 352 still unreviewed' in review
+    assert 'Fifteen now have dated class evidence, with 267 still unreviewed' in review
     assert all(symbol in review for symbol in ('ABR-PD', 'ABR-PE', 'ABR-PF', 'ALUR', 'GOOG', 'ADSEW', 'PFBC'))
     assert 'Form 25' in review and 'Class C Capital Stock' in review and 'Nasdaq warrant' in review
     assert 'Full U.S. coverage remains unverified' in review
@@ -714,6 +714,24 @@ def test_pinnacle_review_uses_post_merger_classes_and_documents_directory_confli
     for source in ('000208286626000092/pnfp-20260930.htm', '000208286626000094/pnfp-20261104.htm',
                    '000114036126000050/ef20061822_8k12b.htm', '000087666125001026/PNFP123125.pdf',
                    'NYSEshvol20261112.pdf#page=137'):
+        assert source in batch
+
+
+def test_gabelli_equity_trust_review_matches_listed_series_and_resolves_the_h_type_gap():
+    from src.listing_gap_review import listing_gap_review_markdown
+
+    review = listing_gap_review_markdown()
+    heading = '**Gabelli Equity Trust · Three NYSE preferred share listings matched.**'
+    assert heading in review
+    batch = review.split(heading, 1)[1].split('\n- **', 1)[0]
+    for series in 'GHK':
+        assert f'`GAB-P{series}` / `GAB Pr {series}` / `GAB${series}` · Series {series}\n' in batch
+    assert '5.00% fixed cumulative preferred stock' in batch
+    assert 'directory-type gap for `GAB$H`' in batch
+    assert 'Series M and Q are off-exchange' in batch
+    assert 'auction-rate Series C and E were redeemed in 2024' in batch
+    for source in ('000182912626004782/gab_8k.htm', '000182912626009842/gab_ncsrs.htm',
+                   '000182912626003035/gabelliequitytrust_424b4.htm', 'NYSEshvol20261112.pdf#page=71'):
         assert source in batch
 
 

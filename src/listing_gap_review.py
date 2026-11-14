@@ -159,6 +159,9 @@ PNFP_QUARTER = 'https://www.sec.gov/Archives/edgar/data/2082866/0002082866260000
 PNFP_COVER = 'https://www.sec.gov/Archives/edgar/data/2082866/000208286626000094/pnfp-20261104.htm'
 PNFP_MERGER = 'https://www.sec.gov/Archives/edgar/data/2082866/000114036126000050/ef20061822_8k12b.htm'
 PNFP_NYSE_CERT = 'https://www.sec.gov/Archives/edgar/data/2082866/000087666125001026/PNFP123125.pdf'
+GAB_COVER = 'https://www.sec.gov/Archives/edgar/data/794685/000182912626004782/gab_8k.htm'
+GAB_SEMIANNUAL = 'https://www.sec.gov/Archives/edgar/data/794685/000182912626009842/gab_ncsrs.htm'
+GAB_PROSPECTUS = 'https://www.sec.gov/Archives/edgar/data/794685/000182912626003035/gabelliequitytrust_424b4.htm'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -176,11 +179,16 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 189 were reviewed, with 355 still unreviewed.
-- **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Fourteen now have dated class evidence, with 268 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 192 were reviewed, with 352 still unreviewed.
+- **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Fifteen now have dated class evidence, with 267 still unreviewed.
 
 **Dated findings**
 
+- **Gabelli Equity Trust · Three NYSE preferred share listings matched.** The May 7 Form 8-K identifies Series G, H and K, and the semiannual shareholder report records all three as 5.00% fixed cumulative preferred stock as of June 30. Each row gives the SEC map, filing cover and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows trading activity in all three. [Gabelli Form 8-K]({GAB_COVER}) · [Semiannual shareholder report]({GAB_SEMIANNUAL}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=71)
+  - `GAB-PG` / `GAB Pr G` / `GAB$G` · Series G
+  - `GAB-PH` / `GAB Pr H` / `GAB$H` · Series H
+  - `GAB-PK` / `GAB Pr K` / `GAB$K` · Series K
+  - The filings resolve the directory-type gap for `GAB$H`, abbreviated `Pfd Ser H` in the directory. Series M and Q are off-exchange, and the separate auction-rate Series C and E were redeemed in 2024. [April prospectus supplement]({GAB_PROSPECTUS})
 - **Pinnacle Financial Partners · Three NYSE preferred security listings matched.** The November 2 Form 10-Q and November 4 Form 8-K identify three series of noncumulative perpetual preferred stock, with Series C listed through depositary shares. Each row gives the SEC map, filing cover and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows activity in all three. [Pinnacle Form 10-Q]({PNFP_QUARTER}) · [Pinnacle Form 8-K]({PNFP_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=137)
   - `PNFP-PA` / `PNFP - PrA` / `PNFP$A` · Series A · fixed-to-floating preferred stock
   - `PNFP-PB` / `PNFP - PrB` / `PNFP$B` · Series B · fixed-rate reset preferred stock
