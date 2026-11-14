@@ -1424,9 +1424,41 @@ SEC submissions bind the October 28 Form 10-Q to accession `0000913144-26-000098
 | November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
 | November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
 
-**194 of the original 544 SEC-only records have been reviewed, with 350 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+This batch brought the review to 194 of the original 544 SEC-only records, with 350 unreviewed. Fifteen of the 282 directory-type gaps had dated class evidence, with 267 unreviewed.
 
 The integration passed 235 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the two symbol mappings, the Series E exclusion, 208 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
+
+#### Bank of Hawaii preferred-share follow-up
+
+The October 26 Form 10-Q and Form 8-K identify two NYSE-listed depositary share classes of Bank of Hawaii Corporation (CIK `0000046195`). Each depositary share represents 1/40 of the corresponding fixed-rate, noncumulative perpetual preferred share. NYSE certified the depositary classes in June 2021 and June 2024. The common `BOH` listing falls outside the batch. [October 26 Form 10-Q](https://www.sec.gov/Archives/edgar/data/46195/000004619526000065/boh-20260930.htm) · [October 26 Form 8-K](https://www.sec.gov/Archives/edgar/data/46195/000004619526000062/boh-20261026.htm) · [NYSE Series A certification](https://www.sec.gov/Archives/edgar/data/46195/000087666121000894/BOH061521.pdf) · [NYSE Series B certification](https://www.sec.gov/Archives/edgar/data/46195/000087666124000513/BOHPRB062424.pdf)
+
+| Series | SEC map | SEC cover | Nasdaq Trader ACT symbol | NYSE report | Stated annual dividend rate |
+| --- | --- | --- | --- | --- | --- |
+| A | `BOH-PA` | `BOH.PRA` | `BOH$A` | `BOH PRA` | 4.375% |
+| B | `BOH-PB` | `BOH.PRB` | `BOH$B` | `BOH PRB` | 8.000% |
+
+The annual filing gives a $1,000 liquidation preference per underlying preferred share, equivalent to $25 per depositary share. The ordinary issuer redemption option applies on dividend payment dates on or after August 1, 2026 for Series A and August 1, 2029 for Series B. Both series have separate provisions for a regulatory capital treatment event. The October 26 earnings exhibit records the October 2 declaration of $0.2735 and $0.5000 per depositary share for Series A and B, respectively, payable November 2 to October 16 holders. [2025 Form 10-K](https://www.sec.gov/Archives/edgar/data/46195/000004619526000015/boh-20251231.htm) · [October 26 earnings exhibit](https://www.sec.gov/Archives/edgar/data/46195/000004619526000062/ex991earningsrelease093026.htm)
+
+The November 12 directory assigns NYSE venue code `N` and ETF and test flags `N` to both rows. The existing rules already classified both as depositary receipts. The NYSE report shows activity in both classes on that date. The reviewed sources establish the Series A redemption option and the November 12 trading observation. A completed call, first execution, continuous listing, market yields and analysis eligibility require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 26](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=26)
+
+SEC submissions bind the September 30 Form 10-Q to accession `0000046195-26-000065` and the Form 8-K to `0000046195-26-000062`, accepted October 26 at 20:53:29 and 12:51:47 UTC, respectively. The SEC sources in the table were observed November 14 at 01:45:17–50 UTC. The exchange map, directory and NYSE report use the preserved November 12 receipts. [SEC submissions](https://data.sec.gov/submissions/CIK0000046195.json)
+
+| Source receipt | Raw SHA-256 |
+| --- | --- |
+| SEC submissions | `80a62c11b7a7249902fd4e99547a13176d25b2d865418d995257d99fd9ed9701` |
+| October 26 Form 10-Q | `7c7cbc14442b9b1f438bb233654bafd037a001f259eebacbe92cf1835eb164c7` |
+| October 26 Form 8-K | `0857e14a802eac772a9a7cdcac72e72b555ce5d9c6fd6b1d41550eef64a3fdd5` |
+| October 26 earnings exhibit | `d47e6e0e99f6de88b3e67856ab8848b54f47a9f3453cffb47c7f7d030387c1c0` |
+| 2025 Form 10-K | `ee8fa55e27e7de98678ac9a641430230fc8c45e56ae2b62f53e5cb8def0a80bc` |
+| June 15, 2021 NYSE Series A certification | `48dc3ff756e0517a7fea3ad360baa633870ebdd830c9493a1bbc9ab564e572c9` |
+| June 24, 2024 NYSE Series B certification | `f5b29a73c65c5eb8ef00b5a244d0d368773d9004e690d0a197272b48c945d5d2` |
+| November 12 SEC exchange map | `98d357e2c5b2fb5bfdb085f3d6a9010036e43a2306e63563061b1997d1e8224e` |
+| November 12 Nasdaq Trader other-listed directory | `7dd8aa2f8b3334bbdabceede7320475e50ef9a63e094151c6e616115e2cdbc3e` |
+| November 12 NYSE short-sale volume report | `2e0e63aa7ed6ca20582c96dadf720b4994dd74d6000dde1ced4191422b7f7fd0` |
+
+**196 of the original 544 SEC-only records have been reviewed, with 348 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
+
+The integration passed 236 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the two symbol mappings, 214 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

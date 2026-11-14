@@ -165,6 +165,11 @@ GAB_PROSPECTUS = 'https://www.sec.gov/Archives/edgar/data/794685/000182912626003
 RNR_QUARTER = 'https://www.sec.gov/Archives/edgar/data/913144/000091314426000098/rnr-20260930.htm'
 RNR_COVER = 'https://www.sec.gov/Archives/edgar/data/913144/000091314426000096/rnr-20261027.htm'
 RNR_SERIES_E_REDEMPTION = 'https://www.sec.gov/Archives/edgar/data/913144/000091314421000110/rnr-20210930.htm'
+BOH_QUARTER = 'https://www.sec.gov/Archives/edgar/data/46195/000004619526000065/boh-20260930.htm'
+BOH_COVER = 'https://www.sec.gov/Archives/edgar/data/46195/000004619526000062/boh-20261026.htm'
+BOH_ANNUAL = 'https://www.sec.gov/Archives/edgar/data/46195/000004619526000015/boh-20251231.htm'
+BOH_SERIES_A_NYSE = 'https://www.sec.gov/Archives/edgar/data/46195/000087666121000894/BOH061521.pdf'
+BOH_SERIES_B_NYSE = 'https://www.sec.gov/Archives/edgar/data/46195/000087666124000513/BOHPRB062424.pdf'
 ALUR_REMOVAL = 'https://www.sec.gov/Archives/edgar/data/876661/000087666126000826/ruleprovisionnotice.htm'
 ALUR_SUBMISSIONS = 'https://data.sec.gov/submissions/CIK0001964979.json'
 GOOG_COVER = 'https://www.sec.gov/Archives/edgar/data/1652044/000119312526449835/d174184d8k.htm'
@@ -182,11 +187,15 @@ def listing_gap_review_markdown() -> str:
     return f"""
 **2026-11-12 snapshot · 13,791 observed listing records · 38 test issues excluded**
 
-- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 194 were reviewed, with 350 still unreviewed.
+- **544 SEC-only records.** These rows carry an exchange in the SEC map and lack a confirmed symbol join to either directory. 196 were reviewed, with 348 still unreviewed.
 - **282 unresolved directory types.** 246 had no recognized instrument wording, 19 had ambiguous wording, and 17 had conflicting flag and description evidence. Fifteen now have dated class evidence, with 267 still unreviewed.
 
 **Dated findings**
 
+- **Bank of Hawaii · Two NYSE depositary share listings matched.** The October 26 Form 10-Q and Form 8-K identify both listed classes. Each depositary share represents 1/40 of the corresponding fixed-rate noncumulative perpetual preferred share. Each row gives the SEC map, filing cover and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows trading activity in both series. [Bank of Hawaii Form 10-Q]({BOH_QUARTER}) · [Bank of Hawaii Form 8-K]({BOH_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=26)
+  - `BOH-PA` / `BOH.PRA` / `BOH$A` · Series A · 4.375%
+  - `BOH-PB` / `BOH.PRB` / `BOH$B` · Series B · 8.000%
+  - Series A became eligible for optional redemption on dividend payment dates starting August 1, 2026, subject to the filed terms. Dividends for both classes were declared for payment on November 2, 2026. [Annual filing and redemption terms]({BOH_ANNUAL}) · [NYSE Series A certification]({BOH_SERIES_A_NYSE}) · [NYSE Series B certification]({BOH_SERIES_B_NYSE})
 - **RenaissanceRe · Two NYSE depositary share listings matched.** The October 28 Form 10-Q and October 27 Form 8-K identify the listed depositary shares. Each represents 1/1,000 of the corresponding noncumulative preference share. Each row gives the SEC map, filing cover and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows trading activity in both series. [RenaissanceRe Form 10-Q]({RNR_QUARTER}) · [RenaissanceRe Form 8-K]({RNR_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=148)
   - `RNR-PF` / `RNR PRF` / `RNR$F` · Series F · 5.750%
   - `RNR-PG` / `RNR PRG` / `RNR$G` · Series G · 4.20%
