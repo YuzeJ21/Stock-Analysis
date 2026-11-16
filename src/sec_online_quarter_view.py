@@ -144,11 +144,42 @@ def native_quarter_comparisons_html(current, comparatives, gaps=None):
             '<p>Changes use the three-month columns from the same filing.</p>' + ''.join(panels) + '</section>')
 
 
+def tsm_cash_reconciliation_html(evidence):
+    from src.sec_tsm_quarter_cash import CASH_SOURCES, cash_flow_rows
+
+    title = 'September quarter cash flow reconciliation'
+    section = f'<section class="company-archive-quarter" aria-label="{title}"><h4>{title}</h4>'
+    if not evidence:
+        return _STYLE + section + '<p>Withheld · The exact three-source calculation is unavailable in this observation.</p></section>'
+    labels = {'cash_from_operations': 'Operating cash flow', 'capital_expenditures': 'Gross PP&amp;E cash purchases'}
+    results, cumulative = [], []
+    for key, row in cash_flow_rows(evidence).items():
+        slide_value = row['presentation_cent_billions']
+        whole, cents = divmod(abs(slide_value), 100)
+        slide_text = f'{"-" if slide_value < 0 else ""}{whole:,}.{cents:02d}'
+        match = ('Agrees at the presentation’s precision.' if row['matches_presentation']
+                 else 'Differs at the presentation’s precision. Cause unverified.')
+        results.append(f'<li><strong>{labels[key]}</strong> · Calculated TWD {row["quarter_thousands"]:,} thousand'
+                       f'<br>October presentation · TWD {slide_text} billion. {match}</li>')
+        cumulative.append(f'<li><strong>{labels[key]}</strong> · Six months TWD {row["six_months_thousands"]:,} thousand'
+                          f'<br>Nine months TWD {row["nine_months_thousands"]:,} thousand</li>')
+    sources = {'six_months': 'June reviewed SEC exhibit', 'nine_months': 'September reviewed SEC exhibit',
+               'presentation': 'October SEC cash flow presentation'}
+    links = ''.join(f'<li><a href="{CASH_SOURCES[key]["source_url"]}" target="_blank" rel="noopener noreferrer">{label}</a>'
+                    f' · observed {escape(evidence["receipts"][key]["observed_at"])}'
+                    f' · SHA-256 {escape(evidence["receipts"][key]["payload_sha256"])}</li>' for key, label in sources.items())
+    return (_STYLE + section + '<p>July 1 to September 30, 2026 · Calculated as nine months less six months.</p><ul>'
+            + ''.join(results) + '</ul><details><summary>Cumulative cash-flow inputs and SEC receipts</summary>'
+            '<p>January to June and January to September · Gross PP&amp;E acquisition payments follow Note 29(a).</p><ul>'
+            + ''.join(cumulative) + '</ul><ul>' + links + '</ul></details></section>')
+
+
 def native_quarter_html(archive, *, show_comparisons=True):
     """Render qualified table evidence with a distinct panel for each duration."""
     if not archive:
         return ''
     periods = {row['kind']: row for row in archive['periods']}
+    cash_review = archive.get('cash_reconciliation')
     panels = []
     for kind, title in (('quarterly', 'Direct quarter'), ('cumulative', 'Year to date')):
         row = periods.get(kind)
@@ -172,6 +203,10 @@ def native_quarter_html(archive, *, show_comparisons=True):
                 value = f"{field['unit']} {field['value']:,}"
                 definitions.append('<li>' + escape(f"{label} · {field['row_label']} · {field['column_header']} · "
                     f"{field['unit_evidence']} · {field['period_evidence']}") + '</li>')
+            elif kind == 'cumulative' and key == 'capital_expenditures' and cash_review:
+                purchases = cash_review['inputs']['nine_months'][key] * 1000
+                value = f'TWD {purchases:,}'
+                definitions.append('<li>Capital spending · Gross cash payments for PP&amp;E acquisitions · Note 29(a)</li>')
             else:
                 reason = row['withheld_fields'][key]
                 explanation = {
@@ -185,6 +220,10 @@ def native_quarter_html(archive, *, show_comparisons=True):
                       + ''.join(lines) + '</tbody></table></div><details><summary>Field definitions</summary><ul>'
                       + ''.join(definitions) + '</ul></details>')
     if show_comparisons and 'quarterly' in periods:
+        from src.sec_tsm_quarter_cash import is_reviewed_cash_scope
+
+        if is_reviewed_cash_scope(archive):
+            panels.append(tsm_cash_reconciliation_html(cash_review))
         panels.append(native_quarter_comparisons_html(periods['quarterly'], archive.get('comparative_periods', ()),
                                                       archive.get('comparative_gaps')))
     refs = ''.join('<li><a target="_blank" rel="noopener noreferrer" href="' + escape(r['source_url'], quote=True)

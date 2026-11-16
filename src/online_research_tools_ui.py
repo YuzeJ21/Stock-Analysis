@@ -284,6 +284,10 @@ def _native_filing_pair(st, pair):
                 st.caption(f"{definition_evidence['explanation']} "
                            f"[{definition_evidence['source_label']}]({definition_evidence['source_url']})")
     st.caption('Year-to-date figures appear separately in Financial Trends.')
+    if 'cash_reconciliation' in pair:
+        from src.sec_online_quarter_view import tsm_cash_reconciliation_html
+
+        st.markdown(tsm_cash_reconciliation_html(pair['cash_reconciliation']), unsafe_allow_html=True)
 
 
 def _snapshots(st, context, bundle):
@@ -318,6 +322,10 @@ def _snapshots(st, context, bundle):
                     baseline = load_research_context(baseline_id, **scope, project_root=PROJECT_ROOT)
                     _native_filing_pair(st, compare_native_filing_pair(baseline, historical))
                 trend = historical['context'].get('business_trend') or {}
+                if not baseline_id and trend.get('cash_reconciliation'):
+                    from src.sec_online_quarter_view import tsm_cash_reconciliation_html
+
+                    st.markdown(tsm_cash_reconciliation_html(trend['cash_reconciliation']), unsafe_allow_html=True)
                 if trend.get('capital_purchase_evidence'):
                     from src.sec_online_quarter_view import capital_purchase_html
                     st.markdown(capital_purchase_html(trend['capital_purchase_evidence']), unsafe_allow_html=True)

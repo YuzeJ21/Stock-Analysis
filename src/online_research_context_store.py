@@ -216,6 +216,18 @@ def _normalized(value):
             from src.sec_online_quarter_evidence import valid_saved_capital_purchase_evidence
             if not valid_saved_capital_purchase_evidence(item, context=value):
                 raise ValueError('Normalized capital purchase evidence is invalid or outside its exact filing scope')
+        if path == ('business_trend', 'cash_reconciliation'):
+            from src.sec_tsm_quarter_cash import cash_filing_events, matches_reviewed_cumulative_cash, valid_cash_reconciliation
+            from src.online_filing_context import validated_filing_inventory
+
+            as_of = _timestamp(value['observed_at'])
+            inventory = validated_filing_inventory(value.get('filing_inventory'), ticker=value['ticker'],
+                expected_cik=value['sec_cik'], as_of=as_of, allow_historical=True)
+            row = _direct_native_quarter(value) or {}
+            current = (row.get('fields') or {}).get('revenue')
+            if not (inventory and cash_filing_events(inventory) and valid_cash_reconciliation(item, current=current, as_of=as_of)
+                    and matches_reviewed_cumulative_cash(item, value['business_trend']['periods'])):
+                raise ValueError('Normalized cash reconciliation is invalid or outside its exact filing scope')
         if item is None or isinstance(item, bool):
             return
         if isinstance(item, (int, float)) and not isinstance(item, bool):
@@ -595,8 +607,13 @@ def compare_native_filing_pair(before, after):
         fields[name] = dict(status=status, reason=reason, baseline=old, current=new)
         if evidence:
             fields[name]['definition_evidence'] = evidence
-    return dict(status='available', baseline=earlier, current=later, fields=fields,
-                period_start=current['period_start'], period_end=current['period_end'], currency=current['currency'])
+    result = dict(status='available', baseline=earlier, current=later, fields=fields,
+                  period_start=current['period_start'], period_end=current['period_end'], currency=current['currency'])
+    from src.sec_tsm_quarter_cash import is_reviewed_cash_scope
+
+    if is_reviewed_cash_scope(current['fields'].get('revenue')):
+        result['cash_reconciliation'] = right['business_trend'].get('cash_reconciliation')
+    return result
 
 
 def find_saved_native_filing_pair(snapshots, after):

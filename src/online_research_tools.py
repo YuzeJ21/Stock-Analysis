@@ -516,6 +516,12 @@ def build_online_research_context(financial, prices, peers=None, association=Non
         ) for row in comparative_periods]
     if has_native_quarter and native_quarter.get('comparative_gaps'):
         trend['comparative_gaps'] = _json(native_quarter['comparative_gaps'])
+    if has_native_quarter and native_quarter.get('cash_reconciliation'):
+        from src.sec_tsm_quarter_cash import matches_reviewed_cumulative_cash
+
+        cash = native_quarter['cash_reconciliation']
+        if matches_reviewed_cumulative_cash(cash, trend['periods']):
+            trend['cash_reconciliation'] = _json(cash)
     base = dict(status='withheld', reason='validated_current_annual_revenue_required', revenue=None,
         currency=None, period_start=None, period_end=None, source_refs=[])
     current = coverage.get('structured_annual', coverage.get('current', {}).get('annual', {}))

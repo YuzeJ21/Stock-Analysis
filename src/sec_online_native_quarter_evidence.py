@@ -5,6 +5,7 @@ from calendar import monthrange
 from collections.abc import Mapping
 from copy import deepcopy
 from datetime import timedelta
+from functools import partial
 import hashlib
 from html.parser import HTMLParser
 import re
@@ -533,7 +534,7 @@ def _verify_packet(financial, wrapper, *, ticker, cik, inventory, as_of):
     verified = _identity_inventory(financial, ticker, cik, inventory, as_of)
     if not verified or not isinstance(wrapper, Mapping) or wrapper.get('status') != 'inspection_only':
         return None
-    if (set(wrapper) not in (_PACKET_KEYS, _PACKET_KEYS | _COMPARATIVE_PACKET_KEYS)
+    if (set(wrapper) - {'cash_reconciliation'} not in (_PACKET_KEYS, _PACKET_KEYS | _COMPARATIVE_PACKET_KEYS)
             or wrapper.get('schema_version') != SCHEMA or wrapper.get('reason') is not None
             or wrapper.get('ticker') != ticker or wrapper.get('sec_cik') != cik
             or wrapper.get('source_id') != SOURCE_ID or wrapper.get('taxonomy') != TAXONOMY
@@ -570,6 +571,12 @@ def _verify_packet(financial, wrapper, *, ticker, cik, inventory, as_of):
             _reviewed_statement_end(selection['description']) != wrapper['period_end']
             or event['report_date'] != wrapper['period_end']):
         return None
+    if 'cash_reconciliation' in wrapper:
+        from src.sec_tsm_quarter_cash import cash_filing_events, matches_reviewed_cumulative_cash, valid_cash_reconciliation
+        cash = wrapper['cash_reconciliation']
+        if not (cash_filing_events(verified) and valid_cash_reconciliation(cash, current=wrapper, as_of=now)
+                and matches_reviewed_cumulative_cash(cash, wrapper['periods'])):
+            return None
     return deepcopy(dict(wrapper))
 
 
@@ -691,8 +698,16 @@ def fetch_native_quarter(financial, *, user_agent, ticker_map_receipt, submissio
                                    financial=financial)
             if _later_structured_quarter(financial, verified, packet['period_end'], event):
                 return hold('native_quarter_newer_structured_period_or_version')
-            return (_verify_packet(financial, packet, ticker=ticker, cik=cik, inventory=verified, as_of=observed_at)
-                    or hold(_UNAVAILABLE))
+            validated = _verify_packet(financial, packet, ticker=ticker, cik=cik, inventory=verified, as_of=observed_at)
+            if not validated:
+                return hold(_UNAVAILABLE)
+            from src.sec_tsm_quarter_cash import load_cash_reconciliation, matches_reviewed_cumulative_cash
+            cash = load_cash_reconciliation(verified, validated, raw, refs[-1], as_of=observed_at,
+                read=partial(_read_document, user_agent=user_agent, source_fetcher=source_fetcher, observed_at=observed_at))
+            if cash and matches_reviewed_cumulative_cash(cash, validated['periods']):
+                validated['cash_reconciliation'] = cash
+                validated['packet_digest'] = _digest({k: v for k, v in validated.items() if k != 'packet_digest'})
+            return validated
         return hold('native_quarter_candidate_limit' if len(events) > MAX_PRIMARY_REQUESTS
                     else 'native_quarter_earnings_report_not_verified')
     except HTTPError as exc:

@@ -6,14 +6,14 @@
 
 | Issuer and source | Direct quarter ended September 30, 2026 | Year to date ended September 30, 2026 |
 | --- | --- | --- |
-| TSM · [October 15 Form 6-K, Exhibit 99.1](https://www.sec.gov/Archives/edgar/data/1046179/000104617926000726/a3q26e_withguidancexfinal.htm) | Revenue and operating income in TWD. The release identified the figures as provisional when published. Operating cash flow and gross PP&E purchases remain open. | The selected results table supplies no year-to-date figures. |
+| TSM · [October 15 Form 6-K, Exhibit 99.1](https://www.sec.gov/Archives/edgar/data/1046179/000104617926000726/a3q26e_withguidancexfinal.htm) | Revenue and operating income in TWD. The release identified the figures as provisional when published. The separate cash-flow review is documented below. | The selected results table supplies no year-to-date figures. |
 | ASE Technology (ASX) · [October 29 Form 6-K](https://www.sec.gov/Archives/edgar/data/1122411/000095010326016324/dp255760_6k.htm) | Revenue, operating income and operating cash flow in TWD. | The same three fields in separate nine-month columns. The statements are unaudited and the nine-month column is labelled retrospectively adjusted. |
 
 The sources were captured on November 11, 2026. ASE Technology was the unfamiliar issuer. Its filing event date is October 29 and the statements end September 30. Its source reports net PP&E payments, so gross purchases and cash generation based on gross purchases remain withheld in both periods. TSM's later monthly sales and board resolution releases are separate reports.
 
 ## Research boundaries
 
-The rule keeps original receipt digests, filing timestamps, and bounded row, column, duration and unit evidence. It handles the newest eligible filing first, stops on an unresolved competing filing or amendment, and holds incompatible source definitions. Values are directly reported for each duration. Native quarterly values do not qualify ADS earnings or USD peer multiples.
+The rule keeps original receipt digests, filing timestamps, and bounded row, column, duration and unit evidence. It handles the newest eligible filing first, stops on an unresolved competing filing or amendment, and holds incompatible source definitions. The direct-quarter and year-to-date tables retain the figures reported for their respective durations. The TSM cash-flow reconciliation uses a separate calculation with its own evidence. Native quarterly values do not qualify ADS earnings or USD peer multiples.
 
 The exact archive path is for personal inspection. Source-derived snapshots are private. Discover's structured coverage counts, price and valuation coverage retain independent qualification. Repository release files contain code, constructed tests and this source-method summary.
 
@@ -31,11 +31,17 @@ Workbench compares TSM’s saved October 15, 2026 provisional release with its N
 
 Revenue and operating income agree at the October filing’s precision. The October press release calls the result consolidated revenue and labels the table row **Net sales**. The same filing’s earnings presentation labels the corresponding line **Net Revenue** and agrees for all three reported quarters at the slide’s precision. November’s reviewed statement uses **Net Revenue**, and Note 20 ties the total to revenue from customer contracts. Workbench keeps both original labels and reports agreement at baseline precision for these specific exhibits and this quarter. Other filing pairs still need their own definition evidence. [October earnings presentation, Exhibit 99.2, slide 4](https://www.sec.gov/Archives/edgar/data/1046179/000104617926000726/a3q26presentatione.htm) · [November statement and Note 20](https://www.sec.gov/Archives/edgar/data/1046179/000104617926000801/a2026q3consolidatedreport-.htm)
 
-Quarterly operating cash flow and gross PP&E purchases remain open in the filing comparison. The October presentation separately shows quarterly management figures. The November reviewed cash-flow statement covers nine months, and its operating cash flow appears in the separate year-to-date section.
+The October press release and November reviewed statements lack comparable directly reported quarterly cash-flow lines for this pair. The November reviewed nine-month operating cash flow appears in the separate year-to-date section. The October presentation and two reviewed cash-flow statements support the separate reconciliation below.
 
 Save the newer observation from **Research Notes** and open **Monitor**. **Reopen exact filing pair** restores both saved observations and filing receipts in the same research profile, including when a later observation has been saved. Reopening uses the stored evidence. The source-rights boundary for private observations and the separate requirements for ADS earnings and valuation still apply.
 
 Desktop Chromium (1440×1000) and phone Chromium (390×844) both preserved the two snapshot IDs through a cold reload and a return to Monitor. Replay made zero source requests, repeated save preserved the snapshot bytes, and all 89 protected baseline file digests matched.
+
+## TSM September quarter cash-flow reconciliation
+
+TSM’s August 14 and November 13 filings contain independently reviewed consolidated cash-flow statements for the six months ended June 30 and nine months ended September 30, 2026. Both use the same consolidation and Taiwan-IFRS interim reporting basis and report in thousands of New Taiwan dollars. The separate quarterly reconciliation calculates July through September by subtracting each eligible six-month value from the corresponding nine-month value. The original filing figures retain their cumulative period labels. [August 14 Exhibit 99.1](https://www.sec.gov/Archives/edgar/data/1046179/000104617926000541/a2026q2consolidatedreport-.htm) · [November 13 Exhibit 99.1](https://www.sec.gov/Archives/edgar/data/1046179/000104617926000801/a2026q3consolidatedreport-.htm)
+
+The calculated gross cash payments for PP&E purchases agree with October’s preliminary figure at the presentation’s displayed precision. Note 29(a) in both reviewed filings ties gross acquisition payments to the cash-flow statement. Disposal proceeds and government grants are reported separately. Calculated operating cash flow differs from the preliminary figure at the presentation’s displayed precision, and the filings leave the reason unresolved. [October 15 Exhibit 99.2 cash-flow slide](https://www.sec.gov/Archives/edgar/data/1046179/000104617926000726/a3q26presentatione008.jpg)
 
 ## Verification of the initial quarterly workflow
 
