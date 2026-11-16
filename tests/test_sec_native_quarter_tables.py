@@ -8,8 +8,8 @@ from src.sec_native_quarter_tables import parse_native_quarter_tables, valid_nat
 FISCAL_YEAR_END = '1231'
 
 
-def parse(text, currency='TWD', fiscal_year_end=FISCAL_YEAR_END):
-    return parse_native_quarter_tables(text.encode(), currency=currency, fiscal_year_end=fiscal_year_end)
+def parse(text, currency='TWD', fiscal_year_end=FISCAL_YEAR_END, **kwargs):
+    return parse_native_quarter_tables(text.encode(), currency=currency, fiscal_year_end=fiscal_year_end, **kwargs)
 
 
 def quarter_release():
@@ -230,6 +230,34 @@ def test_consolidated_cash_summary_preserves_reporting_caveats_and_net_capex_gap
     assert cumulative['fields']['cash_from_operations']['column_header'].endswith('(Retrospectively Adjusted)')
     assert all(row['withheld_fields']['capital_expenditures'] == 'non_equivalent_reported_component'
                for row in (quarter, cumulative))
+
+
+def test_net_ppe_uses_separate_signed_latest_quarter_and_cumulative_witnesses():
+    assert 'net_ppe_payments' not in parse(split_cash_table())
+    result = parse(split_cash_table(), include_net_ppe=True)
+    witnesses = result['net_ppe_payments']
+    assert set(witnesses) == {'quarterly', 'cumulative'}
+    for kind, start, value in (('quarterly', '2026-07-01', -100_000_000),
+                               ('cumulative', '2026-01-01', -201_000_000)):
+        field = witnesses[kind]
+        assert (field['field'], field['concept'], field['period_start'], field['value'], field['sign']) == (
+            'net_ppe_payments', 'reported_net_ppe_payments', start, value, '-',
+        )
+        assert field['unit'] == 'TWD' and field['period_end'] == '2026-09-30'
+        assert valid_native_table_number(field, fiscal_year_end=FISCAL_YEAR_END)
+        assert not valid_native_table_number(dict(field, field='capital_expenditures'),
+                                             fiscal_year_end=FISCAL_YEAR_END)
+    assert all('net_ppe_payments' not in row['fields'] and
+               row['withheld_fields']['capital_expenditures'] == 'non_equivalent_reported_component'
+               for row in result['periods'])
+
+
+def test_net_ppe_duplicate_row_or_table_withholds_the_optional_value():
+    row = '<tr><td>Net payments for property, plant and equipment</td><td>(102)</td><td></td><td>(204)</td><td></td></tr>'
+    for document in (split_cash_table().replace('</table>', row + '</table>'), split_cash_table() * 2 + quarter_release()):
+        packet = parse(document, include_net_ppe=True)
+        assert packet['status'] == 'inspection_only'
+        assert packet['net_ppe_payments'] == {}
 
 
 def test_only_explicit_cumulative_duration_yields_only_cumulative_evidence():

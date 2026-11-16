@@ -64,6 +64,9 @@ _COMPARISON_MONTHS = {'year_over_year': 12, 'sequential': 3}
 _COMPARISON_KEYS = ('comparison_basis', 'current_period_end')
 _COMPARISON_UNAVAILABLE = 'same_filing_comparison_unavailable'
 _COMPARISON_REVISION = 'independent_comparison_revision_unresolved'
+ASE_NET_PPE_SOURCE = 'https://www.sec.gov/Archives/edgar/data/1122411/000095010326016324/dp255760_6k.htm'
+_ASE_ID = ('ASX', '0001122411', '0000950103-26-016324', ASE_NET_PPE_SOURCE)
+_ASE_NET_PERIODS = {'quarterly': ('quarterly', '2026-07-01'), 'cumulative': ('interim', '2026-01-01')}
 
 
 def _clean(parts):
@@ -321,10 +324,10 @@ def valid_native_quarter_field(field, *, context, row, field_name):
         return False
 
 
-def _valid_field(field, context, row, field_name, *, comparative=False):
+def _valid_field(field, context, row, field_name, *, comparative=False, supplemental=False):
     from src.sec_native_quarter_tables import valid_native_table_number
 
-    if (not isinstance(field, Mapping) or field_name not in _FIELD_NAMES
+    if (not isinstance(field, Mapping) or field_name not in _FIELD_NAMES and not (supplemental and field_name == 'net_ppe_payments')
             or not valid_native_table_number(field, fiscal_year_end=field.get('fiscal_year_end'))):
         return False
     if (field.get('field') != field_name or field.get('source_id') != SOURCE_ID
@@ -357,6 +360,32 @@ def _valid_field(field, context, row, field_name, *, comparative=False):
             and field.get('primary_document') == primary.rsplit('/', 1)[-1]
             and field.get('source_ref') == source and _valid_duration(row, field.get('fiscal_year_end'))
             and (not saved or comparative or _saved_source_matches(field, context, row, observed, source, primary)))
+
+
+def valid_ase_net_ppe_payments(evidence, *, context, periods):
+    """Require each supplemental cell to agree with the qualified cash-flow column."""
+    try:
+        if (not isinstance(evidence, Mapping) or not evidence or not evidence.keys() <= _ASE_NET_PERIODS.keys()
+                or (context.get('ticker'), context.get('sec_cik')) != _ASE_ID[:2]):
+            return False
+        for kind, field in evidence.items():
+            saved_kind, start = _ASE_NET_PERIODS[kind]
+            rows = [row for row in periods if row.get('kind') in (kind, saved_kind) and row.get('period_start') == start
+                    and row.get('period_end') == '2026-09-30' and row.get('status') == 'available']
+            if len(rows) != 1:
+                return False
+            row = rows[0]
+            cfo = row['fields'].get('cash_from_operations')
+            if (not cfo or (cfo.get('accession'), cfo.get('source_url')) != _ASE_ID[2:]
+                    or row['withheld_fields'].get('capital_expenditures') != 'non_equivalent_reported_component'
+                    or field.get('unit') != 'TWD' or field.get('scale') != 6 or field.get('value', 1) > 0
+                    or any(field.get(key) != cfo.get(key) for key in ('source_url', 'payload_sha256', 'table_index',
+                        'column_index', 'column_header', 'unit_evidence', 'period_evidence'))
+                    or not _valid_field(field, context, row, 'net_ppe_payments', supplemental=True)):
+                return False
+        return True
+    except (ValueError, TypeError, KeyError, AttributeError, OverflowError, RecursionError):
+        return False
 
 
 def _comparison_end(current_end, basis):
@@ -534,7 +563,7 @@ def _verify_packet(financial, wrapper, *, ticker, cik, inventory, as_of):
     verified = _identity_inventory(financial, ticker, cik, inventory, as_of)
     if not verified or not isinstance(wrapper, Mapping) or wrapper.get('status') != 'inspection_only':
         return None
-    if (set(wrapper) - {'cash_reconciliation'} not in (_PACKET_KEYS, _PACKET_KEYS | _COMPARATIVE_PACKET_KEYS)
+    if (set(wrapper) - {'cash_reconciliation', 'ase_net_ppe_payments'} not in (_PACKET_KEYS, _PACKET_KEYS | _COMPARATIVE_PACKET_KEYS)
             or wrapper.get('schema_version') != SCHEMA or wrapper.get('reason') is not None
             or wrapper.get('ticker') != ticker or wrapper.get('sec_cik') != cik
             or wrapper.get('source_id') != SOURCE_ID or wrapper.get('taxonomy') != TAXONOMY
@@ -577,6 +606,9 @@ def _verify_packet(financial, wrapper, *, ticker, cik, inventory, as_of):
         if not (cash_filing_events(verified) and valid_cash_reconciliation(cash, current=wrapper, as_of=now)
                 and matches_reviewed_cumulative_cash(cash, wrapper['periods'])):
             return None
+    if 'ase_net_ppe_payments' in wrapper and not valid_ase_net_ppe_payments(
+            wrapper['ase_net_ppe_payments'], context=wrapper, periods=wrapper['periods']):
+        return None
     return deepcopy(dict(wrapper))
 
 
@@ -625,6 +657,12 @@ def _build_packet(parsed, *, verified, event, receipts, reviewed, selection, uni
                   source_receipts=receipts, reviewed_preceding=reviewed, selection=selection,
                   inventory_digest=verified['packet_digest'], commercial_eligible=False,
                   readiness_promoted=False, saved_readiness_promoted=False)
+    net_cells = parsed.get('net_ppe_payments')
+    if net_cells:
+        supplement = {kind: dict(field, **metadata, source_ref=metadata['source_url'])
+                      for kind, field in net_cells.items()}
+        if valid_ase_net_ppe_payments(supplement, context=packet, periods=periods):
+            packet['ase_net_ppe_payments'] = supplement
     packet['packet_digest'] = _digest(packet)
     return packet
 
@@ -686,7 +724,8 @@ def fetch_native_quarter(financial, *, user_agent, ticker_map_receipt, submissio
                                           observed_at=observed_at, max_bytes=limit)
                 refs.append(ref)
             from src.sec_native_quarter_tables import parse_native_quarter_tables
-            parsed = parse_native_quarter_tables(raw, currency=unit, fiscal_year_end=fiscal_year_end)
+            parse_options = {'include_net_ppe': True} if (ticker, cik, event['accession'], refs[-1]['source_url']) == _ASE_ID else {}
+            parsed = parse_native_quarter_tables(raw, currency=unit, fiscal_year_end=fiscal_year_end, **parse_options)
             if parsed['status'] != 'inspection_only':
                 if event['amendment']:
                     return hold('native_quarter_amendment_unresolved')

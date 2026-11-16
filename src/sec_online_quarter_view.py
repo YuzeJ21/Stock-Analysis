@@ -198,6 +198,35 @@ def tsm_cash_reconciliation_html(evidence):
             + ''.join(cumulative) + '</ul><ul>' + links + '</ul></details></section>')
 
 
+def ase_net_ppe_html(evidence):
+    from src.sec_online_native_quarter_evidence import ASE_NET_PPE_SOURCE
+
+    if not evidence:
+        return ''
+    title = 'Reported net PP&E payments'
+    rows = []
+    for kind, label in (('quarterly', 'Direct quarter'), ('cumulative', 'Year to date')):
+        if kind not in evidence:
+            continue
+        field = evidence[kind]
+        basis = f"{label} · {field['period_start']} to {field['period_end']}"
+        if 'retrospectively adjusted' in field['column_header'].casefold():
+            basis += ' · Retrospectively adjusted'
+        amount = f"{field['unit']} {field['reported_text']} million"
+        rows.append(f'<li>{escape(basis)}<br><strong>{escape(amount)}</strong></li>')
+    return (_STYLE + f'<section class="company-archive-quarter" aria-label="{escape(title)}"><h4>{escape(title)}</h4>'
+            '<ul>' + ''.join(rows) + '</ul><p><strong>Gross PP&amp;E cash purchases · Withheld</strong></p>'
+            '<p>The October results show net payments and provide no separate September-quarter PP&amp;E disposal receipts. '
+            'Equipment capex is a separate USD measure.</p><details><summary>SEC sources checked</summary><ul>'
+            f'<li><a href="{ASE_NET_PPE_SOURCE}">October 29 SEC results</a> · Consolidated net cash payments</li>'
+            '<li><a href="https://www.sec.gov/Archives/edgar/data/1122411/000095010326016323/dp255782_6k.htm">'
+            'October 29 SEC earnings deck</a> · Equipment capex in USD</li>'
+            '<li><a href="https://www.sec.gov/Archives/edgar/data/1122411/000119312526329634/d174900d6k.htm">'
+            'March-quarter SEC statements</a> · Separate cash purchases and disposal proceeds for March</li>'
+            '<li><a href="https://www.sec.gov/Archives/edgar/data/1122411/000095010326017186/dp256592_6k.htm">'
+            'November 10 monthly revenue filing</a> · October sales update</li></ul></details></section>')
+
+
 def native_quarter_html(archive, *, show_comparisons=True):
     """Render qualified table evidence with a distinct panel for each duration."""
     if not archive:
@@ -243,6 +272,9 @@ def native_quarter_html(archive, *, show_comparisons=True):
                       '<thead><tr><th scope="col">Field</th><th scope="col">Reported value</th></tr></thead><tbody>'
                       + ''.join(lines) + '</tbody></table></div><details><summary>Field definitions</summary><ul>'
                       + ''.join(definitions) + '</ul></details>')
+    if show_comparisons and archive.get('ase_net_ppe_payments'):
+        net = archive['ase_net_ppe_payments']
+        panels.append(ase_net_ppe_html({kind: net[kind] for kind in periods if kind in net}))
     if show_comparisons and 'quarterly' in periods:
         from src.sec_tsm_quarter_cash import is_reviewed_cash_scope
 

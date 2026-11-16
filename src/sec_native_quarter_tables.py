@@ -32,7 +32,9 @@ _CASH_ROWS = {
     'purchases of property, plant and equipment': ('capital_expenditures', 'reported_ppe_purchases'),
 }
 _ROWS = _INCOME_ROWS | _CASH_ROWS
-_NON_EQUIVALENT_ROWS = {'net payments for property, plant and equipment': 'capital_expenditures'}
+_NET_PPE = 'net_ppe_payments'
+_NET_PPE_ROWS = {'net payments for property, plant and equipment': (_NET_PPE, 'reported_net_ppe_payments')}
+_NON_EQUIVALENT_ROWS = dict.fromkeys(_NET_PPE_ROWS, 'capital_expenditures')
 _CURRENCY = {
     'TWD': r'NT\$|NTD|TWD|(?:New Taiwan|NT) dollars?',
     'EUR': r'EUR|€|euros?',
@@ -236,7 +238,9 @@ def valid_native_table_number(field, *, fiscal_year_end):
         if field['reported_numeric_schema'] != NUMBER_SCHEMA or field['taxonomy'] != TABLE_TAXONOMY:
             return False
         label = field['row_label']
-        if (not isinstance(label, str) or (field['field'], field['concept']) != _ROWS.get(_row_name(label))
+        field_name = field['field']
+        definitions = _NET_PPE_ROWS if field_name == _NET_PPE else _ROWS
+        if (not isinstance(label, str) or (field_name, field['concept']) != definitions.get(_row_name(label))
                 or type(field['value']) not in {int, float} or type(field['scale']) is not int):
             return False
         if any(type(field[name]) is not int or not 0 <= field[name] < bound for name, bound in (
@@ -255,7 +259,7 @@ def valid_native_table_number(field, *, fiscal_year_end):
             return False
         basis, current, anchor = field.get('comparison_basis'), None, None
         if 'comparison_basis' in field or 'current_period_end' in field:
-            if basis not in COMPARISON_BASES:
+            if field_name == _NET_PPE or basis not in COMPARISON_BASES:
                 return False
             anchor = date.fromisoformat(field['current_period_end'])
             current = _period(anchor, 3, fiscal_year_end)
@@ -403,7 +407,7 @@ def _separate_caption(table, previous, parser):
     return ' '.join(visible)
 
 
-def _extract_table(table, previous, parser, following, currency, fiscal_year_end):
+def _extract_table(table, previous, parser, following, currency, fiscal_year_end, *, include_net_ppe=False):
     nearby = table['nearby']
     nearby = nearby or _separate_caption(table, previous, parser)
     captions = list(_STATEMENT_CAPTION.finditer(nearby))
@@ -417,6 +421,7 @@ def _extract_table(table, previous, parser, following, currency, fiscal_year_end
     if _UNSUPPORTED_SCOPE.search(caption_context) or _UNIT_ANNOTATION.sub('', scoped).strip():
         return []
     definitions = _statement_rows(caption)
+    is_cash_statement = definitions is _CASH_ROWS
     rows = _grid(table['rows'])
     if not rows:
         return []
@@ -426,6 +431,8 @@ def _extract_table(table, previous, parser, following, currency, fiscal_year_end
         cells and _row_name(cells[0]['text']) in definitions for cells, _ in rows[body_start:]
     ):
         return []
+    if is_cash_statement and include_net_ppe:
+        definitions = definitions | _NET_PPE_ROWS
     headers = rows[:body_start]
     if any(cell['bad'] for cells, _ in headers for cell in cells):
         return []
@@ -460,7 +467,7 @@ def _extract_table(table, previous, parser, following, currency, fiscal_year_end
                 continue
             label = cells[0]['text']
             key = _row_name(label)
-            if key in _NON_EQUIVALENT_ROWS and definitions is _CASH_ROWS:
+            if key in _NON_EQUIVALENT_ROWS and is_cash_statement:
                 gaps.setdefault(_NON_EQUIVALENT_ROWS[key], 'non_equivalent_reported_component')
             if key not in definitions:
                 continue
@@ -483,8 +490,12 @@ def _extract_table(table, previous, parser, following, currency, fiscal_year_end
                 column_index=column['start'], row_label=label, column_header=header,
                 period_evidence=evidence, unit_evidence=unit_evidence,
             )
-        results.append(dict(kind=kind, start=start, end=end, fields=fields, gaps=gaps, table_index=table['index'],
-                            provisional=bool(provisional and end == release_end), unaudited=unaudited))
+        candidate = dict(kind=kind, start=start, end=end, fields=fields, gaps=gaps, table_index=table['index'],
+                         provisional=bool(provisional and end == release_end), unaudited=unaudited)
+        if _NET_PPE in fields or _NET_PPE in gaps:
+            candidate[_NET_PPE] = fields.pop(_NET_PPE, None)
+            gaps.pop(_NET_PPE, None)
+        results.append(candidate)
     return results
 
 
@@ -528,7 +539,8 @@ def _period_row(matching, currency, *, current=None, basis=None):
     return row
 
 
-def parse_native_quarter_tables(raw: bytes, *, currency: str, fiscal_year_end: str) -> dict:
+def parse_native_quarter_tables(raw: bytes, *, currency: str, fiscal_year_end: str,
+                                include_net_ppe: bool = False) -> dict:
     """Read separate reported quarter, same-end YTD, and comparable earlier-quarter columns."""
     held = {'status': 'withheld', 'reason': 'qualified_consolidated_native_period_unavailable',
             'periods': [], 'comparative_periods': []}
@@ -546,13 +558,18 @@ def parse_native_quarter_tables(raw: bytes, *, currency: str, fiscal_year_end: s
                            else len(parser.all_text))
             following = _norm(' '.join(parser.all_text[start:min(start + 80, next_offset)]))[:600]
             previous = parser.tables[index - 1] if index else None
-            candidates.extend(_extract_table(table, previous, parser, following, currency, fiscal_year_end))
+            candidates.extend(_extract_table(table, previous, parser, following, currency, fiscal_year_end,
+                                             include_net_ppe=include_net_ppe))
         latest = max((period['end'] for period in candidates), default=None)
-        periods = []
+        periods, net_ppe = [], {}
         for kind in ('quarterly', 'cumulative'):
             matching = [item for item in candidates if item['kind'] == kind and item['end'] == latest]
             if matching:
                 periods.append(_period_row(matching, currency))
+            if include_net_ppe:
+                witnesses = [item[_NET_PPE] for item in matching if _NET_PPE in item]
+                if len(witnesses) == 1 and witnesses[0] is not None:
+                    net_ppe[kind] = witnesses[0]
         if not any(period['fields'] for period in periods):
             return held
         comparative = []
@@ -564,6 +581,9 @@ def parse_native_quarter_tables(raw: bytes, *, currency: str, fiscal_year_end: s
                     row = _period_row(matching, currency, current=periods[0], basis=basis)
                     if row and row['fields']:
                         comparative.append(row)
-        return {'status': 'inspection_only', 'reason': None, 'periods': periods, 'comparative_periods': comparative}
+        packet = {'status': 'inspection_only', 'reason': None, 'periods': periods, 'comparative_periods': comparative}
+        if include_net_ppe:
+            packet[_NET_PPE] = net_ppe
+        return packet
     except (ValueError, RecursionError):
         return held

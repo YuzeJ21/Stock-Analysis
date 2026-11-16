@@ -8,6 +8,7 @@ from src.company_research_notes import CompanyNotesScope, load_company_notes
 from src.online_peer_sources import SESSION_KEY as PEER_SESSION_KEY
 from src.online_research_tools import build_online_research_context, run_online_scenario
 from src.online_company_identity import _mode_reason
+from src.sec_online_quarter_view import ase_net_ppe_html
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SEC_AGENT_KEY = 'company-research-sec-identification'
@@ -322,6 +323,8 @@ def _snapshots(st, context, bundle):
                     baseline = load_research_context(baseline_id, **scope, project_root=PROJECT_ROOT)
                     _native_filing_pair(st, compare_native_filing_pair(baseline, historical))
                 trend = historical['context'].get('business_trend') or {}
+                if trend.get('ase_net_ppe_payments'):
+                    st.markdown(ase_net_ppe_html(trend['ase_net_ppe_payments']), unsafe_allow_html=True)
                 if not baseline_id and trend.get('cash_reconciliation'):
                     from src.sec_online_quarter_view import tsm_cash_reconciliation_html
 
@@ -350,6 +353,9 @@ def _snapshots(st, context, bundle):
                 live_match = find_saved_native_filing_pair(snapshots, context)
                 if live_match:
                     _native_filing_pair(st, live_match[1])
+                net = (context.get('business_trend') or {}).get('ase_net_ppe_payments')
+                if net:
+                    st.markdown(ase_net_ppe_html(net), unsafe_allow_html=True)
             if baseline_id:
                 from src.research_workspace import open_research_monitor
                 st.button('Return to this filing pair in Monitor', key='online-research-back-to-filing-pair',
@@ -452,6 +458,8 @@ def render_online_research_monitor(st, *, profile_key):
             st.markdown(bank_quarter_comparison_html(trend['bank_interim'], pair), unsafe_allow_html=True)
         if native_match:
             _native_filing_pair(st, native_match[1])
+        if trend.get('ase_net_ppe_payments'):
+            st.markdown(ase_net_ppe_html(trend['ase_net_ppe_payments']), unsafe_allow_html=True)
         for gap in latest['context'].get('gaps') or []:
             st.write(_label(gap))
         query = dict(mode='research', page='company-workbench', ticker=scope['ticker'],

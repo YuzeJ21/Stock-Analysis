@@ -522,6 +522,11 @@ def build_online_research_context(financial, prices, peers=None, association=Non
         cash = native_quarter['cash_reconciliation']
         if matches_reviewed_cumulative_cash(cash, trend['periods']):
             trend['cash_reconciliation'] = _json(cash)
+    if native_periods and native_quarter.get('ase_net_ppe_payments'):
+        net = native_quarter['ase_net_ppe_payments']
+        selected_net = {row['kind']: net[row['kind']] for _, row in native_periods if row['kind'] in net}
+        if selected_net:
+            trend['ase_net_ppe_payments'] = _json(selected_net)
     base = dict(status='withheld', reason='validated_current_annual_revenue_required', revenue=None,
         currency=None, period_start=None, period_end=None, source_refs=[])
     current = coverage.get('structured_annual', coverage.get('current', {}).get('annual', {}))

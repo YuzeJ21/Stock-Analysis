@@ -228,6 +228,11 @@ def _normalized(value):
             if not (inventory and cash_filing_events(inventory) and valid_cash_reconciliation(item, current=current, as_of=as_of)
                     and matches_reviewed_cumulative_cash(item, value['business_trend']['periods'])):
                 raise ValueError('Normalized cash reconciliation is invalid or outside its exact filing scope')
+        if path == ('business_trend', 'ase_net_ppe_payments'):
+            from src.sec_online_native_quarter_evidence import valid_ase_net_ppe_payments
+
+            if not valid_ase_net_ppe_payments(item, context=value, periods=value['business_trend']['periods']):
+                raise ValueError('Normalized ASE net PP&E evidence is invalid or outside its exact filing scope')
         if item is None or isinstance(item, bool):
             return
         if isinstance(item, (int, float)) and not isinstance(item, bool):
@@ -262,7 +267,9 @@ def _normalized(value):
                     and isinstance(path[3], str))
                 row = value['business_trend']['periods'][path[2]] if typed else None
                 valid = False
-                if capital_field:
+                if len(path) == 3 and path[:2] == ('business_trend', 'ase_net_ppe_payments'):
+                    valid = item.get('reported_numeric_schema') == 'sec-native-table-number-v1'
+                elif capital_field:
                     valid = item.get('reported_numeric_schema') == 'sec-nee-capital-purchase-number-v1'
                 elif bank_field or bank_baseline:
                     marker = 'sec-ibn-bank-number-v1' if path[1] == 'bank_annual' else 'sec-ibn-interim-number-v1'
