@@ -19,4 +19,8 @@ def test_ase_net_payments_keep_gross_withheld_and_durations_visible():
     assert 'June TWSE filings' in rendered and 'seamon=2' in rendered
     assert 'September TWSE filings' in rendered and 'seamon=3' in rendered
     assert 'no restated June gross payment and disposal cash lines' in rendered
+    assert 'Restated June search · November 16, 2026' in rendered
+    assert 'no ASE entry for either quarter' in rendered
+    assert 'MOPS financial-report corrections' in rendered and 't56sb31_q1' in rendered
+    assert 'MOPS consolidated cash flow' in rendered and 't164sb05' in rendered
     assert 'Year to date' not in view.ase_net_ppe_html({'quarterly': direct})

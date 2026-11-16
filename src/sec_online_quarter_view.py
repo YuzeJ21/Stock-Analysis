@@ -234,7 +234,15 @@ def ase_net_ppe_html(evidence):
             '<ul><li><a href="https://doc.twse.com.tw/server-java/t57sb01?step=1&amp;colorchg=1&amp;co_id=3711&amp;year=115&amp;seamon=2&amp;mtype=A">'
             'June TWSE filings</a> · Cash-flow statement and Notes 29 and 31</li>'
             '<li><a href="https://doc.twse.com.tw/server-java/t57sb01?step=1&amp;colorchg=1&amp;co_id=3711&amp;year=115&amp;seamon=3&amp;mtype=A">'
-            'September TWSE filings</a> · Cash-flow statement and Notes 30 and 32</li></ul></details></section>')
+            'September TWSE filings</a> · Cash-flow statement and Notes 30 and 32</li></ul>'
+            '<h5>Restated June search · November 16, 2026</h5>'
+            '<p>The MOPS listed-company correction registers for Q2 and Q3 had no ASE entry for either quarter. '
+            'The June cash-flow query repeats the original six-month figures. The September query gives nine-month figures '
+            'with a prior-year comparative.</p>'
+            '<ul><li><a href="https://mopsov.twse.com.tw/mops/web/t56sb31_q1">MOPS financial-report corrections</a> '
+            '· Listed companies, year 115, quarters 2 and 3</li>'
+            '<li><a href="https://mopsov.twse.com.tw/mops/web/t164sb05">MOPS consolidated cash flow</a> '
+            '· Issuer 3711, year 115, quarters 2 and 3</li></ul></details></section>')
 
 
 def native_quarter_html(archive, *, show_comparisons=True):
