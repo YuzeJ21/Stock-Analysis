@@ -103,6 +103,65 @@ def test_conflicting_cik_alias_is_held_instead_of_name_matching():
     assert row['sec_cik'] is None and row['association_reason'] == 'ambiguous_cik_association'
 
 
+def alias_collision_fetch(url, agent):
+    directory_rows = (
+        'INN$F|Summit Hotel Properties Series F Preferred Stock|N|INNpF|N|100|N|INN-F\n'
+        'T$C|AT&T Series C Depositary Shares|N|TpC|N|100|N|T-C\n'
+        'ALIAS|Fictional ordinary shares|N|ALTC|N|100|N|ALTC\n'
+        'CROSS|Fictional notes|N|XB|N|100|N|XB\n'
+        'MISSING|Fictional preferred shares|N|MISS|N|100|N|MISS\n'
+    )
+    tickers = [
+        (1497645, 'Summit Hotel Properties', 'INN-PF', 'NYSE'),
+        (1889791, 'Innocan Pharma', 'INNPF', 'OTC'),
+        (77543, 'Tutor Perini', 'TPC', 'NYSE'),
+        (1234, 'Fictional', 'ALTC', 'NYSE'),
+        (5678, 'Fictional', 'XB', 'Nasdaq'),
+        (5678, 'Fictional', 'MISS', None),
+    ]
+    if url == O_URL:
+        return O_BODY.replace('File Creation Time:', directory_rows + 'File Creation Time:').encode(), {}, url
+    if url == E_URL:
+        return json.dumps({**EXCHANGE, 'data': [*EXCHANGE['data'], *tickers]}).encode(), {}, url
+    if url == M_URL:
+        mapping = dict(MAP)
+        for i, (cik, title, ticker, _) in enumerate(tickers, len(mapping)):
+            mapping[str(i)] = dict(cik_str=cik, title=title, ticker=ticker)
+        return json.dumps(mapping).encode(), {}, url
+    return _fetch([])(url, agent)
+
+
+def test_directory_aliases_require_compatible_security_level_exchange_evidence():
+    inventory = _inventory(fetcher=alias_collision_fetch)
+    rows = {r['listing_id']: r for r in inventory['rows']}
+    for symbol, reason in (
+        ('INN$F', 'sec_symbol_exchange_conflict'),
+        ('T$C', 'sec_symbol_exchange_unconfirmed'),
+        ('CROSS', 'sec_symbol_exchange_conflict'),
+        ('MISSING', 'sec_symbol_exchange_unconfirmed'),
+    ):
+        row = rows['other:' + symbol]
+        assert row['sec_cik'] is row['sec_ticker'] is None
+        assert row['association_reason'] == reason
+    assert rows['sec:NYSE:INN-PF:0001497645']['sec_ticker'] == 'INN-PF'
+    assert rows['sec:NYSE:TPC:0000077543']['sec_cik'] == '0000077543'
+    assert rows['sec:Nasdaq:XB:0000005678']['sec_ticker'] == 'XB'
+    assert rows['other:ALIAS']['sec_ticker'] == 'ALTC'
+    assert 'sec:NYSE:ALTC:0000001234' not in rows
+    assert rows['nasdaq:FICT.B']['sec_ticker'] == 'FICT-B'
+
+
+def test_discover_shows_conflicting_alias_and_separate_sec_candidate():
+    from src.security_classification import fetch_classification
+    from src.security_classification_view import classification_html
+
+    packet = fetch_classification(user_agent='Research contact', fetcher=alias_collision_fetch, observed_at=OBSERVED)
+    directory = classification_html(packet, 'INN$F')
+    assert 'Issuer match withheld · SEC exchange evidence conflicts with this listing' in directory
+    assert '0001889791' not in directory
+    assert 'SEC issuer candidate 0001497645' in classification_html(packet, 'INN-PF', observation_scope='SEC-only')
+
+
 def test_batches_count_unique_issuers_and_leave_failures_and_unprobed_in_denominator(tmp_path, monkeypatch):
     from src.online_us_universe import inspect_next_universe_batch, build_universe_coverage
     calls = []; state = {'inventory': _inventory(calls), 'observations': []}

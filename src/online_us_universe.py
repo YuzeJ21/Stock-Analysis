@@ -23,9 +23,11 @@ from src.us_listing_receipt_audit import _SOURCES, _parse_directory, _MAX_DIRECT
 MAP_URL = 'https://www.sec.gov/files/company_tickers.json'
 EXCHANGE_URL = 'https://www.sec.gov/files/company_tickers_exchange.json'
 SOURCE_URLS = [r[2] for r in _SOURCES] + [MAP_URL, EXCHANGE_URL]
-SESSION_KEY = 'online_us_universe_v1'
+SESSION_KEY = 'online_us_universe_v2'
+ASSOCIATION_RULES = 'venue-qualified-directory-aliases-v1'
 VENUES = {'Nasdaq': 'Nasdaq', 'N': 'NYSE', 'A': 'NYSE American', 'P': 'NYSE Arca',
           'Z': 'Cboe BZX', 'V': 'IEX', 'M': 'NYSE Texas', 'TXSE': 'TXSE', 'F': 'unresolved code F'}
+SEC_VENUE_FAMILIES = {'NYSE American': 'NYSE', 'NYSE Arca': 'NYSE', 'NYSE Texas': 'NYSE', 'Cboe BZX': 'CBOE'}
 VENUE_GAPS = [
     {'venue': 'LTSE', 'status': 'listing_membership_not_independently_reconciled', 'source_url': 'https://ltse.com/'},
     {'venue': 'GIX', 'status': 'listing_membership_not_independently_reconciled', 'source_url': 'https://www.tradegix.com/'},
@@ -72,7 +74,39 @@ def _sec_records(mapping, exchange):
     return records[:len(map_rows)], records[len(map_rows):]
 
 
-def _finish_inventory(rows, refs, excluded, otc, unknown_exchange, map_receipt):
+def _directory_issuer_candidates(raw, venue, aliases, exchanges):
+    primary = _alias(raw['act_symbol'])
+    cqs = _alias(raw['cqs_symbol'])
+    secondary = {_alias(s) for s in (raw['cqs_symbol'], raw['nasdaq_symbol']) if s} - {primary}
+    root, marker, suffix = primary.partition('$')
+    # In the CQS preferred notation the lower-case p marks a class boundary.
+    # The directory parser uppercases it, making e.g. INNpF look like INNPF.
+    compact_class = cqs if marker and cqs == root + 'P' + suffix else None
+    candidates = defaultdict(set)
+    for cik in aliases.get(primary, ()):
+        candidates[cik].add(primary)
+    rejected = []
+    for symbol in secondary:
+        for cik in aliases.get(symbol, ()):
+            known = exchanges.get((symbol, cik), ())
+            if symbol != compact_class and venue in known:
+                candidates[cik].add(symbol)
+            else:
+                rejected.append(bool(venue and known and not ({venue, SEC_VENUE_FAMILIES.get(venue)} & set(known))))
+    if len(candidates) == 1:
+        return next(iter(candidates.items())), 'source_symbol_cik_matched'
+    if candidates:
+        reason = 'ambiguous_cik_association'
+    elif any(rejected):
+        reason = 'sec_symbol_exchange_conflict'
+    elif rejected:
+        reason = 'sec_symbol_exchange_unconfirmed'
+    else:
+        reason = 'sec_symbol_unmatched'
+    return (None, set()), reason
+
+
+def _finish_inventory(rows, refs, excluded, otc, unknown_exchange, map_receipt, *, association_rules=None):
     by_issuer = defaultdict(list)
     for row in rows:
         if row['sec_cik'] and row['sec_ticker'] and row['etf'] is not True:
@@ -81,6 +115,8 @@ def _finish_inventory(rows, refs, excluded, otc, unknown_exchange, map_receipt):
     manifest = dict(rows=rows, source_receipts=refs, excluded_test_issue_count=excluded,
                     otc_record_count=otc, unknown_exchange_record_count=unknown_exchange,
                     map_content_sha256=_digest(map_receipt['payload']))
+    if association_rules is not None:
+        manifest['association_rules_version'] = association_rules
     return dict(status='inspection_only', **manifest, inventory_fingerprint=_digest(manifest), map_receipt=map_receipt,
         listing_count=len(rows), known_etf_count=sum(r['etf'] is True for r in rows),
         unknown_security_type_count=sum(r['etf'] is not True for r in rows),
@@ -121,23 +157,24 @@ def load_online_us_universe(*, user_agent, fetcher=None, observed_at=None, works
         refs.extend({k: receipt[k] for k in ('source_url', 'observed_at', 'source_last_modified', 'payload_sha256')} for receipt in (mapping, exchange))
         if max(_utc_timestamp(r['observed_at']) for r in refs) - min(_utc_timestamp(r['observed_at']) for r in refs) > timedelta(hours=24):
             raise ValueError('listing_observation_gap')
-        aliases = defaultdict(set); eligible = defaultdict(set)
+        aliases = defaultdict(set); exchanges = defaultdict(set); eligible = defaultdict(set)
         for cik, _, ticker, _ in [*map_rows, *exchange_rows]: aliases[_alias(ticker)].add(cik)
         for cik, _, ticker, _ in map_rows: eligible[cik].add(ticker)
+        for cik, _, ticker, venue in exchange_rows:
+            if venue is not None:
+                exchanges[_alias(ticker), cik].add(venue)
         rows = []; represented = set()
         for raw in directory_rows:
-            symbols = {s for s in (raw['act_symbol'], raw['cqs_symbol'], raw['nasdaq_symbol']) if s}
-            ciks = set().union(*(aliases[_alias(s)] for s in symbols))
-            cik = next(iter(ciks)) if len(ciks) == 1 else None
-            mapped = sorted(t for t in eligible[cik] if _alias(t) in {_alias(s) for s in symbols}) if cik else []
-            sec_ticker = mapped[0] if mapped else None
-            for s in symbols:
-                if cik: represented.add((cik, _alias(s)))
             code = 'Nasdaq' if raw['source'] == 'nasdaq' else raw['exchange_code']
+            venue = VENUES.get(code)
+            exact_venue = venue if code != 'F' else None
+            (cik, symbols), reason = _directory_issuer_candidates(raw, exact_venue, aliases, exchanges)
+            mapped = sorted(t for t in eligible[cik] if _alias(t) in symbols) if cik else []
+            represented.update((cik, s) for s in symbols)
             rows.append(dict(listing_id=raw['source'] + ':' + raw['act_symbol'], symbol=raw['act_symbol'],
-                source=raw['source'], venue_code=code, venue=VENUES.get(code, 'Unresolved venue ' + code),
-                etf=raw['etf'] == 'Y', sec_cik=cik, sec_ticker=sec_ticker,
-                association_reason='ambiguous_cik_association' if len(ciks) > 1 else 'source_symbol_cik_matched' if cik else 'sec_symbol_unmatched'))
+                source=raw['source'], venue_code=code, venue=venue or 'Unresolved venue ' + code,
+                etf=raw['etf'] == 'Y', sec_cik=cik, sec_ticker=mapped[0] if mapped else None,
+                association_reason=reason))
         otc = unknown_exchange = 0
         for cik, _, ticker, venue in exchange_rows:
             if venue == 'OTC': otc += 1; continue
@@ -150,7 +187,7 @@ def load_online_us_universe(*, user_agent, fetcher=None, observed_at=None, works
                 association_reason='sec_exchange_only_type_and_directory_status_unverified'))
         rows.sort(key=lambda row: row['listing_id'])
         if len({r['listing_id'] for r in rows}) != len(rows): raise ValueError('duplicate_listing_identity')
-        return _finish_inventory(rows, refs, excluded, otc, unknown_exchange, mapping)
+        return _finish_inventory(rows, refs, excluded, otc, unknown_exchange, mapping, association_rules=ASSOCIATION_RULES)
     except (ValueError, TypeError, KeyError, OSError, RuntimeError, OverflowError):
         return held
 
@@ -158,6 +195,8 @@ def load_online_us_universe(*, user_agent, fetcher=None, observed_at=None, works
 def validated_us_universe(inventory):
     if not isinstance(inventory, Mapping) or inventory.get('status') != 'inspection_only': return None
     rows = inventory.get('rows'); refs = inventory.get('source_receipts'); mapping = inventory.get('map_receipt')
+    rules = inventory.get('association_rules_version')
+    if rules not in (None, ASSOCIATION_RULES): return None
     if (not isinstance(rows, list) or not 1 <= len(rows) <= 100000 or not isinstance(refs, list) or len(refs) != 4
         or not isinstance(mapping, Mapping) or mapping.get('status') != 'ready' or mapping.get('source_url') != MAP_URL): return None
     for ref, url in zip(refs, SOURCE_URLS):
@@ -177,7 +216,8 @@ def validated_us_universe(inventory):
     for key in ('excluded_test_issue_count', 'otc_record_count', 'unknown_exchange_record_count'):
         if type(inventory.get(key)) is not int or inventory[key] < 0: return None
     try:
-        result = _finish_inventory(rows, refs, inventory['excluded_test_issue_count'], inventory['otc_record_count'], inventory['unknown_exchange_record_count'], mapping)
+        result = _finish_inventory(rows, refs, inventory['excluded_test_issue_count'], inventory['otc_record_count'],
+                                   inventory['unknown_exchange_record_count'], mapping, association_rules=rules)
     except (ValueError, TypeError, KeyError): return None
     return result if result['inventory_fingerprint'] == inventory.get('inventory_fingerprint') else None
 
@@ -233,6 +273,8 @@ def inspect_next_universe_batch(state, *, user_agent, batch_size=20, source_fetc
     inventory = validated_us_universe(state.get('inventory')); observations = state.get('observations', [])
     coverage = build_universe_coverage(inventory, observations)
     if coverage['status'] != 'inspection_only': return coverage
+    if inventory.get('association_rules_version') != ASSOCIATION_RULES:
+        return {'status': 'unavailable', 'reason': 'inventory_refresh_required'}
     now = observed_at or datetime.now(timezone.utc)
     if (not isinstance(now, datetime) or now.utcoffset() is None
         or not timedelta(0) <= now - _utc_timestamp(inventory['observed_from']) <= timedelta(hours=24)):

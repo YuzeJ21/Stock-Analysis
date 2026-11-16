@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from src.company_sec_online_preview import _utc_timestamp
 from src.online_company_identity import _mode_reason
-from src.online_us_universe import SOURCE_URLS
+from src.online_us_universe import ASSOCIATION_RULES, SOURCE_URLS
 from src.security_classification import validated_classification, _digest
 
 SESSION_KEY='online_listing_last_good_v1'
@@ -21,7 +21,7 @@ def fresh_classification(packet, as_of):
     try:
         if not isinstance(as_of,datetime) or as_of.utcoffset() is None:return None
         checked=validated_classification(packet)
-        if checked is None:return None
+        if checked is None or checked['inventory'].get('association_rules_version') != ASSOCIATION_RULES:return None
         for ref in checked['inventory']['source_receipts']:
             observed=_utc_timestamp(ref['observed_at'])
             if observed is None or not timedelta(0)<=as_of-observed<=timedelta(hours=24):return None

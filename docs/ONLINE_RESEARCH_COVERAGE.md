@@ -1757,7 +1757,7 @@ The parent owns the operating partnership's Series E and F preferred units. The 
 
 The November 12 Nasdaq Trader directory assigns NYSE venue code `N` and ETF and test flags `N` to both rows. The saved directory rules already classify both as preferred shares. The NYSE report establishes trading activity on November 12. First execution, continuous listing, market yields and analysis eligibility require separate evidence. [Nasdaq Trader directory](https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt) · [November 12 NYSE report, page 91](https://ftp.nyse.com/ShortData/NYSEshvol/NYSEshvol2026/NYSEshvol202611/NYSEshvol20261112.pdf#page=91)
 
-The saved automated issuer match for `INN$F` resolves its CQS symbol `INNpF` to `INNPF` after uppercasing. Innocan Pharma's July 23, 2025 Form F-1 identifies `INNPF` as OTCQB common shares for CIK `0001889791`. The matching issuer, class, venue and trading evidence for Summit comes from the records above. The saved automated association remains flagged for repair. [Innocan Form F-1](https://www.sec.gov/Archives/edgar/data/1889791/000164117225020718/formf-1.htm) · [Innocan SEC submissions](https://data.sec.gov/submissions/CIK0001889791.json)
+The original November 12 issuer match for `INN$F` resolved the CQS symbol `INNpF` to `INNPF` after uppercasing. Innocan Pharma's July 23, 2025 Form F-1 identifies `INNPF` as OTCQB common shares for CIK `0001889791`. The current rule withholds the directory match. The dated Summit SEC and exchange findings above remain the instrument evidence. [Innocan Form F-1](https://www.sec.gov/Archives/edgar/data/1889791/000164117225020718/formf-1.htm) · [Issuer matching replay](#issuer-alias-matching-replay)
 
 SEC submissions list the November 3 Form 10-Q, accession `0001497645-26-000077`, accepted at 21:48:40 UTC, and same-day Form 8-K, accession `0001497645-26-000080`, accepted at 21:54:37 UTC. Linked SEC sources were observed November 14 from 14:55:58 through 14:59:32 UTC. The SEC ticker and exchange maps, directory and NYSE report use the preserved November 12 receipts. [SEC submissions](https://data.sec.gov/submissions/CIK0001497645.json)
 
@@ -1782,6 +1782,33 @@ SEC submissions list the November 3 Form 10-Q, accession `0001497645-26-000077`,
 **215 of the original 544 SEC-only records have been reviewed, with 329 unreviewed.** Fifteen of the 282 directory-type gaps have dated class evidence, with 267 unreviewed. The findings remain scoped to personal research. Full U.S. coverage remains unverified. PFBC's IRS number remains unreconciled.
 
 The integration passed 245 affected tests, six research route checks and automated Chromium checks at 1440 × 1000 and 390 × 844. Both browser runs verified the two symbol mappings, the automated issuer mismatch, 251 unique dated review links and the open PFBC gap. Opening the dated review made zero external requests. All 89 protected baseline files matched their saved digests.
+
+#### Issuer alias matching replay
+
+The November 16 repair requires an exact compatible exchange for a secondary directory ticker and its candidate SEC CIK. A CQS alias flattened from the class notation (for example, `INNpF` from ACT `INN$F`) cannot supply independent ticker evidence. Exchange-family labels can lack the specificity required for a secondary match. Exact primary ticker and dot/dash share-class matching retain their previous behavior and ambiguity checks. [Nasdaq Trader directory definitions](https://www.nasdaqtrader.com/Trader.aspx?id=SymbolDirDefs) · [CQS symbol convention](https://nasdaqtrader.com/Trader.aspx?id=CQSSymbolConvention)
+
+The before-and-after replay used the four saved November 12 directory and SEC map responses at their original cutoff. The original inventory and source digests matched the saved evidence. The replay used no live transport and wrote no canonical or checkpoint files.
+
+| Replay measure | Before | After |
+| --- | ---: | ---: |
+| Observed listing rows | 13,791 | 13,791 |
+| SEC-only listing rows | 544 | 544 |
+| Test issues excluded | 38 | 38 |
+| Listing rows with an unresolved issuer | 6,112 | 6,115 |
+| Unique associated SEC CIKs | 6,062 | 6,061 |
+| Issuer candidates in the research queue | 5,946 | 5,945 |
+
+Exactly 3 issuer associations were withheld. The other 13,788 rows matched exactly. Listing IDs and security-type counts were identical. Innocan was the only issuer removed from the queue. Balchem and Tutor Perini retained their own primary listing records. The SEC-only rows `INN-PE` and `INN-PF` retained Summit CIK `0001497645`. The directory alias `INN$F` stays unresolved in the automated inventory.
+
+| Directory listing | Rejected issuer link | Dated instrument evidence |
+| --- | --- | --- |
+| `INN$F` on NYSE | Innocan Pharma `INNPF` OTC common stock | [Summit Form 10-Q](https://www.sec.gov/Archives/edgar/data/1497645/000149764526000077/inn-20260930.htm) · [Innocan Form F-1](https://www.sec.gov/Archives/edgar/data/1889791/000164117225020718/formf-1.htm) |
+| `BC$C` on NYSE | Balchem `BCPC` Nasdaq common stock | [Brunswick Form 10-Q](https://www.sec.gov/Archives/edgar/data/14930/000001493026000136/bcorp-20261003.htm) · [Balchem Form 10-Q](https://www.sec.gov/Archives/edgar/data/9326/000000932626000035/bcpc-20260930.htm) |
+| `T$C` on NYSE | Tutor Perini `TPC` NYSE common stock | [AT&T Form 10-Q](https://www.sec.gov/Archives/edgar/data/732717/000073271726000372/t-20260930.htm) · [Tutor Perini Form 10-Q](https://www.sec.gov/Archives/edgar/data/77543/000007754326000220/tpc-20260930.htm) |
+
+Restored coverage from the old rule remains readable as historical evidence. A new inventory load is required before running more issuer probes. The separate dated review remains at 215 reviewed and 329 unreviewed, and PFBC's IRS discrepancy remains open.
+
+The repair passed 365 affected tests and six research route checks. Automated Chromium at 1440 × 1000 and 390 × 844 exercised both inventory load and classification against the saved source responses and verified the 251 dated review links, the Summit conflict and the open PFBC gap. The 89 protected baseline files matched their saved digests.
 
 #### Preferred Bank FDIC filing follow-up
 

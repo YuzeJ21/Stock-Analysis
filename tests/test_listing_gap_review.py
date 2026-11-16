@@ -936,8 +936,8 @@ def test_summit_review_separates_listed_preferred_shares_from_units_and_redeemed
     assert 'direct cumulative redeemable preferred shares' in batch
     assert 'The operating partnership’s preferred units are separate from the listed shares.' in batch
     assert 'Summit fully redeemed Series D in 2021.' in batch
-    assert 'The saved directory match for INN$F points to Innocan Pharma’s OTC common stock (INNPF).' in batch
-    assert 'That issuer link is unresolved in the automated inventory.' in batch
+    assert 'The saved November 12 directory match linked INN$F to Innocan Pharma’s OTC common stock (INNPF).' in batch
+    assert 'The current matching rule withholds that link when the venues conflict.' in batch
     for source in (
         '000149764526000077/inn-20260930.htm',
         '000149764526000080/inn-20261103.htm',

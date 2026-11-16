@@ -52,6 +52,30 @@ def test_explicit_second_save_keeps_exact_prior_backup_and_requires_expected_dig
     assert _load(path)['checkpoint_digest']==second['checkpoint_digest']
 
 
+def test_legacy_issuer_associations_can_be_read_but_cannot_resume_probing(tmp_path):
+    from src.online_us_universe import _finish_inventory, inspect_next_universe_batch
+    from src.online_us_universe_view import universe_coverage_html
+
+    current = _inventory()
+    legacy = _finish_inventory(current['rows'], current['source_receipts'],
+                               current['excluded_test_issue_count'], current['otc_record_count'],
+                               current['unknown_exchange_record_count'], current['map_receipt'])
+    path = tmp_path / 'coverage.json'
+    first = _save(path, dict(inventory=legacy, observations=[]))
+    assert first['status'] == 'saved'
+    original = path.read_bytes()
+    restored = _load(path)
+    assert restored['status'] == 'ready' and restored['probing_allowed'] is False
+    assert 'Historical inventory from earlier issuer-matching rules' in universe_coverage_html(restored['state'])
+    calls = []
+    assert inspect_next_universe_batch(restored['state'], user_agent='Research', source_fetcher=_fetch(calls),
+                                       observed_at=OBSERVED)['reason'] == 'inventory_refresh_required'
+    assert not calls and path.read_bytes() == original
+    second = _save(path, _state(), first['checkpoint_digest'])
+    assert second['status'] == 'saved' and _load(path)['probing_allowed'] is True
+    assert path.with_suffix('.previous.json').read_bytes() == original
+
+
 @pytest.mark.parametrize('problem',['corrupt','contract','inventory','duplicate','raw_values'])
 def test_corrupt_incompatible_or_unreduced_state_is_not_restored_or_overwritten(tmp_path,problem):
     from src.online_coverage_checkpoint import checkpoint_digest

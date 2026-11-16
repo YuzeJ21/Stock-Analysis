@@ -225,7 +225,7 @@ def listing_gap_review_markdown() -> str:
   - `INN-PE` / `INN-PE` / `INN$E` · Series E · 6.250% fixed
   - `INN-PF` / `INN-PF` / `INN$F` · Series F · 5.875% fixed
   - The operating partnership’s preferred units are separate from the listed shares. Summit fully redeemed Series D in 2021. [Series D redemption disclosure]({INN_SERIES_D_REDEMPTION})
-  - The saved directory match for INN$F points to Innocan Pharma’s OTC common stock (INNPF). That issuer link is unresolved in the automated inventory. [Innocan Pharma Form F-1]({INNPF_INNOCAN_REGISTRATION})
+  - The saved November 12 directory match linked INN$F to Innocan Pharma’s OTC common stock (INNPF). The current matching rule withholds that link when the venues conflict. [Innocan Pharma Form F-1]({INNPF_INNOCAN_REGISTRATION})
 - **ACRES Commercial Realty · Two NYSE preferred share listings matched.** The Form 10-Q identifies both classes as direct cumulative redeemable preferred shares. Each row gives the SEC map, filing cover and November 12 Nasdaq Trader directory symbols. The same-day NYSE report shows trading activity in both series. [ACRES Form 10-Q]({ACR_QUARTER}) · [ACRES Form 8-K]({ACR_COVER}) · [Nasdaq Trader directory]({_SOURCES[1][2]}) · [November 12 NYSE report]({NOV12_NYSE_VOLUME}#page=3)
   - `ACR-PC` / `ACRPrC` / `ACR$C` · Series C · 8.625% floor
   - `ACR-PD` / `ACRPrD` / `ACR$D` · Series D · 7.875% fixed

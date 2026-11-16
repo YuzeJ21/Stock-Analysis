@@ -12,7 +12,7 @@ import tempfile
 
 from src.company_sec_online_preview import _utc_timestamp
 from src.online_company_identity import _mode_reason
-from src.online_us_universe import validated_us_universe, build_universe_coverage, validated_access_pause
+from src.online_us_universe import ASSOCIATION_RULES, validated_us_universe, build_universe_coverage, validated_access_pause
 from src.sec_association_receipt import _json_object
 
 PROJECT_ROOT=Path(__file__).resolve().parents[1]
@@ -107,7 +107,8 @@ def load_coverage_checkpoint(path=DEFAULT_CHECKPOINT,*,observed_at=None,workspac
         path=_path(path);now=_now(observed_at);_,obj,state=_read(path,now)
         fresh=timedelta(0)<=now-_utc_timestamp(state['inventory']['observed_from'])<=timedelta(hours=24)
         return dict(status='ready',state=state,checkpoint_digest=obj['content_digest'],sequence=obj['sequence'],
-            probing_allowed=fresh,path=str(path),written_at=obj['written_at'])
+            probing_allowed=fresh and state['inventory'].get('association_rules_version') == ASSOCIATION_RULES,
+            path=str(path),written_at=obj['written_at'])
     except (CheckpointError,OSError,TypeError,ValueError):return dict(status='unavailable',reason='checkpoint_unreadable_or_invalid')
 
 

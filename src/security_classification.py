@@ -15,7 +15,7 @@ from src.company_sec_online_preview import _utc_timestamp
 SCHEMA='security-classification-v1'
 RIGHTS='unregistered_listing_metadata_personal_inspection_only'
 RULES='directory-description-20261031-v2'
-SESSION_KEY='company_security_context_v1'
+SESSION_KEY='company_security_context_v2'
 
 def _digest(v):return hashlib.sha256(json.dumps(v,sort_keys=True,separators=(',',':'),allow_nan=False).encode()).hexdigest()
 

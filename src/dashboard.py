@@ -36,7 +36,7 @@ from src.online_company_prices import get_online_company_prices
 from src.online_research_history_view import annual_history_html, online_price_history_html
 from src.online_company_identity import get_price_filing_association
 from src.online_research_coverage import DEFAULT_SAMPLE, get_online_coverage_study
-from src.online_us_universe import get_online_us_universe
+from src.online_us_universe import ASSOCIATION_RULES, get_online_us_universe
 from src.online_us_universe_view import universe_coverage_html, foreign_financials_html
 from src.sec_foreign_financials import validated_foreign_financials
 from src.sec_exact_filing import get_company_filing_preview
@@ -31388,7 +31388,9 @@ def render_online_coverage_study() -> None:
             elif checkpoint_action['status']=="unavailable":st.caption("Coverage checkpoint unavailable: "+str(checkpoint_action.get("reason","validation required")).replace("_"," "))
             with st.spinner("Loading dated listing inventory…"):
                 universe=get_online_us_universe(st.session_state,user_agent=os.getenv("SEC_USER_AGENT"),load_requested=load_requested)
-            can_inspect=universe.get("status")=="inspection_only" and universe.get("coverage",{}).get("unprobed_issuer_count",0)>0
+            can_inspect=(universe.get("status")=="inspection_only"
+                         and universe["inventory"].get("association_rules_version")==ASSOCIATION_RULES
+                         and universe["coverage"]["unprobed_issuer_count"]>0)
             inspect_requested=st.button("Check next 20 issuers",key="online-us-universe-inspect",disabled=not can_inspect)
             if inspect_requested:
                 with st.spinner("Checking the next issuer batch…"):
