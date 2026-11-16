@@ -197,7 +197,16 @@ def validated_archive_quarter(financial, *, ticker=None, expected_cik=None, inve
                                 inventory=selected_inventory, as_of=as_of)
         if not source:
             return None
-        return _archive_dto(*source, schema=SCHEMA, period_kind='quarterly')
+        archive = _archive_dto(*source, schema=SCHEMA, period_kind='quarterly')
+        if archive and financial['archive_quarterly'].get('nee_quarter_cash'):
+            from src.sec_nee_quarter_cash import validated_live_nee_quarter_cash
+
+            cash = validated_live_nee_quarter_cash(financial['archive_quarterly']['nee_quarter_cash'], source[1],
+                                                   source[0], as_of=as_of)
+            if cash:
+                archive['nee_quarter_cash'] = deepcopy(cash)
+                archive['packet_digest'] = _digest({key: value for key, value in archive.items() if key != 'packet_digest'})
+        return archive
     except (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowError, RecursionError):
         return None
 
@@ -304,6 +313,17 @@ def fetch_archive_quarter(financial, *, user_agent, ticker_map_receipt, submissi
             fetcher=source_fetcher, observed_at=observed_at, expected_cik=cik,
             ticker_map_receipt=ticker_map_receipt, submissions_receipt=submissions_receipt)
         result = build_archive_quarter(financial, packet, inventory=verified, as_of=observed_at)
+        if supplemental and result['status'] == 'inspection_only' and packet.get('nee_cumulative_cfo_verified'):
+            from src.sec_nee_quarter_cash import load_nee_quarter_cash, read_nee_cash_document
+
+            def read(url):
+                return read_nee_cash_document(url, user_agent=user_agent, source_fetcher=source_fetcher,
+                                              observed_at=observed_at)
+
+            cash = load_nee_quarter_cash(verified, packet, read=read, as_of=observed_at)
+            if cash:
+                result['nee_quarter_cash'] = cash
+                result['packet_digest'] = _digest({key: value for key, value in result.items() if key != 'packet_digest'})
         if result['status'] != 'inspection_only':
             reason = packet.get('reason') if isinstance(packet, Mapping) else None
             if isinstance(reason, str) and re.fullmatch(r'[a-z0-9_]{1,160}', reason):

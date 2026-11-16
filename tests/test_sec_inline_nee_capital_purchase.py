@@ -113,3 +113,65 @@ def test_nee_evidence_validation_rejects_tampered_numeric_or_definition():
         invalid = deepcopy(original)
         invalid['fields']['fpl_capital_expenditures'][key] = value
         assert not valid_nee_capital_purchase_evidence(invalid, source_url=SOURCE)
+
+
+def nee_cfo_filing(period_end):
+    raw, selection, receipt = nee_filing()
+    xml = re.sub(r'<ix:nonFraction[^>]+ id="cfo">[^<]+</ix:nonFraction>', '', raw.decode())
+    row = ('<tr><td colspan="3">CASH FLOWS FROM OPERATING ACTIVITIES</td><td colspan="12"></td></tr>'
+           '<tr><td colspan="3">Net cash provided by operating activities</td><td colspan="3"></td>'
+           '<td colspan="2">' + _fact('g:NetCashProvidedByUsedInOperatingActivities', 'f-345', '626')
+           + '</td><td colspan="7"></td></tr>')
+    xml = xml.replace('<tr><td colspan="3">CASH FLOWS FROM INVESTING ACTIVITIES', row
+                      + '<tr><td colspan="3">CASH FLOWS FROM INVESTING ACTIVITIES', 1)
+    if period_end == '2026-06-30':
+        source = 'https://www.sec.gov/Archives/edgar/data/753308/000075330826000060/nee-20260630.htm'
+        selection.update(accession='0000753308-26-000060', period_end=period_end,
+                         source_url=source, primary_document='nee-20260630.htm',
+                         filed='2026-07-24', accepted_at='2026-07-24T12:00:00Z')
+        receipt['source_url'] = source
+        xml = xml.replace('2026-09-30', period_end).replace('2026-07-01', '2026-04-01')
+        xml = xml.replace('Nine Months Ended September 30,', 'Six Months Ended June 30,', 1)
+    return xml.encode(), selection, receipt
+
+
+@pytest.mark.parametrize('period_end', ['2026-06-30', '2026-09-30'])
+def test_nee_cumulative_cfo_is_verified_in_visible_parent_statement(period_end):
+    raw, selection, receipt = nee_cfo_filing(period_end)
+    receipt['payload_sha256'] = hashlib.sha256(raw).hexdigest()
+    result = extract_inline_filing(raw, selection, receipt)
+    assert result['nee_cumulative_cfo_verified'] is True
+    cumulative = next(row for row in result['periods'] if row['kind'] == 'cumulative')
+    assert cumulative['fields']['cash_from_operations']['value'] == 626_000_000
+    assert cumulative['fields']['cash_from_operations']['fact_id'] == 'f-345'
+
+
+@pytest.mark.parametrize(('old', 'new'), [
+    ('NEXTERA ENERGY, INC.', 'FLORIDA POWER &amp; LIGHT COMPANY'),
+    ('<div>(millions)</div>', '<div>(thousands)</div>'),
+    ('Nine Months Ended September 30,', 'Three Months Ended September 30,'),
+    ('<td colspan="3">2026</td>', '<td colspan="3">2025</td>'),
+    ('CASH FLOWS FROM OPERATING ACTIVITIES', 'CASH FLOWS FROM FINANCING ACTIVITIES'),
+    ('Net cash provided by operating activities</td>', 'Other cash flow</td>'),
+    ('<tr><td colspan="3">Net cash provided', '<tr hidden="hidden"><td colspan="3">Net cash provided'),
+    ('<td colspan="2"><ix:nonFraction name="g:NetCashProvidedByUsedInOperatingActivities"',
+     '<td colspan="3"><ix:nonFraction name="g:NetCashProvidedByUsedInOperatingActivities"'),
+    ('id="f-345">626', 'sign="-" id="f-345">626'),
+    ('format="ixt:num-dot-decimal" id="f-345"', 'id="f-345"'),
+])
+def test_nee_cumulative_cfo_leaves_generic_evidence_when_presentation_does_not_match(old, new):
+    raw, selection, receipt = nee_cfo_filing('2026-09-30')
+    assert old.encode() in raw
+    raw = raw.replace(old.encode(), new.encode(), 1)
+    receipt['payload_sha256'] = hashlib.sha256(raw).hexdigest()
+    result = extract_inline_filing(raw, selection, receipt)
+    assert result['status'] == 'inspection_only' and 'nee_cumulative_cfo_verified' not in result
+    cumulative = next(row for row in result['periods'] if row['kind'] == 'cumulative')
+    assert cumulative['fields']['cash_from_operations']['fact_id'] == 'f-345'
+
+
+def test_nee_cumulative_cfo_does_not_inherit_proof_from_selection():
+    raw, selection, receipt = nee_filing()
+    selection['nee_cumulative_cfo_verified'] = True
+    result = extract_inline_filing(raw, selection, receipt)
+    assert result['status'] == 'inspection_only' and 'nee_cumulative_cfo_verified' not in result

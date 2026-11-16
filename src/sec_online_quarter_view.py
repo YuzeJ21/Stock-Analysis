@@ -70,10 +70,37 @@ def archive_quarter_html(financial, *, as_of=None):
                    + escape(r['observed_at']) + ' · SHA-256 ' + escape(r['payload_sha256']) + '</li>' for r in archive['source_receipts'])
     return (_STYLE + '<section class="company-archive-quarter" aria-label="Exact SEC quarter"><h3>Exact SEC quarter</h3><p>'
             + escape(archive['form'] + ' · filed ' + archive['filed'] + ' · accession ' + archive['accession'] + ' · CIK ' + archive['sec_cik']) + '</p>' + ''.join(panels)
-            + '<details><summary>Source and reporting basis</summary><p>Directly reported parent-issuer facts from the exact SEC filing. Companyfacts coverage remains separate. No quarter is derived by subtraction; no missing component is inferred.</p>'
+            + '<details><summary>Source and reporting basis</summary><p>Directly reported parent-issuer facts from the exact SEC filing. Companyfacts coverage remains separate. The reported tables contain no derived quarters.</p>'
             + '<p>Personal inspection only · archive source rights are unregistered. Commercial use, redistribution and saved-model readiness remain unapproved.</p><p>'
             + escape('Accepted ' + archive['accepted_at'] + ' · Observed ' + archive['observed_at']) + '</p><ul>' + refs
-            + '</ul></details></section>' + capital_purchase_html(archive.get('capital_purchase_evidence')))
+            + '</ul></details></section>' + nee_quarter_cash_html(archive.get('nee_quarter_cash'))
+            + capital_purchase_html(archive.get('capital_purchase_evidence')))
+
+
+def nee_quarter_cash_html(evidence):
+    """Present validated subtraction apart from directly reported periods."""
+    if not evidence:
+        return ''
+    from src.sec_nee_quarter_cash import SOURCES
+
+    six, nine = evidence['six_months'], evidence['nine_months']
+    amount = (nine['value'] - six['value']) // 1_000_000
+    lines = []
+    for key, period in (('nine_months', 'January–September 2026'), ('six_months', 'January–June 2026')):
+        row = evidence[key]
+        accession, _, filed = SOURCES[key]
+        source = escape(row['source_url'] + '#f-345', quote=True)
+        lines.append(f'<li>{period} · USD {row["value"] // 1_000_000:,} million · '
+                     f'<a href="{source}" target="_blank" rel="noopener noreferrer">{period} SEC fact</a>'
+                     f'<br>Filed {filed} · Accession {accession} · Observed {escape(row["observed_at"])}'
+                     f'<br>SHA-256 {escape(row["payload_sha256"])}</li>')
+    return (_STYLE + '<section class="company-archive-quarter" aria-label="NEE calculated Q3 operating cash flow">'
+            '<h3>Q3 operating cash flow · Calculated</h3>'
+            f'<p><strong>USD {amount:,} million</strong> · July 1–September 30, 2026</p>'
+            '<details><summary>Calculation and SEC sources</summary>'
+            '<p>Subtract January–June from January–September. Both NextEra Energy consolidated 10-Qs '
+            'report net cash provided by operating activities in USD millions. Personal inspection only.</p>'
+            '<ul>' + ''.join(lines) + '</ul></details></section>')
 
 
 def nee_gross_ppe_review_html(evidence):

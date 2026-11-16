@@ -216,6 +216,11 @@ def _normalized(value):
             from src.sec_online_quarter_evidence import valid_saved_capital_purchase_evidence
             if not valid_saved_capital_purchase_evidence(item, context=value):
                 raise ValueError('Normalized capital purchase evidence is invalid or outside its exact filing scope')
+        if path == ('business_trend', 'nee_quarter_cash'):
+            from src.sec_nee_quarter_cash import valid_saved_nee_quarter_cash
+
+            if not valid_saved_nee_quarter_cash(item, context=value):
+                raise ValueError('Normalized NEE quarterly cash evidence is invalid or outside its exact filing scope')
         if path == ('business_trend', 'cash_reconciliation'):
             from src.sec_tsm_quarter_cash import cash_filing_events, matches_reviewed_cumulative_cash, valid_cash_reconciliation
             from src.online_filing_context import validated_filing_inventory
@@ -269,6 +274,8 @@ def _normalized(value):
                 valid = False
                 if len(path) == 3 and path[:2] == ('business_trend', 'ase_net_ppe_payments'):
                     valid = item.get('reported_numeric_schema') == 'sec-native-table-number-v1'
+                elif len(path) == 3 and path[:2] == ('business_trend', 'nee_quarter_cash'):
+                    valid = path[2] in {'six_months', 'nine_months'}
                 elif capital_field:
                     valid = item.get('reported_numeric_schema') == 'sec-nee-capital-purchase-number-v1'
                 elif bank_field or bank_baseline:

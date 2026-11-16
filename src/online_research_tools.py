@@ -507,6 +507,9 @@ def build_online_research_context(financial, prices, peers=None, association=Non
     if capital_evidence:
         trend['capital_purchase_evidence'] = capital_evidence
         trend['gaps'].append('Consolidated PP&E purchases and direct-quarter capital purchases need their own evidence.')
+    nee_quarter_cash = archive.get('nee_quarter_cash') if archive else None
+    if nee_quarter_cash:
+        trend['nee_quarter_cash'] = nee_quarter_cash
     if comparative_periods:
         trend['comparative_periods'] = [dict(
             kind='quarterly', currency=row['unit'], status=row['status'], current=False,
@@ -557,6 +560,10 @@ def build_online_research_context(financial, prices, peers=None, association=Non
     receipts = _receipt_rows(financial, prices, inventory, peer)
     if archive:
         receipts.extend(dict(row, source='exact_quarter_receipt', rights_status=archive['rights_status']) for row in archive['source_receipts'])
+    if nee_quarter_cash:
+        from src.sec_nee_quarter_cash import nee_cash_baseline_receipt
+
+        receipts.append(nee_cash_baseline_receipt(nee_quarter_cash))
     if native_annual:
         receipts.extend(dict(row, source='exact_annual_receipt', rights_status=native_annual['rights_status'])
                         for row in native_annual['source_receipts'])
@@ -616,7 +623,8 @@ def build_online_research_context(financial, prices, peers=None, association=Non
         gaps.append(peer.get('reason') or 'Observed industry references are unavailable.')
     observation_times = []
     for source in (identity if identity_valid else {}, annual or {}, quarterly or {}, foreign or {},
-                   archive or {}, native_annual or {}, native_quarter if native_periods else {}, bank_annual or {},
+                   archive or {}, nee_quarter_cash['six_months'] if nee_quarter_cash else {},
+                   native_annual or {}, native_quarter if native_periods else {}, bank_annual or {},
                    bank_interim or {}, bank_comparison['baseline'] if bank_comparison else {}, inventory, price):
         stamp = source.get('observed_at')
         if _fresh(stamp, now):

@@ -8,7 +8,7 @@ from src.company_research_notes import CompanyNotesScope, load_company_notes
 from src.online_peer_sources import SESSION_KEY as PEER_SESSION_KEY
 from src.online_research_tools import build_online_research_context, run_online_scenario
 from src.online_company_identity import _mode_reason
-from src.sec_online_quarter_view import ase_net_ppe_html
+from src.sec_online_quarter_view import ase_net_ppe_html, nee_quarter_cash_html
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SEC_AGENT_KEY = 'company-research-sec-identification'
@@ -325,6 +325,8 @@ def _snapshots(st, context, bundle):
                 trend = historical['context'].get('business_trend') or {}
                 if trend.get('ase_net_ppe_payments'):
                     st.markdown(ase_net_ppe_html(trend['ase_net_ppe_payments']), unsafe_allow_html=True)
+                if trend.get('nee_quarter_cash'):
+                    st.markdown(nee_quarter_cash_html(trend['nee_quarter_cash']), unsafe_allow_html=True)
                 if not baseline_id and trend.get('cash_reconciliation'):
                     from src.sec_online_quarter_view import tsm_cash_reconciliation_html
 
@@ -460,6 +462,8 @@ def render_online_research_monitor(st, *, profile_key):
             _native_filing_pair(st, native_match[1])
         if trend.get('ase_net_ppe_payments'):
             st.markdown(ase_net_ppe_html(trend['ase_net_ppe_payments']), unsafe_allow_html=True)
+        if trend.get('nee_quarter_cash'):
+            st.markdown(nee_quarter_cash_html(trend['nee_quarter_cash']), unsafe_allow_html=True)
         if trend.get('capital_purchase_evidence'):
             from src.sec_online_quarter_view import nee_gross_ppe_review_html
 

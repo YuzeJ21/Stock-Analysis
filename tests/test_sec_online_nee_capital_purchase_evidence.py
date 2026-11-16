@@ -15,7 +15,10 @@ SUB = f'https://data.sec.gov/submissions/CIK{CIK}.json'
 SCOPE = dict(profile_key='personal/demo', ticker=TICKER, sec_cik=CIK)
 
 
-def online_nee(*, structured=False, calls=None, observed_at=OBSERVED):
+JUNE = 'https://www.sec.gov/Archives/edgar/data/753308/000075330826000060/nee-20260630.htm'
+
+
+def online_nee(*, structured=False, calls=None, observed_at=OBSERVED, comparison=None):
     from src.sec_annual_history import fetch_sec_online_research_view
     from test_sec_inline_nee_capital_purchase import nee_filing
 
@@ -33,6 +36,27 @@ def online_nee(*, structured=False, calls=None, observed_at=OBSERVED):
     catalog = {MAP: {'0': {'ticker': TICKER, 'cik_str': int(CIK)}}, SUB: profile,
                FACTS: {'cik': int(CIK), 'entityName': 'Constructed NextEra Energy', 'facts': {'us-gaap': facts}},
                selection['source_url']: raw}
+    if comparison:
+        from test_sec_inline_nee_capital_purchase import nee_cfo_filing
+
+        sep, _, _ = nee_cfo_filing('2026-09-30')
+        june, _, _ = nee_cfo_filing('2026-06-30')
+        if comparison == 'mismatch':
+            june = june.replace(b'Net cash provided by operating activities', b'Cash provided by investing activities')
+        catalog[selection['source_url']] = sep.replace(b'id="f-345">626', b'id="f-345">500')
+        catalog[JUNE] = june.replace(b'id="f-345">626', b'id="f-345">300')
+        recent = profile['filings']['recent']
+        prior = dict(accessionNumber='0000753308-26-000060', reportDate='2026-06-30', filingDate='2026-07-24',
+                     acceptanceDateTime='2026-07-24T18:07:10Z', primaryDocument='nee-20260630.htm')
+        for key, rows in recent.items():
+            if rows:
+                rows.append(prior.get(key, rows[0]))
+        if comparison == 'amended':
+            amended = dict(prior, accessionNumber='0000753308-26-000061', filingDate='2026-07-25',
+                           acceptanceDateTime='2026-07-25T12:00:00Z', form='10-Q/A')
+            for key, rows in recent.items():
+                if rows:
+                    rows.append(amended.get(key, rows[-1]))
 
     def fetch(url, _agent):
         if calls is not None:
@@ -49,6 +73,53 @@ def _context(financial, as_of=OBSERVED):
 
     return build_online_research_context(financial, {}, ticker=TICKER, expected_cik=CIK,
                                          profile_key=SCOPE['profile_key'], as_of=as_of)
+
+
+@pytest.mark.parametrize('structured', [False, True])
+def test_nee_operating_cash_pair_is_separate_and_replayable(tmp_path, structured):
+    from src.sec_online_quarter_view import archive_quarter_html
+    from src.online_research_context_store import compare_research_contexts, load_research_context, save_research_context
+
+    calls = []
+    financial = online_nee(calls=calls, comparison='matched', structured=structured)
+    assert calls[-1] == JUNE and calls.count(JUNE) == 1
+    context = _context(financial)
+    evidence = context['business_trend']['nee_quarter_cash']
+    assert evidence['six_months']['value'] == 300_000_000 and evidence['nine_months']['value'] == 500_000_000
+    html = archive_quarter_html(financial, as_of=OBSERVED)
+    assert 'Q3 operating cash flow · Calculated' in html and 'USD 200 million' in html
+    assert JUNE + '#f-345' in html and 'USD 500 million' in html
+    metrics = [m for m in context['business_trend']['metrics'] if m['key'] == 'cfo_less_ppe']
+    assert metrics and all(m['status'] == 'withheld' for m in metrics)
+    saved = save_research_context(context, project_root=tmp_path, **SCOPE)
+    assert load_research_context(saved['snapshot_id'], project_root=tmp_path, **SCOPE) == saved
+    assert compare_research_contexts(saved, saved)['status'] == 'unchanged'
+    later = OBSERVED + timedelta(minutes=1)
+    refreshed = _context(online_nee(comparison='matched', structured=structured, observed_at=later), as_of=later)
+    assert compare_research_contexts(context, refreshed)['status'] == 'source_metadata_only'
+    evidence['six_months']['value'] += 1
+    with pytest.raises(ValueError, match='NEE quarterly cash evidence'):
+        save_research_context(context, project_root=tmp_path, **SCOPE)
+
+
+@pytest.mark.parametrize(('issue', 'reads_june'), [('mismatch', True), ('amended', False)])
+def test_nee_operating_cash_pair_withholds_mismatched_basis(issue, reads_june):
+    calls = []
+    context = _context(online_nee(calls=calls, comparison=issue))
+    assert (JUNE in calls) is reads_june
+    assert 'nee_quarter_cash' not in context['business_trend']
+    assert context['business_trend']['capital_purchase_evidence']
+
+
+def test_nee_cash_pair_rejects_missing_receipts_and_fractional_millions():
+    from src.sec_nee_quarter_cash import valid_saved_nee_quarter_cash
+
+    context = _context(online_nee(comparison='matched'))
+    evidence = context['business_trend']['nee_quarter_cash']
+    for receipts in (None, [None]):
+        assert not valid_saved_nee_quarter_cash(evidence, context=dict(context, source_receipts=receipts))
+    evidence['six_months'].update(value=300_100_000, reported_text='300.1')
+    assert not valid_saved_nee_quarter_cash(evidence, context=context)
 
 
 @pytest.mark.parametrize('structured', [False, True])

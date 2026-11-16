@@ -39,6 +39,13 @@ NEE_CAPITAL_PURCHASE_SCHEMA = 'sec-nee-capital-purchases-v1'
 _NEE_SOURCE = 'https://www.sec.gov/Archives/edgar/data/753308/000075330826000081/nee-20260930.htm'
 _NEE_NAMESPACE = 'http://www.nexteraenergy.com/20260930'
 _NEE_START, _NEE_END = '2026-01-01', '2026-09-30'
+_NEE_CFO_FILINGS = {
+    '2026-06-30': ('0000753308-26-000060',
+                   'https://www.sec.gov/Archives/edgar/data/753308/000075330826000060/nee-20260630.htm',
+                   'Six Months Ended June 30,'),
+    _NEE_END: ('0000753308-26-000081', _NEE_SOURCE, 'Nine Months Ended September 30,'),
+}
+_CASH_FLOW_SECTION = re.compile(r'CASH FLOWS FROM [A-Z ]+ ACTIVITIES')
 _NEE_TOTAL = 'reported_capital_investment_total'
 NEE_CAPITAL_PURCHASE_FIELDS = {
     _NEE_TOTAL: ('f-2280', 'issuer-extension', 'CapitalExpendituresIndependentPowerInvestmentsAndNuclearFuelPurchases',
@@ -214,7 +221,7 @@ def _preceding_label(rows, pattern):
     return None
 
 
-def _nee_cash_statement(table, rows, parents):
+def _nee_cash_statement(table, rows, parents, *, duration='Nine Months Ended September 30,'):
     wrapper = parents.get(table)
     scope = parents.get(wrapper)
     if scope is None:
@@ -228,11 +235,11 @@ def _nee_cash_statement(table, rows, parents):
             'CONDENSED CONSOLIDATED STATEMENTS OF CASH FLOWS', '(millions)', '(unaudited)']
             or any(_hidden(child.attrib) for node in headings for child in node.iter())):
         return False
-    return (any(_plain_header(row, 'Nine Months Ended September 30,', 6, 15) for row in rows[:4])
+    return (any(_plain_header(row, duration, 6, 15) for row in rows[:4])
             and any(_plain_header(row, '2026', 6, 9) and _plain_header(row, '2025', 12, 15) for row in rows[:4]))
 
 
-def _nee_purchase_presentation(node, label, total, raw_text, parents):
+def _nee_fact_cell(node, label, span, parents):
     from src.sec_html_bank import _hidden
 
     ancestors = [node]
@@ -247,13 +254,19 @@ def _nee_purchase_presentation(node, label, total, raw_text, parents):
     rows = list(table.iter(_HTML + 'tr'))
     if row not in rows or len(rows) > 100 or len([part for part in ancestors if part.tag == _HTML + 'table']) != 1:
         return None
-    prior = rows[:rows.index(row)]
     if (not _plain_header(row, label, 0, 3)
             or any(_hidden(child.attrib) for child in cell.iter())):
         return None
-    span = (28, 29) if total else (6, 8)
     if not any(part is cell and (start, stop) == span for part, start, stop in _positioned_cells(row)):
         return None
+    return table, rows, rows[:rows.index(row)], cell
+
+
+def _nee_purchase_presentation(node, label, total, raw_text, parents):
+    position = _nee_fact_cell(node, label, (28, 29) if total else (6, 8), parents)
+    if position is None:
+        return None
+    table, rows, prior, cell = position
     if total:
         # The segment table has a three-month section before this nine-month row.
         duration = re.compile(r'(?:Three|Six|Nine|Twelve) Months Ended [A-Za-z]+ [0-9]{1,2}, [0-9]{4}')
@@ -264,8 +277,7 @@ def _nee_purchase_presentation(node, label, total, raw_text, parents):
             return None
         expected = raw_text
     else:
-        investing = re.compile(r'CASH FLOWS FROM [A-Z ]+ ACTIVITIES')
-        if (_preceding_label(prior, investing) != 'CASH FLOWS FROM INVESTING ACTIVITIES'
+        if (_preceding_label(prior, _CASH_FLOW_SECTION) != 'CASH FLOWS FROM INVESTING ACTIVITIES'
                 or not _nee_cash_statement(table, rows, parents)):
             return None
         expected = '(' + raw_text + ')'
@@ -310,6 +322,37 @@ def _nee_capital_purchases(root, namespaces, contexts, units, selection):
                            statement='segment_disclosure' if total else 'consolidated_cash_flows', **number)
     evidence = dict(_NEE_EVIDENCE, fields=fields)
     return evidence if valid_nee_capital_purchase_evidence(evidence, source_url=_NEE_SOURCE) else None
+
+
+def _nee_cumulative_cfo_verified(root, facts, selection, periods):
+    """Verify the selected cumulative US GAAP subtotal against the visible parent statement."""
+    end = selection.get('period_end')
+    filing = _NEE_CFO_FILINGS.get(end)
+    if not filing or (selection.get('ticker'), selection.get('sec_cik'), selection.get('form'),
+                      selection.get('period_kind'), selection.get('accession'), selection.get('source_url')) != (
+                          'NEE', '0000753308', '10-Q', 'quarterly', filing[0], filing[1]):
+        return False
+    period = next((row for row in periods if row['kind'] == 'cumulative'), None)
+    field = period['fields'].get('cash_from_operations') if period else None
+    concept, uri = 'NetCashProvidedByUsedInOperatingActivities', 'http://fasb.org/us-gaap/2026'
+    if (not field or (field['period_start'], field['period_end'], field['concept'], field['namespace_uri'],
+                      field['unit'], field['unit_id'], field['context_id'], field['fact_id'],
+                      field['scale'], field['decimals'], field['sign'], field['transformation']) != (
+                          _NEE_START, end, concept, uri, 'USD', 'usd', 'c-1', 'f-345', 6, '-6', '', 'num-dot-decimal')
+            or type(field['value']) is not int or field['value'] <= 0):
+        return False
+    matching_nodes = [fact['node'] for fact in facts if fact['concept'] == concept and fact['namespace_uri'] == uri
+                      and fact['node'].get('contextRef') == 'c-1']
+    if len(matching_nodes) != 1 or matching_nodes[0].get('id') != 'f-345':
+        return False
+    parents = {child: parent for parent in root.iter() for child in parent}
+    position = _nee_fact_cell(matching_nodes[0], 'Net cash provided by operating activities', (6, 8), parents)
+    if position is None:
+        return False
+    table, rows, prior, cell = position
+    return (_nee_cash_statement(table, rows, parents, duration=filing[2])
+            and _preceding_label(prior, _CASH_FLOW_SECTION) == 'CASH FLOWS FROM OPERATING ACTIVITIES'
+            and _visible_text(cell) == field['raw_text'])
 
 
 def extract_inline_filing(raw,selection,receipt):
@@ -398,7 +441,7 @@ def extract_inline_filing(raw,selection,receipt):
                 fact_id=identity,source_ref=selection['source_url']+'#'+identity,rights_status=RIGHTS,
                 **numbers[0][0])
         periods.append(dict(kind=target,period_start=start,period_end=end,fields=fields,withheld_fields=holds))
-    result={k:v for k,v in selection.items() if k not in {'status','source_receipts'}}
+    result={k:v for k,v in selection.items() if k not in {'status','source_receipts','nee_cumulative_cfo_verified'}}
     result.update(status='inspection_only',schema_version=BANK_SCHEMA if bank else SCHEMA,source_id=BANK_SOURCE_ID if bank else SOURCE_ID,rights_status=RIGHTS,
         commercial_eligible=False,readiness_promoted=False,taxonomy=tax,unit=unit,periods=periods,
         observed_at=receipt['observed_at'],payload_sha256=receipt['payload_sha256'],
@@ -406,5 +449,7 @@ def extract_inline_filing(raw,selection,receipt):
     capital_purchases = _nee_capital_purchases(root, namespaces, contexts, units, selection)
     if capital_purchases:
         result['capital_purchase_evidence'] = capital_purchases
+    if _nee_cumulative_cfo_verified(root, facts, selection, periods):
+        result['nee_cumulative_cfo_verified'] = True
     result['packet_digest']=_digest(result)
     return result

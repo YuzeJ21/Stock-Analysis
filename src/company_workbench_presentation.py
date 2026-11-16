@@ -251,7 +251,8 @@ def _overview_gaps(financial, projection, research_context):
     elif (projection or {}).get('bank_annual'):
         gaps.extend(('Quarterly and year-to-date results need verification', 'Traded ADS earnings need verification'))
     if ((research_context or {}).get('business_trend') or {}).get('capital_purchase_evidence'):
-        gaps.extend(('Quarterly cash flow needs verification', 'Year-to-date consolidated PP&E purchases need verification'))
+        gaps.extend(('Directly reported quarterly operating cash flow needs verification',
+                     'Year-to-date consolidated PP&E purchases need verification'))
     withheld = (projection or {}).get('withheld_fields') or {}
     for field, label in METRICS.items():
         if field in withheld:
