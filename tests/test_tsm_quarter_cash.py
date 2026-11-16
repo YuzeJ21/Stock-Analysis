@@ -36,3 +36,26 @@ def test_tsm_cash_evidence_requires_exact_reviewed_receipt_and_scope():
     reversed_purchases = {**evidence, 'inputs': {**evidence['inputs'],
         'nine_months': {**thousands, 'capital_expenditures': 9_999}}}
     assert not valid_cash_reconciliation(reversed_purchases, current=current, as_of=now)
+
+
+def test_cash_view_keeps_a_mismatch_open_with_amount_and_filing_review():
+    from src.sec_online_quarter_view import tsm_cash_reconciliation_html
+    from src.sec_tsm_quarter_cash import CASH_SOURCES
+
+    june = {'cash_from_operations': 20_000, 'capital_expenditures': 10_000}
+    september = {'cash_from_operations': 35_321, 'capital_expenditures': 20_000}
+    presentation = {'cash_from_operations': 1, 'capital_expenditures': 1}
+    evidence = {'inputs': {'six_months': june, 'nine_months': september, 'presentation': presentation},
+                'receipts': {key: {'observed_at': '2026-11-16T20:00:00Z', 'payload_sha256': 'a' * 64}
+                             for key in CASH_SOURCES}}
+
+    html = tsm_cash_reconciliation_html(evidence)
+    assert 'Operating cash flow discrepancy review' in html
+    assert 'Open · Cause unverified as of November 16, 2026.' in html
+    assert 'rounds to TWD 0.02 billion' in html and 'TWD 5,321 thousand above' in html
+    assert 'November 10 board filing' in html and 'tsm-boardx202611xx.htm' in html
+    assert 'TSM SEC filing history' in html
+
+    presentation['cash_from_operations'] = 2
+    assert 'Operating cash flow discrepancy review' not in tsm_cash_reconciliation_html(evidence)
+    assert 'Operating cash flow discrepancy review' not in tsm_cash_reconciliation_html(None)

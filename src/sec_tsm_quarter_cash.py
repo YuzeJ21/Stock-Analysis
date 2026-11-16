@@ -107,9 +107,11 @@ def cash_flow_rows(evidence):
     for field in FIELDS:
         june, september, preliminary = (inputs[key][field] for key in ('six_months', 'nine_months', 'presentation'))
         quarter = september - june
-        at_presentation_precision = (Decimal(quarter) / 10_000).to_integral_value(rounding=ROUND_HALF_UP)
+        at_presentation_precision = int((Decimal(quarter) / 10_000).to_integral_value(rounding=ROUND_HALF_UP))
         rows[field] = dict(six_months_thousands=june, nine_months_thousands=september, quarter_thousands=quarter,
-                           presentation_cent_billions=preliminary, matches_presentation=at_presentation_precision == preliminary)
+                           presentation_cent_billions=preliminary, rounded_cent_billions=at_presentation_precision,
+                           difference_thousands=quarter - preliminary * 10_000,
+                           matches_presentation=at_presentation_precision == preliminary)
     return rows
 
 

@@ -43,6 +43,12 @@ TSM’s August 14 and November 13 filings contain independently reviewed consoli
 
 The calculated gross cash payments for PP&E purchases agree with October’s preliminary figure at the presentation’s displayed precision. Note 29(a) in both reviewed filings ties gross acquisition payments to the cash-flow statement. Disposal proceeds and government grants are reported separately. Calculated operating cash flow differs from the preliminary figure at the presentation’s displayed precision, and the filings leave the reason unresolved. [October 15 Exhibit 99.2 cash-flow slide](https://www.sec.gov/Archives/edgar/data/1046179/000104617926000726/a3q26presentatione008.jpg)
 
+### Operating cash flow discrepancy review
+
+The November 16, 2026 review found no amended 6-K in TSM’s SEC filing history from August 14 through November 16. The November 10 board announcement approves the September statements and summarizes income and balance-sheet items. It supplies no cash-flow reconciliation. Notes 3, 4 and 29 of the reviewed interim exhibits describe the accounting basis and cash-flow disclosures without explaining the October difference. [TSM SEC filing history](https://www.sec.gov/edgar/browse/?CIK=1046179) · [November 10 board filing](https://www.sec.gov/Archives/edgar/data/1046179/000104617926000797/tsm-boardx202611xx.htm)
+
+The October presentation’s cash bridge balances at its displayed precision. The bridge reconstructed from the reviewed statements also balances when its components are rounded, because the differences in operating cash flow and dividend payments offset at that precision. The tie-out leaves the cause unresolved. Workbench and Monitor show the amount of the difference, the dated review and the original figures when reopening saved evidence. [August 14 Exhibit 99.1](https://www.sec.gov/Archives/edgar/data/1046179/000104617926000541/a2026q2consolidatedreport-.htm) · [November 13 Exhibit 99.1](https://www.sec.gov/Archives/edgar/data/1046179/000104617926000801/a2026q3consolidatedreport-.htm) · [October cash-flow slide](https://www.sec.gov/Archives/edgar/data/1046179/000104617926000726/a3q26presentatione008.jpg)
+
 ## Verification of the initial quarterly workflow
 
 - 3,014 affected automated tests passed. All six research routes rendered successfully. Public wording and staged-file checks passed.

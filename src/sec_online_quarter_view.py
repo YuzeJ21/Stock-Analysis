@@ -144,6 +144,30 @@ def native_quarter_comparisons_html(current, comparatives, gaps=None):
             '<p>Changes use the three-month columns from the same filing.</p>' + ''.join(panels) + '</section>')
 
 
+def _cash_billions(cent_billions):
+    whole, cents = divmod(abs(cent_billions), 100)
+    return f'{"-" if cent_billions < 0 else ""}{whole:,}.{cents:02d}'
+
+
+def _tsm_operating_cash_review(row):
+    if row['matches_presentation']:
+        return ''
+    difference = row['difference_thousands']
+    direction = 'above' if difference > 0 else 'below'
+    return ('<details><summary>Operating cash flow discrepancy review</summary>'
+            '<p><strong>Open · Cause unverified as of November 16, 2026.</strong></p>'
+            f'<p>The reviewed calculation rounds to TWD {_cash_billions(row["rounded_cent_billions"])} billion. '
+            f'It is TWD {abs(difference):,} thousand {direction} the amount displayed in October.</p>'
+            '<p>The October cash bridge balances at its displayed precision. The rounded bridge from the reviewed statements '
+            'also balances because differences in operating cash flow and cash dividends offset at that precision.</p>'
+            '<p>The reviewed accounting and cash-flow notes give no explanation. The board filing approved the statements '
+            'and provides no cash-flow bridge. The SEC filing history showed no amended 6-K from August 14 through November 16.</p>'
+            '<ul><li><a href="https://www.sec.gov/Archives/edgar/data/1046179/000104617926000797/tsm-boardx202611xx.htm" '
+            'target="_blank" rel="noopener noreferrer">November 10 board filing</a></li>'
+            '<li><a href="https://www.sec.gov/edgar/browse/?CIK=1046179" target="_blank" rel="noopener noreferrer">'
+            'TSM SEC filing history</a></li></ul></details>')
+
+
 def tsm_cash_reconciliation_html(evidence):
     from src.sec_tsm_quarter_cash import CASH_SOURCES, cash_flow_rows
 
@@ -153,10 +177,9 @@ def tsm_cash_reconciliation_html(evidence):
         return _STYLE + section + '<p>Withheld · The exact three-source calculation is unavailable in this observation.</p></section>'
     labels = {'cash_from_operations': 'Operating cash flow', 'capital_expenditures': 'Gross PP&amp;E cash purchases'}
     results, cumulative = [], []
-    for key, row in cash_flow_rows(evidence).items():
-        slide_value = row['presentation_cent_billions']
-        whole, cents = divmod(abs(slide_value), 100)
-        slide_text = f'{"-" if slide_value < 0 else ""}{whole:,}.{cents:02d}'
+    rows = cash_flow_rows(evidence)
+    for key, row in rows.items():
+        slide_text = _cash_billions(row['presentation_cent_billions'])
         match = ('Agrees at the presentation’s precision.' if row['matches_presentation']
                  else 'Differs at the presentation’s precision. Cause unverified.')
         results.append(f'<li><strong>{labels[key]}</strong> · Calculated TWD {row["quarter_thousands"]:,} thousand'
@@ -169,7 +192,8 @@ def tsm_cash_reconciliation_html(evidence):
                     f' · observed {escape(evidence["receipts"][key]["observed_at"])}'
                     f' · SHA-256 {escape(evidence["receipts"][key]["payload_sha256"])}</li>' for key, label in sources.items())
     return (_STYLE + section + '<p>July 1 to September 30, 2026 · Calculated as nine months less six months.</p><ul>'
-            + ''.join(results) + '</ul><details><summary>Cumulative cash-flow inputs and SEC receipts</summary>'
+            + ''.join(results) + '</ul>' + _tsm_operating_cash_review(rows['cash_from_operations'])
+            + '<details><summary>Cumulative cash-flow inputs and SEC receipts</summary>'
             '<p>January to June and January to September · Gross PP&amp;E acquisition payments follow Note 29(a).</p><ul>'
             + ''.join(cumulative) + '</ul><ul>' + links + '</ul></details></section>')
 
