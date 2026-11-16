@@ -460,6 +460,10 @@ def render_online_research_monitor(st, *, profile_key):
             _native_filing_pair(st, native_match[1])
         if trend.get('ase_net_ppe_payments'):
             st.markdown(ase_net_ppe_html(trend['ase_net_ppe_payments']), unsafe_allow_html=True)
+        if trend.get('capital_purchase_evidence'):
+            from src.sec_online_quarter_view import nee_gross_ppe_review_html
+
+            st.markdown(nee_gross_ppe_review_html(trend['capital_purchase_evidence']), unsafe_allow_html=True)
         for gap in latest['context'].get('gaps') or []:
             st.write(_label(gap))
         query = dict(mode='research', page='company-workbench', ticker=scope['ticker'],

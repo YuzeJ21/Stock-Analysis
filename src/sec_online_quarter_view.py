@@ -5,6 +5,10 @@ from html import escape
 from src.online_research_expansion_view import financial_field_label
 from src.sec_native_quarter_comparisons import BASES, REASONS, quarter_changes
 
+_NEE_SEPTEMBER_10Q = 'https://www.sec.gov/Archives/edgar/data/753308/000075330826000081/nee-20260930.htm'
+_NEE_JUNE_10Q = 'https://www.sec.gov/Archives/edgar/data/753308/000075330826000060/nee-20260630.htm'
+_NEE_OCTOBER_EARNINGS = 'https://www.sec.gov/Archives/edgar/data/753308/000075330826000077/neeq32026exhibit99.htm'
+
 _STYLE = ('<style>.company-archive-quarter{min-width:0;overflow-wrap:anywhere;margin:16px 0;padding:16px;background:#fff;color:#172522;border:1px solid #dce3de;border-radius:8px}.archive-quarter-table{max-width:100%;overflow-x:auto}'
           '.company-archive-quarter p,.company-archive-quarter th,.company-archive-quarter td,.company-archive-quarter li,.company-archive-quarter summary{color:#172522!important}.company-archive-quarter a{color:#245842!important}'
           '.archive-quarter-table table{width:100%;font-size:.86rem;border-collapse:collapse}.archive-quarter-table th,.archive-quarter-table td{padding:8px;text-align:left;border-bottom:1px solid #dce3de;overflow-wrap:normal}'
@@ -72,6 +76,28 @@ def archive_quarter_html(financial, *, as_of=None):
             + '</ul></details></section>' + capital_purchase_html(archive.get('capital_purchase_evidence')))
 
 
+def nee_gross_ppe_review_html(evidence):
+    """Show the dated definition review for the exact September NEE filing."""
+    if not evidence or (evidence['accession'], evidence['source_url']) != ('0000753308-26-000081', _NEE_SEPTEMBER_10Q):
+        return ''
+    sources = ((_NEE_JUNE_10Q, 'June 2026 SEC 10-Q', 'filed July 24, 2026'),
+               (_NEE_SEPTEMBER_10Q, 'September 2026 SEC 10-Q', 'filed October 21, 2026'),
+               (_NEE_OCTOBER_EARNINGS, 'October SEC earnings exhibit', 'furnished October 21, 2026'))
+    links = ''.join(f'<li><a href="{url}" target="_blank" rel="noopener noreferrer">{label}</a> · {source_date}</li>'
+                    for url, label, source_date in sources)
+    return ('<section aria-label="Consolidated gross PP&amp;E purchases">'
+            '<h4>Consolidated gross PP&amp;E purchases</h4><ul><li>July–September 2026 · Withheld</li>'
+            '<li>January–September 2026 · Withheld</li></ul>'
+            '<details><summary>SEC review · November 16, 2026</summary>'
+            '<p>Both 10-Q cash-flow statements and the October earnings exhibit combine NextEra Energy Resources’ '
+            'independent power and other investments. The broader total also includes nuclear fuel. '
+            'Subtracting the cumulative totals gives spending across those same categories.</p>'
+            '<p>The separate Florida Power &amp; Light statement covers only that subsidiary. The September '
+            'filing lists accrued property additions under noncash investing and financing. The reviewed '
+            'segment disclosures provide no consolidated gross cash-payment breakdown for PP&amp;E.</p>'
+            '<ul>' + links + '</ul></details></section>')
+
+
 def capital_purchase_html(evidence):
     """Display the exact issuer-specific year-to-date definition and cash-flow lines."""
     if not evidence:
@@ -92,12 +118,17 @@ def capital_purchase_html(evidence):
     dates = escape(evidence['period_start'] + ' to ' + evidence['period_end'])
     url = escape(evidence['source_url'], quote=True)
     filing = escape(f"Filed {evidence['filed']} · Accession {evidence['accession']} · Observed {evidence['observed_at']}")
+    gross_review = nee_gross_ppe_review_html(evidence)
+    if gross_review:
+        gap = gross_review + '<p>Directly reported quarterly operating cash flow remains unavailable in this panel.</p>'
+    else:
+        gap = ('<p><strong>Consolidated PP&amp;E purchases need verification.</strong> '
+               'The reported total includes independent power and other investments and nuclear fuel.</p>'
+               '<p>Quarterly cash flow and capital purchases need direct-quarter evidence.</p>')
     return (_STYLE + '<section class="company-archive-quarter" aria-label="NEE capital investment evidence">'
             '<h3>Year-to-date capital investments</h3><p>' + dates + ' · USD · NEE consolidated filing</p><ul>'
-            + ''.join(lines) + '</ul><p><strong>Consolidated PP&amp;E purchases need verification.</strong> '
-            'The reported total includes independent power and other investments and nuclear fuel.</p>'
-            '<p>Quarterly cash flow and capital purchases need direct-quarter evidence.</p>'
-            '<details><summary>Exact SEC filing and scope</summary><p><a href="' + url + '" target="_blank" '
+            + ''.join(lines) + '</ul>' + gap
+            + '<details><summary>Exact SEC filing and scope</summary><p><a href="' + url + '" target="_blank" '
             'rel="noopener noreferrer">Exact SEC 10-Q</a> · ' + filing + '</p>'
             '<p>Personal inspection only. Operating cash flow less PP&amp;E requires its own matched evidence.</p></details></section>')
 
