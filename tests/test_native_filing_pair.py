@@ -70,3 +70,26 @@ def test_same_quarter_pair_distinguishes_changes_from_lower_precision():
     comparison = compare_native_filing_pair(baseline, current)['fields']['operating_income']
     assert comparison['status'] == 'withheld'
     assert comparison['reason'] == 'Later filing reports at lower precision'
+
+
+def test_reviewed_tsm_revenue_definition_applies_only_to_the_exact_two_lines():
+    from src.sec_native_quarter_comparisons import reviewed_filing_revenue_definition
+
+    archive = 'https://www.sec.gov/Archives/edgar/data/1046179/'
+    scope = dict(field='revenue', ticker='TSM', sec_cik='0001046179', form='6-K', unit='TWD',
+                 period_start='2026-07-01', period_end='2026-09-30')
+    baseline = dict(scope, accession='0001046179-26-000726', concept='reported_net_sales', row_label='Net sales',
+                    source_url=archive + '000104617926000726/a3q26e_withguidancexfinal.htm')
+    current = dict(scope, accession='0001046179-26-000801', concept='reported_net_revenue',
+                   row_label='NET REVENUE (Notes 20, 31 and 37)',
+                   source_url=archive + '000104617926000801/a2026q3consolidatedreport-.htm')
+
+    evidence = reviewed_filing_revenue_definition(baseline, current)
+    assert evidence['source_url'] == archive + '000104617926000726/a3q26presentatione.htm'
+    assert 'Note 20' in evidence['explanation']
+    assert reviewed_filing_revenue_definition(current, baseline) is None
+    for key, substitute in [('source_url', baseline['source_url']), ('sec_cik', '0000000123'),
+                            ('accession', '0001046179-26-000802'), ('form', '6-K/A'),
+                            ('period_start', '2026-01-01'), ('unit', 'USD'),
+                            ('row_label', 'Related-party net revenue'), ('field', 'cash_from_operations')]:
+        assert reviewed_filing_revenue_definition(baseline, {**current, key: substitute}) is None

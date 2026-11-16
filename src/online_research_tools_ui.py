@@ -277,8 +277,12 @@ def _native_filing_pair(st, pair):
                        if (value := field[key])]
             if amounts:
                 st.caption(' · '.join(amounts))
-            if field['reason'] == 'Filing field definitions differ':
+            definition_evidence = field.get('definition_evidence')
+            if definition_evidence or field['reason'] == 'Filing field definitions differ':
                 st.caption(f"Reported lines · Baseline: {field['baseline']['row_label']} · Later: {field['current']['row_label']}")
+            if definition_evidence:
+                st.caption(f"{definition_evidence['explanation']} "
+                           f"[{definition_evidence['source_label']}]({definition_evidence['source_url']})")
     st.caption('Year-to-date figures appear separately in Financial Trends.')
 
 

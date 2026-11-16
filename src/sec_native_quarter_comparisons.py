@@ -1,4 +1,4 @@
-"""Changes between columns of an already validated consolidated 6-K results table."""
+"""Comparison rules for validated consolidated 6-K results."""
 from math import isfinite
 
 from src.sec_native_quarter_tables import matching_native_quarter_definition
@@ -13,6 +13,36 @@ REASONS = {
     'same_filing_comparison_unavailable': 'A comparable three-month column is unavailable.',
     'independent_comparison_revision_unresolved': 'A newer filing or amendment leaves the prior reporting basis unresolved.',
 }
+
+_TSM_ARCHIVE = 'https://www.sec.gov/Archives/edgar/data/1046179/'
+_TSM_Q3_REVENUE_SCOPE = {
+    'field': 'revenue', 'ticker': 'TSM', 'sec_cik': '0001046179', 'form': '6-K',
+    'unit': 'TWD', 'period_start': '2026-07-01', 'period_end': '2026-09-30',
+}
+_TSM_Q3_REVENUE_LINES = (
+    {
+        'accession': '0001046179-26-000726', 'concept': 'reported_net_sales', 'row_label': 'Net sales',
+        'source_url': _TSM_ARCHIVE + '000104617926000726/a3q26e_withguidancexfinal.htm',
+    },
+    {
+        'accession': '0001046179-26-000801', 'concept': 'reported_net_revenue',
+        'row_label': 'NET REVENUE (Notes 20, 31 and 37)',
+        'source_url': _TSM_ARCHIVE + '000104617926000801/a2026q3consolidatedreport-.htm',
+    },
+)
+
+
+def reviewed_filing_revenue_definition(baseline, current):
+    """Return the reviewed definition evidence for these exact, prevalidated filing lines."""
+    for field, line in zip((baseline, current), _TSM_Q3_REVENUE_LINES, strict=True):
+        if not field or any(field.get(key) != value for key, value in (_TSM_Q3_REVENUE_SCOPE | line).items()):
+            return None
+    return {
+        'source_url': _TSM_ARCHIVE + '000104617926000726/a3q26presentatione.htm',
+        'source_label': 'October SEC presentation · Exhibit 99.2, slide 4',
+        'explanation': 'The October presentation calls this same consolidated line net revenue. '
+                       'November Note 20 reconciles the line to revenue from customer contracts.',
+    }
 
 
 def quarter_changes(current, comparatives):

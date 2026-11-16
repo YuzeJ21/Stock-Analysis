@@ -20,6 +20,7 @@ import zlib
 
 from src.sec_cover_observations import COVER_FIELDS, validate_cover_scope
 from src.sec_native_quarter_comparisons import BASES as NATIVE_COMPARISON_BASES, FIELDS as NATIVE_COMPARISON_FIELDS
+from src.sec_native_quarter_comparisons import reviewed_filing_revenue_definition
 from src.sec_reported_numeric import valid_reported_numeric
 
 
@@ -546,11 +547,12 @@ def _direct_native_quarter(context):
     return rows[0] if len(rows) == 1 else None
 
 
-def _compare_native_amount(baseline, current):
+def _compare_native_amount(baseline, current, *, definition_confirmed=False):
     if any(not field or field.get('reported_numeric_schema') != 'sec-native-table-number-v1'
            for field in (baseline, current)):
         return 'withheld', 'No standalone-quarter figure in both filings'
-    if any(baseline[k] != current[k] for k in ('concept', 'taxonomy', 'unit', 'rights_status')):
+    if (any(baseline[k] != current[k] for k in ('taxonomy', 'unit', 'rights_status'))
+            or (baseline['concept'] != current['concept'] and not definition_confirmed)):
         return 'withheld', 'Filing field definitions differ'
     quantum, current_quantum = (
         Decimal(10) ** (field['scale'] - len(field['reported_text'].partition('.')[2].rstrip(' )')))
@@ -588,8 +590,11 @@ def compare_native_filing_pair(before, after):
     fields = {}
     for name in NATIVE_COMPARISON_FIELDS:
         old, new = (row['fields'].get(name) for row in (baseline, current))
-        status, reason = _compare_native_amount(old, new)
+        evidence = reviewed_filing_revenue_definition(old, new) if name == 'revenue' else None
+        status, reason = _compare_native_amount(old, new, definition_confirmed=evidence is not None)
         fields[name] = dict(status=status, reason=reason, baseline=old, current=new)
+        if evidence:
+            fields[name]['definition_evidence'] = evidence
     return dict(status='available', baseline=earlier, current=later, fields=fields,
                 period_start=current['period_start'], period_end=current['period_end'], currency=current['currency'])
 
