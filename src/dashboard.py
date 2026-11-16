@@ -38392,8 +38392,13 @@ def render_company_workbench(
         try:
             research_replay=load_research_context(st.query_params['research_snapshot'],
                 profile_key=note_profile,ticker=ticker,sec_cik=requested_research_cik)
+            if st.query_params.get('research_baseline'):
+                load_research_context(st.query_params['research_baseline'], profile_key=note_profile,
+                    ticker=ticker, sec_cik=research_replay['sec_cik'])
         except (OSError,ValueError,TypeError,UnicodeError):
             invalid_research_replay=True
+    elif st.query_params.get('research_baseline'):
+        invalid_research_replay=True
     offline_notes=(saved_company_notes_scope(ticker,note_profile,sec_cik=requested_notes_cik)
                    if not online_requested and (requested_notes_cik or not (has_registered_company or has_legacy_notes)) else None)
     if research_replay is not None and not online_requested:
@@ -38719,10 +38724,17 @@ def main() -> None:
             try:
                 replay=load_research_context(st.query_params['return_research_snapshot'],profile_key=profile_key,
                     ticker=requested_return,sec_cik=st.query_params.get('return_research_cik'))
+                baseline_id=st.query_params.get('return_research_baseline')
+                if baseline_id:
+                    load_research_context(baseline_id,profile_key=profile_key,
+                        ticker=requested_return,sec_cik=replay['sec_cik'])
                 monitor_return_ticker=requested_return
-                if monitor_origin is None:
+                if monitor_origin is None or (
+                    monitor_origin.research_cik, monitor_origin.research_snapshot, monitor_origin.research_baseline
+                ) != (replay['sec_cik'], replay['snapshot_id'], baseline_id):
                     monitor_origin=MonitorOrigin(profile_key,requested_return,'notes',None,
-                        research_cik=replay['sec_cik'],research_snapshot=replay['snapshot_id'])
+                        research_cik=replay['sec_cik'],research_snapshot=replay['snapshot_id'],
+                        research_baseline=baseline_id)
                     session_state['research_monitor_origin']=monitor_origin
             except (OSError,ValueError,TypeError,UnicodeError):monitor_origin=None
         elif saved_return_cik:
@@ -38756,7 +38768,8 @@ def main() -> None:
                 else:
                     monitor_origin = None
         if not monitor_return_ticker:
-            for return_key in ("return_ticker", "return_online", "return_notes_cik",'return_research_cik','return_research_snapshot'):
+            for return_key in ("return_ticker", "return_online", "return_notes_cik",'return_research_cik',
+                               'return_research_snapshot','return_research_baseline'):
                 if return_key in st.query_params:
                     del st.query_params[return_key]
     bootstrap_placeholder = (

@@ -252,11 +252,44 @@ def _forward_decision(st, context):
         st.json({'forward_view': forward, 'research_process': decision}, expanded=False)
 
 
+def _native_filing_pair(st, pair):
+    st.markdown('#### Same-quarter SEC filing comparison')
+    if pair['status'] != 'available':
+        st.warning(pair['reason'])
+        return
+    st.caption(f"{pair['period_start']} through {pair['period_end']} · {pair['currency']} · Direct quarter")
+    links = [f"[{label} SEC filing · {pair[key]['filed']}]({pair[key]['source_url']})"
+             for key, label in (('baseline', 'Baseline'), ('current', 'Later'))]
+    st.markdown(' · '.join(links))
+    with st.expander('Exact filing receipts'):
+        for key, label in (('baseline', 'Baseline'), ('current', 'Later')):
+            filing = pair[key]
+            st.caption(f"{label} · {filing['accession']} · Accepted {filing['accepted_at']} · Observed {filing['observed_at']}")
+    labels = {'revenue': 'Revenue', 'operating_income': 'Operating income',
+              'cash_from_operations': 'Operating cash flow', 'capital_expenditures': 'PP&E purchases'}
+    scales = {0: 'units', 3: 'thousands', 6: 'millions', 9: 'billions'}
+    with st.container(key='native-filing-pair'):
+        for name, field in pair['fields'].items():
+            status = field['status'].replace('_', ' ').capitalize()
+            st.write(f"**{labels[name]}** · {status}" + (f" · {field['reason']}" if field['reason'] else ''))
+            amounts = [f"{title} {value['reported_text']} {value['unit']} {scales[value['scale']]}"
+                       for key, title in (('baseline', 'Baseline'), ('current', 'Later'))
+                       if (value := field[key])]
+            if amounts:
+                st.caption(' · '.join(amounts))
+            if field['reason'] == 'Filing field definitions differ':
+                st.caption(f"Reported lines · Baseline: {field['baseline']['row_label']} · Later: {field['current']['row_label']}")
+    st.caption('Year-to-date figures appear separately in Financial Trends.')
+
+
 def _snapshots(st, context, bundle):
     if _mode_reason('research'):
         st.info('Personal online research replay is unavailable in this workspace.')
         return
-    from src.online_research_context_store import save_research_context, list_research_contexts, load_research_context, compare_research_contexts
+    from src.online_research_context_store import (
+        compare_native_filing_pair, compare_research_contexts, find_saved_native_filing_pair,
+        list_research_contexts, load_research_context, save_research_context,
+    )
     with st.expander('Saved online research · replay and compare', expanded=bool(st.query_params.get('research_snapshot'))):
         st.caption('Private normalized observations, assumptions and notes. Replay is dated history; refresh explicitly for current online research. Source permissions remain unchanged.')
         cik = context.get('sec_cik')
@@ -273,9 +306,13 @@ def _snapshots(st, context, bundle):
                 st.success('Research snapshot saved: ' + saved['snapshot_id'][:12])
             snapshots = list_research_contexts(**scope, project_root=PROJECT_ROOT)
             requested = st.query_params.get('research_snapshot')
+            baseline_id = st.query_params.get('research_baseline')
             if requested:
                 historical = load_research_context(requested, **scope, project_root=PROJECT_ROOT)
                 st.info('Historical replay · ' + historical['observed_at'])
+                if baseline_id:
+                    baseline = load_research_context(baseline_id, **scope, project_root=PROJECT_ROOT)
+                    _native_filing_pair(st, compare_native_filing_pair(baseline, historical))
                 trend = historical['context'].get('business_trend') or {}
                 if trend.get('capital_purchase_evidence'):
                     from src.sec_online_quarter_view import capital_purchase_html
@@ -297,6 +334,15 @@ def _snapshots(st, context, bundle):
                     st.markdown(native_quarter_comparisons_html(current_quarter, comparisons,
                                 trend.get('comparative_gaps')), unsafe_allow_html=True)
                 _evidence(st, historical['context'])
+            elif not baseline_id:
+                live_match = find_saved_native_filing_pair(snapshots, context)
+                if live_match:
+                    _native_filing_pair(st, live_match[1])
+            if baseline_id:
+                from src.research_workspace import open_research_monitor
+                st.button('Return to this filing pair in Monitor', key='online-research-back-to-filing-pair',
+                    on_click=open_research_monitor, args=(st, scope['ticker'], scope['profile_key']))
+                return
             if not snapshots:
                 st.caption('No saved online research in this exact company scope.')
                 return
@@ -306,6 +352,7 @@ def _snapshots(st, context, bundle):
             if st.button('Open historical research snapshot', key='online-research-replay-open'):
                 st.query_params['research_snapshot'] = selected
                 st.query_params['research_cik'] = cik
+                st.query_params.pop('research_baseline', None)
                 st.rerun()
             if len(snapshots) >= 2:
                 comparison = compare_research_contexts(snapshots[1], snapshots[0])
@@ -347,7 +394,10 @@ def render_online_research_monitor(st, *, profile_key):
     if _mode_reason('research'):
         st.info('Personal online research snapshots are unavailable in this workspace.')
         return
-    from src.online_research_context_store import list_research_context_scopes, list_research_contexts, compare_research_contexts
+    from src.online_research_context_store import (
+        compare_native_filing_pair, compare_research_contexts, find_saved_native_filing_pair,
+        list_research_context_scopes, list_research_contexts, load_research_context,
+    )
     st.markdown('### Saved online research updates')
     st.caption('Private company-context snapshots, separate from the saved SEC evidence review counts. Monitor checks saved observations; use Research company for new online filings.')
     try:
@@ -359,25 +409,44 @@ def render_online_research_monitor(st, *, profile_key):
             st.caption('No online research snapshots saved in this profile.')
             return
         labels = {f"{r['ticker']} · CIK {r['sec_cik']}": r for r in scopes}
-        choice = st.selectbox('Saved online research company', tuple(labels), key='online-research-monitor:' + profile_key)
+        returning = next((label for label, record in labels.items() if record['ticker'] == st.query_params.get('return_ticker')
+                          and record['sec_cik'] == st.query_params.get('return_research_cik')), None)
+        pinned_baseline = st.query_params.get('return_research_baseline') if returning else None
+        picker_key = 'online-research-monitor:' + profile_key
+        if pinned_baseline:
+            picker_key += f":{pinned_baseline}:{st.query_params.get('return_research_snapshot')}"
+        choice = st.selectbox('Saved online research company', tuple(labels),
+            index=tuple(labels).index(returning) if returning else 0, key=picker_key)
         scope = labels[choice]
         snapshots = list_research_contexts(profile_key=profile_key, ticker=scope['ticker'],
             sec_cik=scope['sec_cik'], project_root=PROJECT_ROOT)
         latest = snapshots[0]
-        st.caption('Latest observation: ' + latest['observed_at'])
+        baseline_id = pinned_baseline if choice == returning else None
+        if baseline_id:
+            exact_scope = dict(profile_key=profile_key, ticker=scope['ticker'], sec_cik=scope['sec_cik'], project_root=PROJECT_ROOT)
+            latest = load_research_context(st.query_params.get('return_research_snapshot'), **exact_scope)
+            baseline = load_research_context(baseline_id, **exact_scope)
+            native_match = (baseline, compare_native_filing_pair(baseline, latest))
+        else:
+            native_match = find_saved_native_filing_pair(snapshots[1:], latest) if len(snapshots) >= 2 else None
+        st.caption(('Selected observation: ' if baseline_id else 'Latest observation: ') + latest['observed_at'])
         trend = latest['context'].get('business_trend') or {}
         pair = trend.get('bank_interim_comparison')
-        if len(snapshots) >= 2:
+        if len(snapshots) >= 2 and not native_match:
             label = 'Saved snapshot comparison' if pair else 'Latest pair'
             st.write(label + ': ' + _label(compare_research_contexts(snapshots[1], latest)['status']))
         if pair:
             from src.sec_exact_filing_view import bank_quarter_comparison_html
             st.markdown(bank_quarter_comparison_html(trend['bank_interim'], pair), unsafe_allow_html=True)
+        if native_match:
+            _native_filing_pair(st, native_match[1])
         for gap in latest['context'].get('gaps') or []:
             st.write(_label(gap))
         query = dict(mode='research', page='company-workbench', ticker=scope['ticker'],
             section='notes', research_cik=scope['sec_cik'], research_snapshot=latest['snapshot_id'])
-        st.button('Reopen exact filing pair' if pair else 'Reopen exact saved research', key='online-research-monitor-open:' + profile_key,
+        if native_match:
+            query['research_baseline'] = native_match[0]['snapshot_id']
+        st.button('Reopen exact filing pair' if pair or native_match else 'Reopen exact saved research', key='online-research-monitor-open:' + profile_key,
             on_click=st.query_params.from_dict, args=(query,))
     except (OSError, ValueError, TypeError, UnicodeError, IndexError):
         st.warning('Online research snapshots could not be verified. Existing SEC review and company notes remain separate.')

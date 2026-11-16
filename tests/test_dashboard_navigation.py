@@ -174,6 +174,17 @@ def test_canonical_workspace_query_keeps_only_the_exact_page_allowlist(mode, pag
     assert nav.canonical_workspace_query(mode, page, query_params) == expected
 
 
+@pytest.mark.parametrize(('page', 'prefix'), [('Company Workbench', ''), ('Monitor', 'return_')])
+def test_research_routes_keep_both_exact_snapshot_ids(page, prefix):
+    cik_key, snapshot_key, baseline_key = (prefix + 'research_' + field for field in ('cik', 'snapshot', 'baseline'))
+    query = {prefix + 'ticker': 'FICT', cik_key: '0000000123', snapshot_key: 'a' * 64, baseline_key: 'b' * 64}
+    resolved = nav.canonical_workspace_query('research', page, query)
+    assert {key: resolved[key] for key in query} == query
+    assert baseline_key not in nav.canonical_workspace_query('research', page, {**query, baseline_key: 'bogus'})
+    assert baseline_key not in nav.canonical_workspace_query('research', page, {**query, snapshot_key: ''})
+    assert baseline_key not in nav.canonical_workspace_query('research', page, {**query, cik_key: '0000000000'})
+
+
 def test_research_monitor_canonical_query_preserves_return_ticker_only():
     """Catches Monitor losing its return destination or accepting a filtering ticker."""
 

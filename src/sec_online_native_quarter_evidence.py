@@ -26,6 +26,7 @@ SOURCE_ID = 'sec_archive_native_quarter_html'
 TAXONOMY = 'reported_consolidated_table'
 MAX_PRIMARY_REQUESTS = 8
 MAX_DOCUMENT_BYTES = 2 * 1024 * 1024
+MAX_REVIEWED_EXHIBIT_BYTES = 5 * 1024 * 1024
 MAX_DTO_BYTES = 128 * 1024
 MAX_EVENT_AGE = timedelta(days=180)
 _FORMS = frozenset({'6-K', '6-K/A'})
@@ -38,6 +39,11 @@ _QUARTER = re.compile(r'\b(?:(?:first|second|third|fourth|[1-4](?:st|nd|rd|th))\
 _RESULTS = re.compile(r'\b(?:financial\s+results|earnings\s+release|quarterly\s+results|consolidated\s+results|consolidated\s+statement(?:s)?\s+of\s+income|reports?\s+(?:\w+\s+){0,3}quarter\s+(?:eps|earnings))\b', re.I)
 _PRESS = re.compile(r'\b(?:press|news)\s+release\b', re.I)
 _QUARTER_SLIDES = re.compile(r'\bquarter\s+earnings\s+conference\s+presentation\b', re.I)
+_REVIEWED_STATEMENTS = re.compile(
+    r"Consolidated Financial Statements for the (?:Three|Six|Nine) Months Ended "
+    r"([A-Za-z]{3,9} \d{1,2}, \d{4}) and (\d{4}) and Independent Auditors?[’'] Review Report"
+    r"(?: pursuant to International Financial Reporting Standards(?: .+)?)?", re.I,
+)
 _REVISION = re.compile(r'\b(?:amended|corrected|revised|restated|replacement)\b.{0,45}\b(?:financial\s+(?:statements|results)|earnings\s+release)\b', re.I)
 _HIDDEN = re.compile(r'(?:^|;)\s*(?:display\s*:\s*none|visibility\s*:\s*hidden)\s*(?:!important\s*)?(?:;|$)', re.I)
 _PROVISIONAL_COLUMN = re.compile(r'[1-4]Q(?:\d{2}|\d{4})\s*Amount\s*a', re.I)
@@ -116,6 +122,14 @@ def _has_results(text):
     return bool(_QUARTER.search(text) and _RESULTS.search(text))
 
 
+def _reviewed_statement_end(description):
+    from src.sec_native_quarter_tables import _end_date
+
+    match = _REVIEWED_STATEMENTS.fullmatch(description)
+    end = _end_date(match[1]) if match else None
+    return end.isoformat() if end and int(match[2]) == end.year - 1 else None
+
+
 def _exhibit_url(primary_url, href):
     if not isinstance(href, str) or not 0 < len(href) <= 400 or '..' in href:
         return None
@@ -147,7 +161,8 @@ def _classify_cover(raw, primary_url, form='6-K'):
         if not match:
             continue
         number, description = match.groups()
-        qualifier = ('quarterly_results' if _has_results(description) else
+        qualifier = ('reviewed_financial_statements' if _reviewed_statement_end(description) else
+                     'quarterly_results' if _has_results(description) else
                      'quarterly_conference_and_press_release' if _PRESS.search(description) and slides else None)
         if qualifier:
             hrefs = set(links)
@@ -197,18 +212,19 @@ def _same_publication(first, second):
     return (first['filed'], _utc_timestamp(first['accepted_at'])) == (second['filed'], _utc_timestamp(second['accepted_at']))
 
 
-def _fetch_exact_html(url, user_agent):
+def _fetch_exact_html(url, user_agent, *, max_bytes):
     try:
         with open_exact_source(Request(url, headers={'User-Agent': user_agent, 'Accept': 'text/html'}), timeout=15) as response:
-            return response.read(MAX_DOCUMENT_BYTES + 1), dict(response.headers.items()), response.geturl()
+            return response.read(max_bytes + 1), dict(response.headers.items()), response.geturl()
     finally:
         time.sleep(0.2)
 
 
-def _read_document(url, *, user_agent, source_fetcher, observed_at):
-    raw, headers, final_url = (source_fetcher or _fetch_exact_html)(url, user_agent)
+def _read_document(url, *, user_agent, source_fetcher, observed_at, max_bytes=MAX_DOCUMENT_BYTES):
+    raw, headers, final_url = (source_fetcher(url, user_agent) if source_fetcher
+                               else _fetch_exact_html(url, user_agent, max_bytes=max_bytes))
     now = _now(observed_at)
-    if (not isinstance(raw, bytes) or not 0 < len(raw) <= MAX_DOCUMENT_BYTES
+    if (not isinstance(raw, bytes) or not 0 < len(raw) <= max_bytes
             or final_url != url):
         raise ValueError('unverified_document')
     return raw, dict(source_url=url, observed_at=now.strftime('%Y-%m-%dT%H:%M:%SZ'),
@@ -419,6 +435,8 @@ def _selection_matches(selection, primary, source):
         return False
     if selection['qualifier'] == 'quarterly_results':
         return selection['qualifier_text'] is None and _has_results(selection['description'])
+    if selection['qualifier'] == 'reviewed_financial_statements':
+        return selection['qualifier_text'] is None and bool(_reviewed_statement_end(selection['description']))
     return (selection['qualifier'] == 'quarterly_conference_and_press_release' and bool(_PRESS.search(selection['description']))
             and isinstance(selection['qualifier_text'], str) and bool(_QUARTER_SLIDES.fullmatch(selection['qualifier_text'])))
 
@@ -547,6 +565,11 @@ def _verify_packet(financial, wrapper, *, ticker, cik, inventory, as_of):
             or not _valid_comparative_periods(wrapper, verified, structured['quarterly'] if structured else [])
             or _later_structured_quarter(financial, verified, wrapper['period_end'], event)):
         return None
+    selection = wrapper['selection']
+    if selection.get('qualifier') == 'reviewed_financial_statements' and (
+            _reviewed_statement_end(selection['description']) != wrapper['period_end']
+            or event['report_date'] != wrapper['period_end']):
+        return None
     return deepcopy(dict(wrapper))
 
 
@@ -650,7 +673,10 @@ def fetch_native_quarter(financial, *, user_agent, ticker_map_receipt, submissio
                     _ref(submissions_receipt, f'https://data.sec.gov/submissions/CIK{cik}.json', checked_at), cover_ref]
             if classification == 'exhibit':
                 url = _exhibit_url(primary, selection['href'])
-                raw, ref = _read_document(url, user_agent=user_agent, source_fetcher=source_fetcher, observed_at=observed_at)
+                limit = (MAX_REVIEWED_EXHIBIT_BYTES if selection['qualifier'] == 'reviewed_financial_statements'
+                         else MAX_DOCUMENT_BYTES)
+                raw, ref = _read_document(url, user_agent=user_agent, source_fetcher=source_fetcher,
+                                          observed_at=observed_at, max_bytes=limit)
                 refs.append(ref)
             from src.sec_native_quarter_tables import parse_native_quarter_tables
             parsed = parse_native_quarter_tables(raw, currency=unit, fiscal_year_end=fiscal_year_end)

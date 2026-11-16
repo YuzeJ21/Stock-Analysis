@@ -1531,6 +1531,7 @@ class MonitorOrigin:
     notes_cik: str | None = None
     research_cik: str | None = None
     research_snapshot: str | None = None
+    research_baseline: str | None = None
 
     def workbench_query(self) -> dict[str, str]:
         query = {
@@ -1542,6 +1543,8 @@ class MonitorOrigin:
             query["notes_cik"] = self.notes_cik
         if self.research_snapshot is not None:
             query.update(research_cik=self.research_cik,research_snapshot=self.research_snapshot)
+            if self.research_baseline is not None:
+                query['research_baseline'] = self.research_baseline
         query["section"] = self.section
         return query
 
@@ -1560,12 +1563,15 @@ def open_research_monitor(st, ticker: str, profile_key: str) -> None:
     from src.company_research_notes import saved_company_notes_scope
     notes_cik = params.get("notes_cik") if not online else None
     note_scope = saved_company_notes_scope(ticker, profile_key, sec_cik=notes_cik) if notes_cik else None
-    replay = None
+    replay = baseline = None
     if params.get('research_snapshot'):
         from src.online_research_context_store import load_research_context
         try:
             replay=load_research_context(params['research_snapshot'],profile_key=profile_key,
                 ticker=ticker,sec_cik=params.get('research_cik'))
+            if params.get('research_baseline'):
+                baseline = load_research_context(params['research_baseline'], profile_key=profile_key,
+                    ticker=ticker, sec_cik=replay['sec_cik'])
         except (OSError,ValueError,TypeError,UnicodeError):
             st.session_state.pop(_MONITOR_ORIGIN_KEY,None)
             params.from_dict({'mode':'research','page':'monitor'})
@@ -1592,6 +1598,7 @@ def open_research_monitor(st, ticker: str, profile_key: str) -> None:
             note_scope.sec_cik if note_scope else None,
             replay['sec_cik'] if replay else None,
             replay['snapshot_id'] if replay else None,
+            baseline['snapshot_id'] if baseline else None,
         )
         query["return_ticker"] = ticker
         if online:
@@ -1600,6 +1607,8 @@ def open_research_monitor(st, ticker: str, profile_key: str) -> None:
             query["return_notes_cik"] = note_scope.sec_cik
         if replay:
             query.update(return_research_cik=replay['sec_cik'],return_research_snapshot=replay['snapshot_id'])
+            if baseline:
+                query['return_research_baseline'] = baseline['snapshot_id']
     if not online and params.get("section") == "notes":
         query.update(_monitor_pair_query(ticker, params.get("sec_pair")))
     params.from_dict(query)
@@ -1621,8 +1630,9 @@ def research_monitor_origin(state, profile_key: str, ticker: str) -> MonitorOrig
     if origin.research_snapshot is not None:
         from src.online_research_context_store import load_research_context
         try:
-            load_research_context(origin.research_snapshot,profile_key=profile_key,
-                ticker=ticker,sec_cik=origin.research_cik)
+            for snapshot_id in filter(None, (origin.research_snapshot, origin.research_baseline)):
+                load_research_context(snapshot_id,profile_key=profile_key,
+                    ticker=ticker,sec_cik=origin.research_cik)
         except (OSError,ValueError,TypeError,UnicodeError):return None
     return origin
 
@@ -1645,6 +1655,7 @@ def return_to_research_workbench(st, origin: MonitorOrigin) -> None:
         or params.get("return_notes_cik") != origin.notes_cik
         or params.get('return_research_cik') != origin.research_cik
         or params.get('return_research_snapshot') != origin.research_snapshot
+        or params.get('return_research_baseline') != origin.research_baseline
         or research_monitor_origin(st.session_state, origin.profile_key, origin.ticker) != origin
     ):
         return

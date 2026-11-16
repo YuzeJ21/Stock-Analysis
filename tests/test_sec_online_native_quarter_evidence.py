@@ -49,6 +49,27 @@ def _quarter_sources():
     return sources, latest, cover, exhibit
 
 
+def test_reviewed_financial_statements_exhibit_accepts_bounded_larger_exact_html():
+    from src.sec_online_native_quarter_evidence import validated_native_quarter
+    from test_sec_native_quarter_tables import reviewed_statement
+
+    sources, _, older_cover, older_exhibit = _quarter_sources()
+    label = ("Consolidated Financial Statements for the Nine Months Ended September 30, 2026 and 2025 "
+             "and Independent Auditors’ Review Report pursuant to International Financial Reporting Standards")
+    cover = _add(sources, 4, filed='2026-10-23', report_date='2026-09-30',
+                 content=_cover(href='reviewed.htm', label=label))
+    exhibit = cover.rsplit('/', 1)[0] + '/reviewed.htm'
+    sources[exhibit] = '<!--' + 'x' * (2 * 1024 * 1024) + '-->' + reviewed_statement()
+    calls = []
+    dto = validated_native_quarter(_online(sources, calls), as_of=OBSERVED)
+    assert calls[-2:] == [cover, exhibit]
+    assert older_cover not in calls and older_exhibit not in calls
+    assert dto['selection']['qualifier'] == 'reviewed_financial_statements'
+    assert dto['period_end'] == dto['report_date'] == '2026-09-30'
+    assert dto['periods'][0]['fields']['revenue']['value'] == 1_234_567_000
+    assert dto['periods'][1]['fields']['cash_from_operations']['value'] == 2_100_000_000
+
+
 def test_exact_exhibit_and_embedded_primary_keep_explicit_durations_separate():
     from src.sec_online_native_quarter_evidence import validated_native_quarter
     sources, latest, cover, exhibit = _quarter_sources()

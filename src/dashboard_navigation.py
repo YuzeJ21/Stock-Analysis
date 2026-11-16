@@ -82,8 +82,10 @@ WORKSPACE_ROUTE_QUERY_KEYS = {
     (PUBLIC_DEMO_MODE, PROOF_HISTORY_PATH_TITLE): ("ticker",),
     (RESEARCH_MODE, "Research Desk"): (),
     (RESEARCH_MODE, "Discover"): (),
-    (RESEARCH_MODE, "Company Workbench"): ("ticker", "open", "cash_preview", "online", "section", "sec_pair", "notes_cik", "research_cik", "research_snapshot"),
-    (RESEARCH_MODE, "Monitor"): ("return_ticker", "return_online", "sec_pair", "sec_ticker", "return_notes_cik", "return_research_cik", "return_research_snapshot"),
+    (RESEARCH_MODE, "Company Workbench"): ("ticker", "open", "cash_preview", "online", "section", "sec_pair",
+        "notes_cik", "research_cik", "research_snapshot", "research_baseline"),
+    (RESEARCH_MODE, "Monitor"): ("return_ticker", "return_online", "sec_pair", "sec_ticker", "return_notes_cik",
+        "return_research_cik", "return_research_snapshot", "return_research_baseline"),
     (RESEARCH_MODE, "Data Health"): DATA_HEALTH_QUERY_KEYS,
     (RESEARCH_MODE, PROOF_HISTORY_PATH_TITLE): ("ticker",),
 }
@@ -224,13 +226,15 @@ def canonical_workspace_query(
             if key == "sec_ticker" and "sec_pair" not in retained:
                 continue
             canonical[key] = retained[key]
-    if normalized_page == 'Company Workbench' and ('research_cik' in canonical or 'research_snapshot' in canonical):
-        import re
-        if (not re.fullmatch('[0-9]{10}',canonical.get('research_cik',''))
-            or int(canonical.get('research_cik') or '0') == 0
-            or not re.fullmatch('[0-9a-f]{64}',canonical.get('research_snapshot',''))):
-            canonical.pop('research_cik',None)
-            canonical.pop('research_snapshot',None)
+    if normalized_page in {'Company Workbench', 'Monitor'}:
+        prefix = 'return_' if normalized_page == 'Monitor' else ''
+        cik_key, snapshot_key, baseline_key = (prefix + 'research_' + field for field in ('cik', 'snapshot', 'baseline'))
+        cik = canonical.get(cik_key, '')
+        if not re.fullmatch('[0-9]{10}', cik) or cik == '0000000000' or not re.fullmatch('[0-9a-f]{64}', canonical.get(snapshot_key, '')):
+            for key in (cik_key, snapshot_key, baseline_key):
+                canonical.pop(key, None)
+        elif not re.fullmatch('[0-9a-f]{64}', canonical.get(baseline_key, '')):
+            canonical.pop(baseline_key, None)
     if normalized_page == "Monitor" and "sec_pair" in canonical:
         from src.sec_review_disposition import SUPPORTED_DISPOSITION_COMPANIES
 

@@ -25,6 +25,16 @@ Workbench calculates changes from two exact amount cells in the same consolidate
 
 The comparison update passed 3,036 affected tests and all six research route renders. Both exact-source cases passed at 1440×1000 and 390×844, including Overview, Financial Trends, source evidence, snapshot save and Monitor return. Previous snapshots replayed with identical stored bytes, and all 89 protected files matched the baseline.
 
+## A newer filing against a saved quarter
+
+Workbench compares TSM’s saved October 15, 2026 provisional release with its November 13, 2026 reviewed consolidated financial statements for the three months ended September 30, 2026. It checks the issuer, quarter, native currency, filing order and observation dates before comparing individual fields. Workbench shows the amounts and units as reported in each filing and uses the baseline’s displayed precision for matching field definitions. [October 15 Exhibit 99.1](https://www.sec.gov/Archives/edgar/data/1046179/000104617926000726/a3q26e_withguidancexfinal.htm) · [November 13 Form 6-K](https://www.sec.gov/Archives/edgar/data/1046179/000104617926000801/tsm-fsx20261113x6k.htm) · [November 13 Exhibit 99.1](https://www.sec.gov/Archives/edgar/data/1046179/000104617926000801/a2026q3consolidatedreport-.htm)
+
+Operating income agrees at the October filing’s precision. The revenue comparison remains withheld because October reports net sales and November reports net revenue. Both source figures remain visible. Quarterly operating cash flow and gross PP&E purchases remain open. The later filing’s nine-month cash flow appears only in the separate year-to-date section.
+
+Save the newer observation from **Research Notes** and open **Monitor**. **Reopen exact filing pair** restores both saved observations and filing receipts in the same research profile, including when a later observation has been saved. Reopening uses the stored evidence. The source-rights boundary for private observations and the separate requirements for ADS earnings and valuation still apply.
+
+Desktop Chromium (1440×1000) and phone Chromium (390×844) both preserved the two snapshot IDs through a cold reload and a return to Monitor. Replay made zero source requests, repeated save preserved the snapshot bytes, and all 89 protected baseline file digests matched.
+
 ## Verification of the initial quarterly workflow
 
 - 3,014 affected automated tests passed. All six research routes rendered successfully. Public wording and staged-file checks passed.

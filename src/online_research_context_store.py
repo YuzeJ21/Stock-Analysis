@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from base64 import b64decode, b64encode
 from datetime import datetime, timezone
+from decimal import Decimal, ROUND_HALF_UP
 from hashlib import sha256
 from itertools import islice
 import json
@@ -534,6 +535,78 @@ def _comparison_context(value):
     if isinstance(value, dict) and value.get('schema_version') == SCHEMA_VERSION:
         return _validate_snapshot(value)['context']
     return _context(value)
+
+
+def _direct_native_quarter(context):
+    periods = (context.get('business_trend') or {}).get('periods', [])
+    rows = [row for row in periods if row.get('period_basis') == 'direct_quarter'
+            and row.get('current') is True and row.get('status') == 'available'
+            and any(field.get('reported_numeric_schema') == 'sec-native-table-number-v1'
+                    for field in row.get('fields', {}).values())]
+    return rows[0] if len(rows) == 1 else None
+
+
+def _compare_native_amount(baseline, current):
+    if any(not field or field.get('reported_numeric_schema') != 'sec-native-table-number-v1'
+           for field in (baseline, current)):
+        return 'withheld', 'No standalone-quarter figure in both filings'
+    if any(baseline[k] != current[k] for k in ('concept', 'taxonomy', 'unit', 'rights_status')):
+        return 'withheld', 'Filing field definitions differ'
+    quantum, current_quantum = (
+        Decimal(10) ** (field['scale'] - len(field['reported_text'].partition('.')[2].rstrip(' )')))
+        for field in (baseline, current)
+    )
+    if current_quantum > quantum:
+        return 'withheld', 'Later filing reports at lower precision'
+    left, right = (Decimal(str(field['value'])) for field in (baseline, current))
+    rounded = (right / quantum).to_integral_value(rounding=ROUND_HALF_UP) * quantum
+    return ('agrees_at_baseline_precision' if rounded == left else 'differs_at_baseline_precision'), None
+
+
+def compare_native_filing_pair(before, after):
+    """Compare separate validated SEC filings for one direct quarter and profile."""
+    left, right = _comparison_context(before), _comparison_context(after)
+    if any(left[key] != right[key] for key in _SCOPE_KEYS):
+        raise ValueError('Research filing pair scope mismatch')
+    baseline, current = _direct_native_quarter(left), _direct_native_quarter(right)
+    if not baseline or not current:
+        return {'status': 'unavailable', 'reason': 'A directly reported quarter is missing or unverified'}
+    if baseline['accession'] == current['accession']:
+        return {'status': 'same_filing', 'reason': 'Both observations use the same filing'}
+    if any(baseline[k] != current[k] for k in ('period_start', 'period_end', 'currency')):
+        return {'status': 'withheld', 'reason': 'Quarter dates or reporting currencies differ'}
+
+    def filing(row):
+        field = next(field for field in row['fields'].values()
+                     if field.get('reported_numeric_schema') == 'sec-native-table-number-v1')
+        return {key: field[key] for key in ('source_url', 'accession', 'filed', 'accepted_at', 'observed_at')}
+
+    earlier, later = filing(baseline), filing(current)
+    if (_timestamp(later['accepted_at']) <= _timestamp(earlier['accepted_at'])
+            or _timestamp(right['observed_at']) < _timestamp(left['observed_at'])):
+        return {'status': 'withheld', 'reason': 'A later SEC acceptance and ordered observations are required'}
+    fields = {}
+    for name in NATIVE_COMPARISON_FIELDS:
+        old, new = (row['fields'].get(name) for row in (baseline, current))
+        status, reason = _compare_native_amount(old, new)
+        fields[name] = dict(status=status, reason=reason, baseline=old, current=new)
+    return dict(status='available', baseline=earlier, current=later, fields=fields,
+                period_start=current['period_start'], period_end=current['period_end'], currency=current['currency'])
+
+
+def find_saved_native_filing_pair(snapshots, after):
+    """Choose the newest compatible observed baseline from verified saved snapshots."""
+    current = _direct_native_quarter(_comparison_context(after))
+    if current is None:
+        return None
+    for snapshot in snapshots:
+        older = _direct_native_quarter(snapshot['context'])
+        if older and older['accession'] != current['accession'] and all(
+                older[k] == current[k] for k in ('period_start', 'period_end', 'currency')):
+            pair = compare_native_filing_pair(snapshot, after)
+            if pair['status'] == 'available':
+                return snapshot, pair
+    return None
 
 
 def _assumptions(context):
