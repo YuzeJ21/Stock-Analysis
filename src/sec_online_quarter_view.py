@@ -224,7 +224,17 @@ def ase_net_ppe_html(evidence):
             '<li><a href="https://www.sec.gov/Archives/edgar/data/1122411/000119312526329634/d174900d6k.htm">'
             'March-quarter SEC statements</a> · Separate cash purchases and disposal proceeds for March</li>'
             '<li><a href="https://www.sec.gov/Archives/edgar/data/1122411/000095010326017186/dp256592_6k.htm">'
-            'November 10 monthly revenue filing</a> · October sales update</li></ul></details></section>')
+            'November 10 monthly revenue filing</a> · October sales update</li></ul></details>'
+            '<details><summary>TWSE reporting-basis review</summary><p><strong>Gross Q3 PP&amp;E · Withheld</strong></p>'
+            '<p>Both reviewed TWSE statements report consolidated cash flows in TWD and show gross PP&amp;E payments '
+            'and disposal proceeds separately for their cumulative periods.</p>'
+            '<p>June uses provisional ASEPG acquisition accounting. September finalizes that accounting and shows the change '
+            'in subsidiary acquisition cash separately. The November 16 review found no restated June gross payment and disposal '
+            'cash lines on the September basis. Agreement with the SEC net payment cannot verify those two components individually.</p>'
+            '<ul><li><a href="https://doc.twse.com.tw/server-java/t57sb01?step=1&amp;colorchg=1&amp;co_id=3711&amp;year=115&amp;seamon=2&amp;mtype=A">'
+            'June TWSE filings</a> · Cash-flow statement and Notes 29 and 31</li>'
+            '<li><a href="https://doc.twse.com.tw/server-java/t57sb01?step=1&amp;colorchg=1&amp;co_id=3711&amp;year=115&amp;seamon=3&amp;mtype=A">'
+            'September TWSE filings</a> · Cash-flow statement and Notes 30 and 32</li></ul></details></section>')
 
 
 def native_quarter_html(archive, *, show_comparisons=True):

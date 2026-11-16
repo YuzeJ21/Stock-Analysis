@@ -15,4 +15,8 @@ def test_ase_net_payments_keep_gross_withheld_and_durations_visible():
     assert 'TWD (250) million' in rendered
     assert 'Equipment capex' in rendered and 'dp255782_6k.htm' in rendered
     assert 'd174900d6k.htm' in rendered and 'dp256592_6k.htm' in rendered
+    assert 'TWSE reporting-basis review' in rendered and 'Gross Q3 PP&amp;E · Withheld' in rendered
+    assert 'June TWSE filings' in rendered and 'seamon=2' in rendered
+    assert 'September TWSE filings' in rendered and 'seamon=3' in rendered
+    assert 'no restated June gross payment and disposal cash lines' in rendered
     assert 'Year to date' not in view.ase_net_ppe_html({'quarterly': direct})
