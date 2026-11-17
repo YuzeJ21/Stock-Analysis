@@ -4,7 +4,7 @@ from html import escape
 from src.online_peer_valuation_ui import _link, _reason
 from src.online_research_tools_ui import sec_request_identification
 from src.self_service_research_coverage import (
-    CAPABILITY_LABELS, get_self_service_coverage, validated_coverage_view,
+    CAPABILITY_LABELS, SAMPLE, SAMPLE_GROUPS, get_self_service_coverage, validated_coverage_view,
 )
 
 STYLE = '''<style>
@@ -16,6 +16,12 @@ STYLE = '''<style>
 .self-service-coverage table{border-collapse:collapse;width:100%;font-size:.85rem}
 .self-service-coverage th,.self-service-coverage td{text-align:left;padding:.7rem .5rem;border-bottom:1px solid #d3e0d7}
 .self-service-coverage .coverage-group-table{min-width:36rem}
+.self-service-coverage.coverage-dated{background:#fff;border:1px solid #d3e0d7;border-radius:.6rem;padding:1rem;margin:1rem 0}
+.self-service-coverage.coverage-dated h3,.self-service-coverage.coverage-dated h4,.self-service-coverage.coverage-dated p,
+.self-service-coverage.coverage-dated th,.self-service-coverage.coverage-dated td,.self-service-coverage.coverage-dated li,
+.self-service-coverage.coverage-dated summary{color:#18372b!important}
+.self-service-coverage .coverage-dated-table{min-width:30rem}
+.self-service-coverage .coverage-dated-table small{display:block;margin-top:.25rem}
 .self-service-coverage details{margin:.7rem 0}.self-service-coverage summary{min-height:44px;align-content:center;cursor:pointer}
 .self-service-coverage a{color:#144c3d;text-decoration:underline}
 [data-peer-source-storage]{padding:1rem;border:1px solid #d3e0d7;border-radius:.6rem;background:#fff!important;color:#18372b!important;overflow-wrap:anywhere}
@@ -31,10 +37,72 @@ def _label(value):
 
 
 def _explain(reason):
+    if reason == 'exact_ibn_annual_table_and_filing':
+        return 'Workbench has qualified bank annual facts. The study requires revenue in the general period table for this count.'
+    if reason == 'exact_ibn_interim_table_and_filing':
+        return 'Workbench has qualified bank interim facts. The study requires revenue in the general period table for this count.'
     translated = _reason(reason)
     if translated == 'Source, identity, or field evidence could not be verified. This input is withheld.':
         return _label(reason)
     return translated
+
+
+def dated_coverage_comparison_html(report):
+    """Compare dated measurements without mixing them into the current session."""
+    before = report['baseline_available']
+    rows = report['rows']
+    pending = set(SAMPLE) - rows.keys()
+    total = len(SAMPLE)
+    available = {key: {ticker for ticker, cells in rows.items() if cells[key][0] == 'available'}
+                 for key in CAPABILITY_LABELS}
+    highlights = ''.join(
+        f'<li>{CAPABILITY_LABELS[key]} · <strong>{len(before[key])} / {total} → {len(available[key])} / {total}</strong></li>'
+        for key in ('direct_quarter', 'peer_comparison', 'snapshot_replay'))
+    table_rows = []
+    for key, label in CAPABILITY_LABELS.items():
+        prior = set(before[key])
+        current = available[key]
+        changes = []
+        for change, members in (
+            ('Now available', current - prior),
+            ('Previously available, now blocked', (prior - current) - pending),
+            ('Unattempted', prior & pending),
+        ):
+            if members:
+                changes.append(change + ' · ' + ', '.join(ticker for ticker in SAMPLE if ticker in members))
+        change_html = ''.join('<small>' + escape(line) + '</small>' for line in changes)
+        difference = len(current) - len(prior)
+        delta = 'Incomplete' if pending else f'{difference:+d}' if difference else '0'
+        table_rows.append(f'<tr><th scope="row">{escape(label)}</th><td>{len(prior)} / {total}</td>'
+                          f'<td>{len(current)} / {total}</td><td>{delta}{change_html}</td></tr>')
+    groups = []
+    for group, tickers in SAMPLE_GROUPS:
+        companies = []
+        for ticker in tickers:
+            if ticker not in rows:
+                companies.append(f'<li><strong>{ticker}</strong> · Unattempted</li>')
+                continue
+            blockers = [f'<li>{escape(label)} · {escape(_label(status).title())} · {escape(_explain(reason))}</li>'
+                        for key, label in CAPABILITY_LABELS.items()
+                        for status, reason in (rows[ticker][key],) if status != 'available']
+            detail = '<ul>' + ''.join(blockers) + '</ul>' if blockers else '<p>All ten capabilities available.</p>'
+            companies.append(f'<li><details><summary>{ticker}</summary>{detail}</details></li>')
+        groups.append(f'<h4>{escape(group)}</h4><ul>{"".join(companies)}</ul>')
+    measured = escape(report['measured_date'])
+    baseline = escape(report['baseline_date'])
+    return (STYLE + '<section class="self-service-coverage coverage-dated" aria-label="Dated study results">'
+            '<h3>Dated study results</h3>'
+            f'<p><strong>{len(rows)} / {total} attempted</strong> · {measured}</p>'
+            '<p>The fixed sample covers four research groups. Counts use the same twelve companies and reflect '
+            'the sources and product behavior observed on each date. Your session results appear below.</p>'
+            '<ul>' + highlights + '</ul><details><summary>Compare available capabilities</summary>'
+            '<div class="coverage-table-scroll" role="region" aria-label="Dated capability comparison" tabindex="0">'
+            '<table class="coverage-dated-table"><thead><tr><th scope="col">Capability</th>'
+            f'<th scope="col">{baseline}</th><th scope="col">{measured}</th><th scope="col">Change</th>'
+            '</tr></thead><tbody>' + ''.join(table_rows) + '</tbody></table></div></details>'
+            '<details><summary>Remaining gaps by company</summary>' + ''.join(groups) + '</details>'
+            '<p><a href="https://github.com/YuzeJ21/Stock-Analysis/blob/main/docs/CROSS_INDUSTRY_SELF_SERVICE.md#dated-rerun" '
+            'target="_blank" rel="noopener noreferrer">Study method and dated results</a></p></section>')
 
 
 def self_service_coverage_html(view):
@@ -112,7 +180,10 @@ def peer_storage_proof_html(storage):
 
 
 def render_self_service_coverage(st):
-    st.caption('Inspect the declared sample one company at a time using the same online tools as Company Workbench. Section changes do not request sources.')
+    from src.self_service_study_results import DATED_STUDY
+
+    st.markdown(dated_coverage_comparison_html(DATED_STUDY),unsafe_allow_html=True)
+    st.caption('Inspect the declared sample in this session using the same online tools as Company Workbench. Section changes do not request sources.')
     view = get_self_service_coverage(st.session_state,user_agent=sec_request_identification(st))
     checked = validated_coverage_view(view)
     by_ticker = {row['ticker']:row for row in checked['rows']} if checked else {}

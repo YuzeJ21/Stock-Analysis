@@ -39,7 +39,31 @@ Each capability retains **available**, **partial**, **held**, **excluded**, **fa
 
 The scenario probe uses 8% revenue growth, a 15% hypothetical FCFF margin, 10% WACC, 2% terminal growth and five years. These fixed capability-test inputs are not issuer guidance, consensus or a user's saved assumptions. Missing capital structure does not manufacture net debt, shares or a traded-share value. Banks remain excluded from this operating-company FCFF method.
 
-## Measured repair and remaining gaps
+## Dated rerun
+
+All twelve companies were inspected again on November 16, 2026 Toronto time. The retained source observations span November 17, 00:11:30–00:18:11 UTC, with 203 raw source callbacks and 345 adapter operations. Provider SDK calls have separate accounting. The comparison uses the November 8 retained online run and the same original sample, capability rules and denominators. The dates capture both source availability and product changes.
+
+| Capability | November 8 | November 16 |
+| --- | ---: | ---: |
+| SEC issuer match | 11/12 | 11/12 |
+| Usable filing catalog | 12/12 | 12/12 |
+| Current annual facts | 9/12 | 10/12 |
+| Current direct-quarter facts | 5/12 | 10/12 |
+| Current interim facts | 0/12 | 1/12 |
+| Dated close | 12/12 | 12/12 |
+| Same-basis industry comparison | 1/12 | 4/12 |
+| Compatible Business Trend metrics | 11/12 | 11/12 |
+| Hypothetical scenario eligibility | 5/12 | 5/12 |
+| Exact private research replay | 10/12 | 10/12 |
+
+- **Financial statements.** C, DUK, SO and NEE added current direct quarters through exact 10-Qs. TSM added current annual, direct-quarter and interim evidence through its exact native-currency filings. These counts require supported current facts. Individual statement fields can remain held.
+- **Valuation.** November 16 completed closes qualified for all twelve. NVDA, JPM, BAC and C qualified for same-basis peer P/E. AMD's current annual amendment remains unresolved. QCOM did not reach three qualifying references. DUK, SO and NEE remain held on the share-class join in this run. TSM requires a separate ADS method, SAP's listing-to-issuer join remains unverified, and IBN's provider context was unavailable.
+- **Exact replay.** TSM's fresh context reached the snapshot validator and failed on the typed native IFRS diluted-EPS proof retained under the selected-security evidence path. The proof is contextual and uses TWD per share. A disposable replay reproduced the validation error. The earlier 11/12 same-source replay pass used a different retained context and remains a separate result.
+- **IBN bank evidence.** Workbench corroborated exact bank annual, direct-quarter and cumulative interim statements. A separate disposable Workbench snapshot reopened the same bank evidence and compared unchanged. The original study requires revenue in the general period table for its comparable financial counts and replay entry point. IBN's bank-only records remain outside those counts. Its Companyfacts request returned HTTP 404, and provider valuation context was unavailable.
+
+Discover's **Dated study results** shows the per-company changes and unresolved reasons. The live study controls below it start a separate session. The published comparison contains reduced capability states. Filing bodies, provider prices and private snapshots stay in the research environment.
+
+## November 8 controlled repair
 
 Reprocessing the same twelve captured source observations before and after the shared catalog repair improved usable filing catalogs from **5/12 to 12/12**. This is a controlled comparison using the same source inputs, not a fresh market-coverage pass.
 
@@ -55,7 +79,7 @@ Reprocessing the same twelve captured source observations before and after the s
 
 All three banks remained excluded from operating-company FCFF scenarios. TSM's normalized context was **758,318 bytes**, above the unchanged **524,288-byte** replay bound, so exact replay stayed held. IBN's Companyfacts source was unavailable; missing financial evidence and replay did not become zero or success. Source-specific gaps remain visible for the other incomplete lanes.
 
-The separate fresh peer-source collection has its own observation dates and exclusions. This method guide makes no final fresh-peer count claim. See the [initial release evidence](CROSS_INDUSTRY_SELF_SERVICE_RELEASE.md) for that recorded source pass and [bank retention evidence](BANK_PEER_EVIDENCE_RELEASE.md) for the later bounded repair. Do not combine historical field-study, controlled tool and fresh peer counts into one success rate.
+The original fresh peer-source collection has its own observation dates and exclusions. See the [initial release evidence](CROSS_INDUSTRY_SELF_SERVICE_RELEASE.md) for that source pass and [bank retention evidence](BANK_PEER_EVIDENCE_RELEASE.md) for the later bounded repair. Each measurement retains its original dates and sample.
 
 ## Shared source repair
 

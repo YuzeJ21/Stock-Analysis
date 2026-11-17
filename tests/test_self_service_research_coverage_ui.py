@@ -24,6 +24,25 @@ def test_malformed_reduced_counts_never_reach_the_display():
     assert '999' not in html
 
 
+def test_dated_comparison_recounts_the_fixed_sample_and_distinguishes_unattempted():
+    from src.self_service_research_coverage import CAPABILITY_LABELS, SAMPLE
+    from src.self_service_research_coverage_ui import dated_coverage_comparison_html
+
+    before = {key: ('AMD', 'C') for key in CAPABILITY_LABELS}
+    common = {key: ('held', 'current_filing_facts_pending') for key in CAPABILITY_LABELS}
+    rows = {ticker: dict(common) for ticker in SAMPLE if ticker != 'AMD'}
+    rows['C']['direct_quarter'] = ('available', 'current_exact_reported_period')
+    rows['DUK']['direct_quarter'] = ('available', 'current_exact_reported_period')
+    report = dict(baseline_date='2026-11-08', measured_date='2026-11-16', baseline_available=before,
+                  rows=rows)
+    html = dated_coverage_comparison_html(report)
+    assert 'Dated study results' in html and '2026-11-08' in html and '2026-11-16' in html
+    assert '11 / 12 attempted' in html
+    assert 'Now available · DUK' in html and 'Unattempted · AMD' in html
+    assert 'Previously available, now blocked · AMD' not in html
+    assert 'current filing facts pending' in html
+
+
 def test_storage_proof_uses_readable_scoped_surface_and_escaped_metadata():
     from src.self_service_research_coverage_ui import STYLE,peer_storage_proof_html
     html=peer_storage_proof_html(dict(status='retained',encoding='zlib+base64',expanded_bytes=74100090,
