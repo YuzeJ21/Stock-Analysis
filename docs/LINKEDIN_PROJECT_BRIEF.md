@@ -43,6 +43,8 @@ The local Python and Streamlit portfolio beta checks what evidence can be used n
 
 For NEM, AMD, and DUK, the local Monitor can reopen an exact saved annual SEC observation pair and retain a reasoned **Reviewed** or **Still open** disposition in an ignored local file scoped to the issuer, ordered pair, and selected research profile. Saved evidence stays immutable. The fictional browser demo keeps its decision in page state until reload. See [Saved SEC company reviews](SEC_RESEARCH_REVIEWS.md).
 
+For a local filing example, open **NextEra Energy (NEE) → Financial Trends**. Workbench matches two consolidated SEC 10-Qs to calculate Q3 2026 operating cash flow, shows the reported year-to-date figure separately, and keeps the gross PP&E gaps visible. Monitor reopens the exact saved calculation and both source links. Discover also shows five dated venue reviews and tracks unresolved listing records and security types. [NEE filing evidence](EXACT_QUARTERLY_EVIDENCE_RELEASE.md#matched-q3-operating-cash-flow) · [Discover venue reviews](ONLINE_RESEARCH_COVERAGE.md#dated-venue-reviews)
+
 The full Streamlit workspace runs locally. GitHub Pages hosts the fictional English demo and dated AMD case. A public full Streamlit deployment remains a separate gate in [Hosted Demo Deployment](HOSTED_DEMO_DEPLOYMENT.md).
 
 ## Now / Next / Not Yet
@@ -50,7 +52,7 @@ The full Streamlit workspace runs locally. GitHub Pages hosts the fictional Engl
 | Stage | Current answer | Boundary |
 | --- | --- | --- |
 | Now | Share the dated SEC filing case as the Featured example, the guided fictional Pages demo for the full interactive workflow, and the local workspace through the repository. | These are controlled portfolio/demo examples. They do not prove current-market coverage or outside reviewer demand. |
-| Next | Qualify exact native-currency filings for foreign issuers and demonstrate a meaningful subsequent filing change through Monitor. | Retain source dates, reporting periods, currency and security basis, and field-level gaps. |
+| Next | Remeasure the fixed industry sample, review outstanding listing and security-identity records, and qualify more filing comparisons for Workbench and Monitor. | Report dated results by capability and keep the remaining gaps visible. |
 | Not yet | Host the full Streamlit workspace or claim broad fundamentals, peers, earnings, estimates, predictive validation, or commercial operation. | Each needs source rights, repeatable operations, and direct validation. |
 
 The active sequence is in the [Roadmap](../ROADMAP.md). `make next-stage` prints the current package and source-proof decision ladder without changing local data. Run `make project-status-check` first and use `make provider-setup-checklist` when source-proof queues are exhausted. Do not run trusted-data pilot queues as a LinkedIn demo talking point unless project-status-check shows executable source-backed candidates.

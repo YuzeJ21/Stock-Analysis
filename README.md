@@ -44,13 +44,15 @@ The full local workspace follows **Research Desk → Discover → Company Workbe
 | Destination | Research task |
 | --- | --- |
 | **Research Desk** | Search for a company online, resume saved SEC research, or open Monitor. |
-| **Discover** | Switch between online company search and saved companies. Optional **Coverage studies → Self-service** inspects twelve declared companies and keeps failures and exclusions visible. |
+| **Discover** | Search companies online, revisit saved companies, and inspect dated listing evidence or the twelve-company self-service study. |
 | **Company Workbench** | Review one company through five connected sections, with financial, price, and source context. |
 | **Monitor** | Revisit saved questions and evidence changes: User-authored follow-ups for notes, saved SEC comparisons, and the Follow-up Queue for legacy process items. Return to the company or exact pair. |
 
 Company search accepts a name or ticker, including companies absent from local CSVs. Press **Research company** to collect online SEC financials, check the latest annual and quarterly filings, load dated prices and attempt the existing peer comparison. The company rail keeps five sections beside a focused analysis area, with a stacked layout on phones. Separate refresh options remain available; changing sections reuses loaded observations without new requests. **No coding session or prepared company CSVs are required for the supported online workflow.**
 
-The optional self-service study uses **Inspect next company**, **Recheck company** and **Restart study**. It reports ten separate capabilities for a fixed semiconductor, bank, utility and foreign-issuer sample; navigation makes no source requests. Its replay check uses disposable private storage and writes no user notes or evidence. [Sample, measured results and boundaries](docs/CROSS_INDUSTRY_SELF_SERVICE.md)
+In **Discover → Coverage studies → U.S. listings**, see dated reviews for **Nasdaq Texas, NYSE Texas, Texas Stock Exchange (TXSE), Long-Term Stock Exchange (LTSE), and Green Impact Exchange (GIX)**. Each review shows what the sources support and which gaps remain. Discover also tracks SEC-only listing records and unresolved security types. [Venue reviews and listing evidence](docs/ONLINE_RESEARCH_COVERAGE.md#dated-venue-reviews)
+
+The separate **Self-service** study measures ten capabilities across twelve companies from semiconductors, banking, utilities, and foreign issuers. [Study sample and results](docs/CROSS_INDUSTRY_SELF_SERVICE.md)
 
 ## What You Can Do
 
@@ -73,6 +75,10 @@ Use **Saved SEC evidence** to save eligible annual observations, replay them and
 **Saved online research** retains trends, filing versions, peer exclusions, scenario assumptions and notes. Monitor reopens the exact historical snapshot and compares financial changes, source metadata and user edits separately. Research can inspect exact 10-Q, 20-F and 6-K results, including ICICI Bank's non-XBRL annual and interim bank statements. The Workbench separates quarter and year-to-date evidence, labels retrospective adjustments and shows comparable changes when supported. [IBN filing evidence](docs/IBN_NON_XBRL_RESEARCH.md) · [Native quarterly evidence](docs/NATIVE_QUARTER_RELEASE.md) · [Native annual evidence](docs/NATIVE_ANNUAL_OVERVIEW_RELEASE.md) · [Exact 10-Q evidence](docs/EXACT_QUARTERLY_EVIDENCE_RELEASE.md)
 
 The application retrieves data online while running locally. GitHub Pages hosts the demonstrations, not the full Streamlit workspace. [Online research workflow](docs/ONLINE_COMPANY_RESEARCH.md) · [Workflow release evidence](docs/ONLINE_COMPANY_WORKFLOW_RELEASE.md)
+
+### Local example · NextEra Energy (NEE)
+
+Open **NEE → Financial Trends** after researching the company online. Workbench matches the June and September 2026 consolidated SEC 10-Qs and subtracts the June year-to-date operating cash flow from the September year-to-date figure. It labels the Q3 result **Calculated**, keeps the reported year-to-date figure separate, and shows the gross PP&E cash-purchase gaps for both periods. Save the research snapshot and reopen the exact calculation and its filing links from **Monitor**. [NEE filing evidence](docs/EXACT_QUARTERLY_EVIDENCE_RELEASE.md#matched-q3-operating-cash-flow)
 
 ### MRVL earnings quality and peer fit
 
@@ -138,8 +144,8 @@ The supported workflow is research-only. Investment advice, broker account actio
 
 | Stage | Current focus |
 | --- | --- |
-| **Available today** | A local research beta with online filing checks, trends, hypothetical scenarios, issuer notes, private snapshots and Monitor replay. Discover includes a fixed twelve-company capability study and a dated Nasdaq Texas listing review. The public demo and AMD filing case give visitors a browser-based introduction. |
-| **Next** | Reconcile dated venue evidence in Discover, verify the next comparable filing change through Monitor, and rerun the fixed industry study to measure remaining research gaps. |
+| **Available today** | A local research beta with online filing checks, financial trends, peer valuation, scenarios, notes, and saved evidence replay. Discover includes five dated venue reviews and a separate twelve-company capability study. |
+| **Next** | Review remaining listing and security-identity gaps, qualify more filing comparisons for Monitor, and rerun the industry study to measure research coverage. |
 | **Later gates** | Hosted full-workspace operation, authentication and private workspaces, operated data rights, provider reliability, independent user evidence, and commercial validation. |
 
 The [Roadmap](ROADMAP.md) is the active priority list. [Completed Milestones](docs/COMPLETED_MILESTONES.md) records shipped work and the evidence required to revisit parked features. Use `make next-stage` for the product direction and separate saved-readiness checks.
