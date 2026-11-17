@@ -350,6 +350,11 @@ def _snapshots(st, context, bundle):
                         if row.get('current') is True and row.get('period_basis') == 'direct_quarter')
                     st.markdown(native_quarter_comparisons_html(current_quarter, comparisons,
                                 trend.get('comparative_gaps')), unsafe_allow_html=True)
+                from src.online_peer_valuation_ui import saved_tsm_security_html
+
+                security = saved_tsm_security_html(historical['context'])
+                if security:
+                    st.markdown(security, unsafe_allow_html=True)
                 _evidence(st, historical['context'])
             elif not baseline_id:
                 live_match = find_saved_native_filing_pair(snapshots, context)
@@ -468,6 +473,11 @@ def render_online_research_monitor(st, *, profile_key):
             from src.sec_online_quarter_view import nee_gross_ppe_review_html
 
             st.markdown(nee_gross_ppe_review_html(trend['capital_purchase_evidence']), unsafe_allow_html=True)
+        from src.online_peer_valuation_ui import saved_tsm_security_html
+
+        security = saved_tsm_security_html(latest['context'])
+        if security:
+            st.markdown(security, unsafe_allow_html=True)
         for gap in latest['context'].get('gaps') or []:
             st.write(_label(gap))
         query = dict(mode='research', page='company-workbench', ticker=scope['ticker'],

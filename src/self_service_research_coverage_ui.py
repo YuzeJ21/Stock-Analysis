@@ -58,6 +58,14 @@ def dated_coverage_comparison_html(report):
     highlights = ''.join(
         f'<li>{CAPABILITY_LABELS[key]} · <strong>{len(before[key])} / {total} → {len(available[key])} / {total}</strong></li>'
         for key in ('direct_quarter', 'peer_comparison', 'snapshot_replay'))
+    replay = available['snapshot_replay']
+    additions = (set(report.get('same_source_replay_recheck', ())) & rows.keys()) - replay
+    recheck = ''
+    if additions:
+        companies = ', '.join(ticker for ticker in SAMPLE if ticker in additions)
+        recheck = ('<p><strong>Same-source replay recheck</strong> · '
+                   f'{len(replay)} / {total} → {len(replay | additions)} / {total}. '
+                   f'{escape(companies)} reopened unchanged using the retained study inputs. ADS valuation remains withheld.</p>')
     table_rows = []
     for key, label in CAPABILITY_LABELS.items():
         prior = set(before[key])
@@ -95,7 +103,7 @@ def dated_coverage_comparison_html(report):
             f'<p><strong>{len(rows)} / {total} attempted</strong> · {measured}</p>'
             '<p>The fixed sample covers four research groups. Counts use the same twelve companies and reflect '
             'the sources and product behavior observed on each date. Your session results appear below.</p>'
-            '<ul>' + highlights + '</ul><details><summary>Compare available capabilities</summary>'
+            '<ul>' + highlights + '</ul>' + recheck + '<details><summary>Compare available capabilities</summary>'
             '<div class="coverage-table-scroll" role="region" aria-label="Dated capability comparison" tabindex="0">'
             '<table class="coverage-dated-table"><thead><tr><th scope="col">Capability</th>'
             f'<th scope="col">{baseline}</th><th scope="col">{measured}</th><th scope="col">Change</th>'

@@ -155,6 +155,7 @@ def _normalized(value):
     active = set()
     nodes = 0
     cover_documents = set()
+    inspection_numeric_nodes = set()
 
     def validate_comparison_rows(trend):
         rows = trend.get('comparative_periods', [])
@@ -299,7 +300,7 @@ def _normalized(value):
                 name = key.lower()
                 if name in COVER_FIELDS and (key != name or path not in cover_documents):
                     raise ValueError('Normalized cover fields require a validated selected-security document')
-                numeric_token = name == 'raw_text' and _eps_numeric_proof(item)
+                numeric_token = name == 'raw_text' and (path in inspection_numeric_nodes or _eps_numeric_proof(item))
                 if (name in _RAW_KEYS or 'base64' in name or name.endswith('_body')
                         or name.endswith('_bytes') or name.startswith('raw_') and not name.endswith(('_sha256', '_digest')) and not numeric_token):
                     raise ValueError('Research context must contain normalized observations, not raw/archive fields')
@@ -308,6 +309,14 @@ def _normalized(value):
                     validate_cover_scope(child, ticker=ticker, cik=cik)
                     cover_documents.update(path + (key, 'documents', index) for index, document in enumerate(child['documents'])
                         if 'cover_observations' in document)
+                elif key == 'selected_security_scope' and isinstance(child, dict) and child.get('status') == 'inspection_only':
+                    from src.sec_tsm_snapshot_evidence import POLICY_ID, SUBJECT_PATH, saved_tsm_numeric_observation_indices
+
+                    if path + (key,) == SUBJECT_PATH and child.get('policy_id') == POLICY_ID:
+                        indices = saved_tsm_numeric_observation_indices(child, context=value)
+                        if not indices:
+                            raise ValueError('Normalized TSM security observations do not match the saved filing scope')
+                        inspection_numeric_nodes.update(SUBJECT_PATH + ('evidence_observations', index) for index in indices)
                 visit(child, depth + 1, path + (key,))
         else:
             for index, child in enumerate(item):

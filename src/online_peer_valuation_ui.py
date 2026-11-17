@@ -236,6 +236,18 @@ def _observations_html(scope,*,compact=False):
     return html
 
 
+def saved_tsm_security_html(context):
+    from src.sec_tsm_snapshot_evidence import POLICY_ID
+
+    peer = context.get('peer_read_through') or {}
+    scope = (peer.get('subject_source_context') or {}).get('selected_security_scope') or {}
+    if (scope.get('policy_id'), scope.get('status')) != (POLICY_ID, 'inspection_only'):
+        return ''
+    return (STYLE + '<section class="online-peer-valuation" aria-label="Saved TSM filing evidence">'
+            '<h3>Saved TSM filing evidence</h3><p>ADS valuation remains withheld.</p>'
+            + _selected_security_html(scope) + '</section>')
+
+
 def _selected_security_html(scope):
     if not isinstance(scope,Mapping) or scope.get('status') not in {'supported_common','inspection_only'}:return ''
     html='<details><summary>Selected security and related issuer symbols</summary>'

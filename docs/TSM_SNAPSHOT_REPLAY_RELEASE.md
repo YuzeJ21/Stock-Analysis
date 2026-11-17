@@ -10,6 +10,12 @@ Reprocessing the same captured twelve-company sample with the original observati
 
 Small snapshots still use plain JSON. Larger snapshots use a versioned zlib envelope under the existing 512 KiB file cap and a 1 MiB decoded cap. Decoding verifies one complete stream, the declared byte count and the original inner snapshot. Original limits on individual values, depth and node count still apply. Discover identifies which size bound produced a hold.
 
+## Same-source recheck of the November 16 study
+
+The November 16 TSM study observation failed when the snapshot store checked the four normalized IFRS EPS literals from the April 16 Form 20-F. The prior literal rule covered U.S. GAAP EPS in USD per share. The store now checks the complete TSM inspection scope against the reviewed filing contract, the saved annual filing inventory and exact fact, context and unit references. It verifies each numeric literal and preserves the ordinary-share, ADS, native TWD and USD convenience-translation bases and the filing notes. The application checks the original filing bytes during acquisition. Offline replay checks the saved normalized evidence. [Exact Form 20-F](https://www.sec.gov/Archives/edgar/data/1046179/000162828026025362/tsm-20251231.htm)
+
+The original retained TSM context saved to a disposable store. A repeated save returned the same snapshot, reopening recovered the full context, and comparison returned **Unchanged**. Workbench and Monitor expose the saved security observations and exact source links. All four EPS observations retain their inspection-only status, and ADS valuation stays withheld. The same-input Discover replay count increased from **10/12 to 11/12**, with the remaining capability states and source dates preserved. [Dated study and replay comparison](CROSS_INDUSTRY_SELF_SERVICE.md#same-source-tsm-replay-recheck)
+
 ## Remaining TSM work
 
 The captured context still shows annual Companyfacts pending, direct quarter and interim coverage withheld, and the scenario withheld. The subsequent exact annual workflow brings four native-TWD annual fields from the April 16, 2026 Form 20-F into the workbench and verifies the same reusable rule on UMC. [Native annual release](NATIVE_ANNUAL_OVERVIEW_RELEASE.md) · [Exact SEC filing](https://www.sec.gov/Archives/edgar/data/1046179/000162828026025362/tsm-20251231.htm)

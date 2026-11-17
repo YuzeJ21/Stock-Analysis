@@ -4,6 +4,7 @@
 DATED_STUDY = {
     'baseline_date': '2026-11-08',
     'measured_date': '2026-11-16',
+    'same_source_replay_recheck': ('TSM',),
     'baseline_available': {
         'matched_identity': ('AMD', 'NVDA', 'QCOM', 'JPM', 'BAC', 'C', 'DUK', 'SO', 'NEE', 'TSM', 'SAP'),
         'catalog': ('AMD', 'NVDA', 'QCOM', 'JPM', 'BAC', 'C', 'DUK', 'SO', 'NEE', 'TSM', 'SAP', 'IBN'),

@@ -622,10 +622,15 @@ def build_online_research_context(financial, prices, peers=None, association=Non
     if peer.get('status') != 'research_comparison':
         gaps.append(peer.get('reason') or 'Observed industry references are unavailable.')
     observation_times = []
+    security_scope = (peer.get('subject_source_context') or {}).get('selected_security_scope') or {}
+    from src.sec_tsm_snapshot_evidence import POLICY_ID
+
+    security_documents = security_scope.get('documents', ()) if security_scope.get('policy_id') == POLICY_ID else ()
     for source in (identity if identity_valid else {}, annual or {}, quarterly or {}, foreign or {},
                    archive or {}, nee_quarter_cash['six_months'] if nee_quarter_cash else {},
                    native_annual or {}, native_quarter if native_periods else {}, bank_annual or {},
-                   bank_interim or {}, bank_comparison['baseline'] if bank_comparison else {}, inventory, price):
+                   bank_interim or {}, bank_comparison['baseline'] if bank_comparison else {}, inventory, price,
+                   *security_documents):
         stamp = source.get('observed_at')
         if _fresh(stamp, now):
             observation_times.append(_utc_timestamp(stamp))

@@ -43,6 +43,16 @@ def test_dated_comparison_recounts_the_fixed_sample_and_distinguishes_unattempte
     assert 'current filing facts pending' in html
 
 
+def test_same_source_tsm_recheck_preserves_original_study_results():
+    from src.self_service_research_coverage_ui import dated_coverage_comparison_html
+    from src.self_service_study_results import DATED_STUDY
+
+    html = dated_coverage_comparison_html(DATED_STUDY)
+    assert 'Exact private research replay · <strong>10 / 12 → 10 / 12' in html
+    assert 'Same-source replay recheck</strong> · 10 / 12 → 11 / 12' in html
+    assert 'TSM reopened unchanged using the retained study inputs. ADS valuation remains withheld.' in html
+
+
 def test_storage_proof_uses_readable_scoped_surface_and_escaped_metadata():
     from src.self_service_research_coverage_ui import STYLE,peer_storage_proof_html
     html=peer_storage_proof_html(dict(status='retained',encoding='zlib+base64',expanded_bytes=74100090,

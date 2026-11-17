@@ -63,6 +63,10 @@ All twelve companies were inspected again on November 16, 2026 Toronto time. The
 
 Discover's **Dated study results** shows the per-company changes and unresolved reasons. The live study controls below it start a separate session. The published comparison contains reduced capability states. Filing bodies, provider prices and private snapshots stay in the research environment.
 
+### Same-source TSM replay recheck
+
+The repaired snapshot store reopened TSM's exact retained November 16 research context and compared it as **Unchanged**, preserving all four fiscal 2025 IFRS diluted EPS observations and the notes in the selected-security evidence. On those same twelve-company inputs, exact replay rose from **10/12 to 11/12**. The original dated run remains recorded above. IBN's bank-only evidence retains its separate Workbench result. TSM's ADS valuation remains withheld, and the cohort's peer comparison count stays **4/12**. [TSM replay verification](TSM_SNAPSHOT_REPLAY_RELEASE.md#same-source-recheck-of-the-november-16-study)
+
 ## November 8 controlled repair
 
 Reprocessing the same twelve captured source observations before and after the shared catalog repair improved usable filing catalogs from **5/12 to 12/12**. This is a controlled comparison using the same source inputs, not a fresh market-coverage pass.
