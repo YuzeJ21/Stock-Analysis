@@ -1,6 +1,11 @@
 """Private snapshot behavior: replay and comparison never turn observations live."""
+from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 import json
+from pathlib import Path
+import subprocess
+import sys
+from threading import Barrier
 
 import pytest
 
@@ -56,6 +61,140 @@ def test_save_replay_is_private_immutable_and_explicitly_historical(tmp_path):
     assert list_research_contexts(project_root=tmp_path, **SCOPE) == [first]
     value['business_trend']['metrics'][0]['value'] = 99
     assert load_research_context(first['snapshot_id'], project_root=tmp_path, **SCOPE)['context']['business_trend']['metrics'][0]['value'] == 0.1
+
+
+@pytest.mark.parametrize('write_fails', [True, False], ids=['interrupted', 'short-write'])
+def test_incomplete_snapshot_write_keeps_history_and_allows_exact_retry(tmp_path, monkeypatch, write_fails):
+    from src import online_research_context_store as store
+
+    first = save(context(), tmp_path)
+    existing = snapshot_path(tmp_path, first)
+    original = existing.read_bytes()
+    updated = context(notes={'thesis': 'Second observation'})
+    fdopen = store.os.fdopen
+
+    class IncompleteWrite:
+        def __init__(self, stream):
+            self.stream = stream
+
+        def __enter__(self):
+            self.stream.__enter__()
+            return self
+
+        def __exit__(self, *args):
+            return self.stream.__exit__(*args)
+
+        def write(self, raw):
+            count = self.stream.write(raw[:len(raw) // 2])
+            self.stream.flush()
+            if write_fails:
+                raise OSError('Interrupted private snapshot write')
+            return count
+
+    with monkeypatch.context() as patch:
+        def open_with_fault(fd, mode):
+            stream = fdopen(fd, mode)
+            return IncompleteWrite(stream) if mode == 'wb' else stream
+
+        patch.setattr(store.os, 'fdopen', open_with_fault)
+        with pytest.raises(OSError):
+            save(updated, tmp_path)
+
+    assert store.list_research_contexts(project_root=tmp_path, **SCOPE) == [first]
+    assert existing.read_bytes() == original
+    recovered = save(updated, tmp_path)
+    assert save(updated, tmp_path) == recovered
+    assert store.list_research_contexts(project_root=tmp_path, **SCOPE) == [recovered, first]
+
+
+def test_snapshot_becomes_visible_only_after_completed_write(tmp_path, monkeypatch):
+    from src import online_research_context_store as store
+
+    first = save(context(), tmp_path)
+    observations = []
+    fsync = store.os.fsync
+
+    def inspect_before_sync(fd):
+        observations.append(store.list_research_contexts(project_root=tmp_path, **SCOPE))
+        return fsync(fd)
+
+    monkeypatch.setattr(store.os, 'fsync', inspect_before_sync)
+    added = save(context(notes={'thesis': 'Second observation'}), tmp_path)
+    assert observations[0] == [first]
+    assert store.list_research_contexts(project_root=tmp_path, **SCOPE) == [added, first]
+
+
+def test_process_exit_during_save_leaves_previous_history_replayable(tmp_path):
+    from src import online_research_context_store as store
+
+    first = save(context(), tmp_path)
+    updated = context(notes={'thesis': 'Second observation'})
+    script = """
+import json
+import os
+import sys
+from src import online_research_context_store as store
+
+def stop_during_write(raw, pending, target, directory_fd):
+    pending.parent.mkdir(parents=True, exist_ok=True)
+    pending.write_bytes(raw[:len(raw) // 2])
+    os._exit(17)
+
+store._publish_snapshot = stop_during_write
+context = json.load(sys.stdin)
+scope = {name: context[name] for name in ('profile_key', 'ticker', 'sec_cik')}
+store.save_research_context(context, project_root=sys.argv[1], **scope)
+"""
+    stopped = subprocess.run([sys.executable, '-c', script, str(tmp_path)],
+                             input=json.dumps(updated), text=True, capture_output=True,
+                             cwd=Path(__file__).resolve().parents[1], check=False, timeout=10)
+    assert stopped.returncode == 17, stopped.stderr
+    assert store.list_research_contexts(project_root=tmp_path, **SCOPE) == [first]
+    assert store.load_research_context(first['snapshot_id'], project_root=tmp_path, **SCOPE) == first
+    assert len(list(tmp_path.rglob('snapshot.tmp'))) == 1
+    later = save(updated, tmp_path)
+    assert store.list_research_contexts(project_root=tmp_path, **SCOPE) == [later, first]
+    assert not list(tmp_path.rglob('snapshot.tmp'))
+
+
+def test_concurrent_duplicate_saves_return_the_same_immutable_record(tmp_path):
+    value = context()
+    ready = Barrier(4)
+
+    def save_together():
+        ready.wait(timeout=5)
+        return save(value, tmp_path)
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        results = [pool.submit(save_together) for _ in range(4)]
+        records = [result.result(timeout=10) for result in results]
+    assert all(record == records[0] for record in records)
+    assert [path.name for path in tmp_path.rglob('*.json')] == [records[0]['snapshot_id'] + '.json']
+
+
+def test_concurrent_distinct_saves_enforce_the_scope_limit(tmp_path, monkeypatch):
+    from src import online_research_context_store as store
+
+    monkeypatch.setattr(store, 'MAX_SNAPSHOTS_PER_SCOPE', 2)
+    first = save(context(), tmp_path)
+    ready = Barrier(2)
+
+    def save_together(number):
+        ready.wait(timeout=5)
+        return save(context(notes={'thesis': str(number)}), tmp_path)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = [pool.submit(save_together, number) for number in range(2)]
+        saved = []
+        rejected = []
+        for result in results:
+            try:
+                saved.append(result.result(timeout=10))
+            except ValueError as error:
+                rejected.append(str(error))
+    assert rejected == ['Saved research history limit exceeded']
+    assert len(saved) == 1
+    assert store.list_research_contexts(project_root=tmp_path, **SCOPE, limit=2) == [saved[0], first]
 
 
 def test_empty_reads_make_no_directories_and_unknown_snapshot_is_not_current(tmp_path):

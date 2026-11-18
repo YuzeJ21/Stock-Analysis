@@ -395,11 +395,15 @@ def _safe(path, root):
     return path
 
 
+def _store_root(root):
+    return root / 'outputs/local/online-research-contexts'
+
+
 def _profile_path(profile_key, project_root):
     # Validate the profile without accepting path-bearing ticker/CIK inputs.
     _scope(profile_key, 'VALID', '0000000001')
     root = _root(project_root)
-    return _safe(root / 'outputs/local/online-research-contexts' / sha256(profile_key.encode()).hexdigest(), root), root
+    return _safe(_store_root(root) / sha256(profile_key.encode()).hexdigest(), root), root
 
 
 def _directory(scope, project_root):
@@ -516,28 +520,58 @@ def list_research_contexts(*, profile_key, ticker, sec_cik, project_root=None, l
     return sorted(result, key=lambda row: (_timestamp(row['saved_at']), row['snapshot_id']), reverse=True)[:limit]
 
 
+def _publish_snapshot(raw, pending, target, directory_fd):
+    pending.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+    descriptor = os.open(pending, flags, 0o600)
+    try:
+        with os.fdopen(descriptor, 'wb') as handle:
+            if handle.write(raw) != len(raw):
+                raise OSError('Incomplete research snapshot write')
+            handle.flush()
+            os.fsync(handle.fileno())
+        # Link the complete file without replacing an existing immutable ID.
+        os.link(pending, target.name, dst_dir_fd=directory_fd, follow_symlinks=False)
+    finally:
+        pending.unlink(missing_ok=True)
+
+
 def save_research_context(context, *, profile_key, ticker, sec_cik, project_root=None):
     """Save an immutable normalized copy; exact repeated inputs are idempotent."""
+    try:
+        import fcntl
+    except ImportError as exc:
+        raise OSError('Research snapshot saves require local filesystem locking') from exc
+
     scope = _scope(profile_key, ticker, sec_cik)
     snapshot = _snapshot(_context(context, scope))
     raw = _stored_snapshot(snapshot)
     directory, root = _directory(scope, project_root)
-    existing = list_research_contexts(**scope, project_root=project_root, limit=MAX_SNAPSHOTS_PER_SCOPE)
-    for saved in existing:
-        if saved['snapshot_id'] == snapshot['snapshot_id']:
-            return saved
-    if len(existing) >= MAX_SNAPSHOTS_PER_SCOPE:
-        raise ValueError('Saved research history limit exceeded')
+    store = _store_root(root)
     directory.mkdir(parents=True, exist_ok=True)
-    target = _safe(directory / (snapshot['snapshot_id'] + '.json'), root)
+    directory_fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     try:
-        descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, 'O_NOFOLLOW', 0), 0o600)
-        with os.fdopen(descriptor, 'wb') as handle:
-            handle.write(raw)
-    except FileExistsError:
-        # Another save may have completed after the bounded directory read.
-        return load_research_context(snapshot['snapshot_id'], **scope, project_root=project_root)
-    return snapshot
+        fcntl.flock(directory_fd, fcntl.LOCK_EX)
+        # A stopped writer can leave one pending file per scope. Keep it out of
+        # saved history for both current and previous readers.
+        pending = _safe(store / '.pending' / directory.relative_to(store) / 'snapshot.tmp', root)
+        pending.unlink(missing_ok=True)
+        existing = list_research_contexts(**scope, project_root=project_root, limit=MAX_SNAPSHOTS_PER_SCOPE)
+        for saved in existing:
+            if saved['snapshot_id'] == snapshot['snapshot_id']:
+                os.fsync(directory_fd)
+                return saved
+        if len(existing) >= MAX_SNAPSHOTS_PER_SCOPE:
+            raise ValueError('Saved research history limit exceeded')
+        target = _safe(directory / (snapshot['snapshot_id'] + '.json'), root)
+        try:
+            _publish_snapshot(raw, pending, target, directory_fd)
+        except FileExistsError:
+            snapshot = load_research_context(snapshot['snapshot_id'], **scope, project_root=project_root)
+        os.fsync(directory_fd)
+        return snapshot
+    finally:
+        os.close(directory_fd)
 
 
 def _metadata_key(key):

@@ -30,6 +30,16 @@ Public documentation checks passed 94 of 97 assertions, up from 93 at the starti
 
 The provider rehearsal replayed retained DUK observations with a simulated outage and zero upstream requests. The failed refresh replaced the previous peer comparison with a hold. Explicit retry restored the comparison from the same evidence. Passive reads made zero additional provider calls. The local rollback rehearsal used the snapshot reader from [`3682b320`](https://github.com/YuzeJ21/Stock-Analysis/commit/3682b320cf27a2c5b7af84c6d4566e808057a7e5) before returning to the current reader. The rehearsal exercised saved-data compatibility and exposed the interrupted-write gap above. Hosted application, storage and operations recovery remain open.
 
+### Snapshot save and replay recovery
+
+Snapshot writes now stage a private file outside the history index, check the complete write, and synchronize it before publishing the immutable ID. Saves in one profile, issuer and ticker scope serialize the capacity check and publication. Duplicate inputs keep the existing record. A stopped writer can leave one pending file in its scope. The next save clears that file while the earlier history remains available.
+
+The local save path requires filesystem locking, same-volume hard links, and file and directory synchronization. Existing snapshot IDs, formats, and replay paths still apply. Damaged published files continue to surface a verification error.
+
+The 705 targeted tests included a thrown write error, a short write, abrupt process exit, duplicate retries, concurrent saves and the scope capacity limit. All six research routes rendered, and the package built. Eight browser checks across two constructed profiles and both screen sizes covered filing research, saved comparisons, exact Monitor replay, and the other profile's snapshot remaining unavailable. Separate desktop and phone checks reopened the unchanged DUK pair. The previous and current readers both reopened all four constructed snapshots with matching bytes. The browser and rollback rehearsals used zero upstream provider requests.
+
+This local change advances the save and recovery gate. The intended hosted environment, authenticated workspace controls, provider permission and independent researcher evidence still need verification before an operated pilot.
+
 ## Historical demo sharing audit
 
 Date: 2026-06-22
