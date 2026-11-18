@@ -2,6 +2,8 @@
 
 ## Boundary
 
+The [November 18 Workbench and Monitor audit](PILOT_READINESS_AUDIT.md#workbench-and-monitor-private-pilot) records the private pilot hold, the tested local controls, and the evidence needed for hosted operation.
+
 The repository contains a deterministic readiness contract for a future private beta. It does not implement runtime authentication, private workspaces, hosted persistence, user accounts, entitlements, audit storage, monitoring, health checks, incident response, rollback, owner capacity, or hosting. Real user evidence remains `awaiting_external_review`.
 
 The contract is available through `src.private_beta_readiness.build_private_beta_readiness()`. It accepts only declared review facts; it does not inspect environment variables, scan files, open accounts, contact a host, or read secret material.

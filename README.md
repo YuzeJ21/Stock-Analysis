@@ -135,7 +135,7 @@ Data Health and Proof History remain available as Advanced Evidence. Operator mo
 - **Coverage is measured by capability.** Listing identity, issuer domicile, security type, active status, financial availability, analysis eligibility, and point-in-time coverage are distinct. Discover keeps unsupported and unverified records visible.
 - **Peer comparisons have explicit gates.** The online annual P/E path requires compatible reported diluted EPS, verified issuer and security identity, same-day closing prices, and at least three qualifying industry references. Selection rationale and exclusions remain inspectable. [Peer valuation method](docs/ONLINE_PEER_VALUATION.md)
 - **Each observation keeps its dates.** Annual, quarterly, and cumulative periods retain their definitions. Saved observations describe the evidence captured at that time.
-- **Source rights apply independently.** SEC fact retention, archive inspection, and price-provider permissions have separate scopes. The current price path is for personal research, with commercial operation and redistribution held for separate review. [Data Strategy](docs/DATA_STRATEGY.md)
+- **Source rights apply independently.** SEC fact retention, archive inspection, and price-provider permissions have separate scopes. The application restricts its current price path to personal research. Provider permission for automated access, commercial operation and redistribution requires a separate review. [Data Strategy](docs/DATA_STRATEGY.md) · [Private pilot audit](docs/PILOT_READINESS_AUDIT.md#source-decisions-for-the-pilot)
 - **Evidence gaps remain visible.** Missing fields and unsupported comparisons stay withheld. A screenshot demonstrates the interface. Current readiness and source permissions require their own checks.
 
 The supported workflow is research-only. Investment advice, broker account actions, order routing, trading automation, and direct buy or sell instructions are outside its scope.
@@ -145,8 +145,9 @@ The supported workflow is research-only. Investment advice, broker account actio
 | Stage | Current focus |
 | --- | --- |
 | **Available today** | A local research beta with online filing checks, financial trends, peer valuation, scenarios, notes, and saved evidence replay. Discover includes five dated venue reviews and a separate twelve-company capability study. |
+| **Verified examples** | GitHub Pages serves the static public demo and the dated AMD filing case. The local Workbench and Monitor support saved SEC evidence reviews for NEM, AMD, and DUK. |
 | **Next** | Review remaining listing and security-identity gaps, qualify more filing comparisons for Monitor, and rerun the industry study to measure research coverage. |
-| **Later gates** | Hosted full-workspace operation, authentication and private workspaces, operated data rights, provider reliability, independent user evidence, and commercial validation. |
+| **Later gates** | Hosted full-workspace operation, authentication and private workspaces, operated data rights, provider reliability, independent user evidence, and commercial validation. The operated pilot remains on hold. [Private pilot audit](docs/PILOT_READINESS_AUDIT.md#workbench-and-monitor-private-pilot) |
 
 The [Roadmap](ROADMAP.md) is the active priority list. [Completed Milestones](docs/COMPLETED_MILESTONES.md) records shipped work and the evidence required to revisit parked features. Use `make next-stage` for the product direction and separate saved-readiness checks.
 

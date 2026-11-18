@@ -1,5 +1,37 @@
 # Pilot Readiness Audit
 
+## Workbench and Monitor private pilot
+
+Reviewed November 18, 2026.
+
+**The operated private pilot stays on hold.** Workbench and Monitor support a local research rehearsal using disposable profiles and constructed evidence. The inspected repository and GitHub deployment records show a public static Pages site. The readiness classifier's `local_ready` result describes local guidance and controls. [Private beta architecture](PRIVATE_BETA_ARCHITECTURE.md) · [Public Pages](https://yuzej21.github.io/Stock-Analysis/)
+
+| Gate | Local evidence | Open before an operated pilot |
+| --- | --- | --- |
+| Source rights and retention | The registry lists six approved SEC Companyfacts fields, with derived-data redistribution and attribution conditions. Exact filing and listing evidence use their own personal-inspection status. Yahoo price and peer context remain research-only. Commercial mode blocks the personal online paths at the entry points. | Record permission for the exact pilot workflow, including provider access, display to another user, stored research snapshots, retention and deletion, and permitted outputs. Release only approved fields and disable unsupported lanes. |
+| Workspace isolation | Saved notes and snapshot access use the selected profile, ticker and issuer. The separate deny-by-default authorization policy checks identity, active membership, workspace and role and returns an audit obligation. | Connect authenticated principals to server-side authorization on all Workbench and Monitor reads and writes. Verify access denial, revocation and audit persistence with two test accounts against the intended storage and host. |
+| Provider recovery | Listing refresh can reuse recent matching session receipts after qualifying transport failures. It retains the original dates and revalidates market and financial evidence independently. Explicit failures withdraw old answers and repeat failures are bounded. Saved evidence can reopen without providers. | Verify timeouts, stale data, outage recovery, alerts and operating ownership on the intended host. Enforce the SEC request budget across processes and users and keep unsupported answers withheld during the rehearsal. [SEC rate policy](https://www.sec.gov/filergroup/announcements-old/new-rate-control-limits) |
+| Rollback | The previous snapshot reader and the current reader reopened both exact DUK snapshots in a disposable store with matching file digests. An injected write interruption left a partial file that blocked the affected history list. Exact lookup of an earlier verified snapshot still worked. | Publish new snapshots atomically and verify interrupted-save recovery. Keep a verified previous application and matching configuration available. Rehearse restoration on the intended host and verify user separation, saved-pair access, audit continuity and health after the switch. Record who can carry it out. |
+| Independent workflow evidence | Automated checks exercise the product and verify stated states. Independent researcher evidence remains `awaiting_external_review`. | Record one independently completed Workbench-to-Monitor workflow before reporting the private pilot ready. |
+
+### Source decisions for the pilot
+
+- **SEC Companyfacts and EDGAR archives.** The SEC permits access and reuse of public filings and publishes fair-access requirements. The application registry covers normalized Companyfacts revenue, shares outstanding, filing dates, operating income, operating cash flow and capital expenditures. Archive receipts, other concepts and live delivery to pilot users need a scope decision under the application's release policy. [SEC reuse guidance](https://www.sec.gov/about/webmaster-frequently-asked-questions) · [SEC automated access](https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data) · [Application source registry](../config/source_rights.yml)
+- **Yahoo Finance.** Workbench uses price and company context and can preserve normalized price and peer observations with a research snapshot. The registry restricts that path to local research and leaves redistribution unapproved. Yahoo's published terms require express prior permission for automated collection. The pilot needs a recorded permission decision for the provider path, including delivery and storage. [Yahoo terms](https://legal.yahoo.com/ca/en/yahoo/terms/otos/) · [Workbench valuation method](ONLINE_PEER_VALUATION.md)
+- **Listing metadata.** Nasdaq Trader documents both directory feeds and describes a reuse exception for specified categories of its own events data. The combined listing input also uses other-exchange records and SEC issuer mappings. Review the intended use of each exact input before sharing the normalized inventory or relying on it in a hosted workflow. [Directory definitions](https://www.nasdaqtrader.com/Trader.aspx?id=SymbolDirDefs) · [Nasdaq data notice](https://www.nasdaqtrader.com/trader.aspx?id=symbollookup)
+
+### Automated verification
+
+The November 18 checks used application revision [`3ed65199`](https://github.com/YuzeJ21/Stock-Analysis/commit/3ed65199da2081bba12d5ba8604e0d3706f9bdba). The 556 targeted tests passed. The commercial-beta contract checks and all six research-route renders passed locally. The contract continued to report hosted authentication and storage as account-required, and rollback, incident response and owner capacity as operations-required.
+
+Eight browser cases passed across desktop and phone using two constructed profiles in a shared disposable store. Each profile reopened its own snapshot from Monitor and preserved it on reload. The other profile's snapshot stayed unavailable in Workbench. Replay preserved the saved bytes and made zero provider requests. Hosted authentication and authorization require verification in the intended service.
+
+Public documentation checks passed 94 of 97 assertions, up from 93 at the starting revision. The three pre-existing failures cover two roadmap length assertions and a LinkedIn brief wording assertion.
+
+The provider rehearsal replayed retained DUK observations with a simulated outage and zero upstream requests. The failed refresh replaced the previous peer comparison with a hold. Explicit retry restored the comparison from the same evidence. Passive reads made zero additional provider calls. The local rollback rehearsal used the snapshot reader from [`3682b320`](https://github.com/YuzeJ21/Stock-Analysis/commit/3682b320cf27a2c5b7af84c6d4566e808057a7e5) before returning to the current reader. The rehearsal exercised saved-data compatibility and exposed the interrupted-write gap above. Hosted application, storage and operations recovery remain open.
+
+## Historical demo sharing audit
+
 Date: 2026-06-22
 
 Last repo-truth refresh: 2026-07-09
@@ -10,13 +42,13 @@ Verdict: ready for a controlled pilot with manual gates.
 
 This audit reviews the current repository as a pilot package, not as a broad public launch. The product is research-only and readiness-first: missing trusted data must remain visible as `blocked`, `partial`, `still_blocked`, `skipped`, or `excluded` rather than being filled with placeholder analysis.
 
-## Current Stage
+### Stage at the time
 
 Current stage: controlled GitHub/LinkedIn pilot-share package with manual gates.
 
 The repository is past prototype/internal-alpha for the core workflow because it has a working Streamlit dashboard, single-stock reports, readiness gates, proof ledgers, screenshot evidence, and release checks. It is ready to share as a controlled GitHub/LinkedIn portfolio demo after `make public-check` passes, but it is not public launch-ready as a hosted data product. Hosted demo remains external-account-required until a public URL is deployed and verified. Provider activation remains external-key-required for FMP, Alpha Vantage, and Finnhub. Broad fundamentals, source-backed peers, earnings, analyst estimates, and full valuation inputs remain intentionally incomplete for much of the broad universe. Use `make readiness-ops-center` for current local counts before quoting them; saved generated snapshots are historical context only.
 
-## Stage Ratings
+### Stage ratings
 
 | Category | Rating | Evidence |
 | --- | --- | --- |
@@ -33,7 +65,7 @@ The repository is past prototype/internal-alpha for the core workflow because it
 | Expansion roadmap | Yellow | Next expansion is source/provider dependent: configure at most one keyed provider, run one reviewed ticker smoke, and keep peer/optional lanes source-gated until trusted rows exist. |
 | Maintainability | Yellow | Many dashboard helpers have been extracted and tested, but the Streamlit dashboard remains large and should continue to shrink after pilot-critical behavior stabilizes. |
 
-## Pilot Blockers
+### Pilot blockers
 
 | ID | Blocker title | Severity | Pilot impact | Evidence from repo | Fixable by code/docs | Planned fix | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -46,7 +78,7 @@ The repository is past prototype/internal-alpha for the core workflow because it
 | PB-007 | Optional provider access can be unavailable | Medium | SEC/Yahoo paths may fail in restricted sessions, so broad unattended data proof cannot be guaranteed. | Session preflight commands can return `session_sec_unavailable` or `session_yfinance_unavailable`. | No, network/provider dependent | Use local reviewed rows when present; otherwise mark ticker/lane `still_blocked`, `skipped`, or `excluded` and move to the next executable lane. | External/manual gate |
 | PB-008 | Keyed free-tier providers not configured | Medium | More fundamentals/share-count fallback coverage cannot expand through FMP, Alpha Vantage, or Finnhub until local keys are configured. | `make session-source-preflight` reports FMP, Alpha Vantage, and Finnhub as `provider_key_missing`; `make project-status` says the best next proof is `make provider-setup-checklist`. | No, owner setup dependent | Keep real keys out of the repo; use the reviewed one-ticker smoke command before broad batches after setup. | External/manual gate |
 
-## Command Evidence
+### Command evidence
 
 | Command | Result | Notes |
 | --- | --- | --- |
@@ -64,7 +96,7 @@ The repository is past prototype/internal-alpha for the core workflow because it
 | `make public-wording-check` | Passed | Public wording scan passed; rerun before sharing because the scanned file count changes as docs and sample artifacts change. |
 | `make browser-qa-evidence` | Passed | Verdict ready; all listed screenshot evidence is ready and screenshots remain product evidence only. |
 
-## Product UI Review
+### Product UI review
 
 Reviewed product-facing surfaces:
 
@@ -84,7 +116,7 @@ Assessment:
 - The research-only boundary is repeated in README, checks, runbooks, and release docs.
 - The remaining UI risk is not correctness; it is review freshness after future changes. Re-run browser QA, dashboard smoke, and live desktop/mobile review after UI wording, layout, route, or screenshot changes.
 
-## Remaining External / Manual Gates
+### External and manual gates at the time
 
 - Source coverage: trusted fundamentals, share counts, peer mappings, earnings, and analyst estimates require reviewed source rows. Code must not invent these.
 - Provider setup: FMP, Alpha Vantage, and Finnhub are keyed free-tier fallbacks. Configure them only in local env files, run the reviewed one-ticker smoke command first, then validate and preview before applying any row.
@@ -92,7 +124,7 @@ Assessment:
 - Public-check confirmation: run `make public-check` immediately before sharing so the wording, whitespace, full tests, dashboard smoke, browser QA evidence, and visitor-demo gates are fresh.
 - License choice: the repository is public-reviewable under the controlled portfolio-demo license, but it should not be described as open source or reusable software unless the owner intentionally changes the license.
 
-## Pilot Readiness Verdict
+### Demo sharing verdict at the time
 
 Ready for a controlled pilot with manual gates.
 
