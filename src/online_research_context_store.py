@@ -6,7 +6,7 @@ A checksum verifies saved bytes; it is not a source approval or a signature.
 from __future__ import annotations
 
 from base64 import b64decode, b64encode
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from hashlib import sha256
 from itertools import islice
@@ -21,7 +21,7 @@ import zlib
 from src.sec_cover_observations import COVER_FIELDS, validate_cover_scope
 from src.sec_native_quarter_comparisons import BASES as NATIVE_COMPARISON_BASES, FIELDS as NATIVE_COMPARISON_FIELDS
 from src.sec_native_quarter_comparisons import reviewed_filing_revenue_definition
-from src.sec_reported_numeric import valid_reported_numeric
+from src.sec_reported_numeric import SCHEMA as ARCHIVE_NUMBER_SCHEMA, valid_reported_numeric
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -649,6 +649,96 @@ def find_saved_native_filing_pair(snapshots, after):
         if older and older['accession'] != current['accession'] and all(
                 older[k] == current[k] for k in ('period_start', 'period_end', 'currency')):
             pair = compare_native_filing_pair(snapshot, after)
+            if pair['status'] == 'available':
+                return snapshot, pair
+    return None
+
+
+def _archive_quarter(context):
+    from src.online_filing_context import _ref
+    from src.sec_exact_filing import MAP_URL, RIGHTS, SOURCE_ID
+
+    periods = (context.get('business_trend') or {}).get('periods', [])
+    rows = [row for row in periods if row.get('kind') == 'quarterly'
+            and row.get('status') == 'available' and row.get('currency') == 'USD'
+            and row.get('form') == '10-Q'
+            and (row.get('fields', {}).get('revenue') or {}).get('reported_numeric_schema') == ARCHIVE_NUMBER_SCHEMA]
+    if len(rows) != 1:
+        return None
+    row = rows[0]
+    revenue = row['fields']['revenue']
+    binding = ('source_url', 'observed_at', 'payload_sha256', 'accepted_at')
+    if any(field.get('reported_numeric_schema') != ARCHIVE_NUMBER_SCHEMA or field.get('taxonomy') != 'us-gaap'
+           or field.get('source_id') != SOURCE_ID or any(field[key] != revenue[key] for key in binding)
+           for field in row['fields'].values()):
+        return None
+    receipts = [ref for ref in context.get('source_receipts', []) if ref.get('source') == 'exact_quarter_receipt']
+    urls = (MAP_URL, f"https://data.sec.gov/submissions/CIK{context['sec_cik']}.json", revenue['source_url'])
+    as_of = _timestamp(context['observed_at'])
+    if len(receipts) != 3 or any(ref.get('rights_status') != RIGHTS or not _ref(ref, url, as_of, historical=True)
+                                 for ref, url in zip(receipts, urls)):
+        return None
+    times = [_timestamp(ref['observed_at']) for ref in receipts]
+    if (times != sorted(times) or times[-1] - times[0] > timedelta(hours=24)
+            or any(receipts[-1][key] != revenue[key] for key in ('observed_at', 'payload_sha256'))):
+        return None
+    filing = {key: revenue[key] for key in ('source_url', 'accession', 'filed', 'accepted_at',
+              'observed_at', 'payload_sha256', 'period_start', 'period_end')}
+    return row, filing
+
+
+def compare_exact_filing_pair(before, after):
+    """Compare just the compatible direct periods of two verified observations."""
+    from src.online_research_tools import _compatible, _definition
+
+    left, right = _comparison_context(before), _comparison_context(after)
+    if any(left[key] != right[key] for key in _SCOPE_KEYS):
+        raise ValueError('Research filing pair scope mismatch')
+    if _direct_native_quarter(right):
+        return compare_native_filing_pair(before, after)
+
+    baseline, current = _archive_quarter(left), _archive_quarter(right)
+    if not baseline or not current:
+        return {'status': 'withheld', 'reason': 'Exact standalone-quarter evidence is missing or unverified'}
+    old_row, old_filing = baseline
+    new_row, new_filing = current
+    if old_filing['accession'] == new_filing['accession']:
+        return {'status': 'same_filing', 'reason': 'Both observations use the same filing'}
+    if not _compatible(old_row, new_row, 'quarterly', sequential=True):
+        return {'status': 'withheld', 'reason': 'Consecutive standalone quarters in the same currency are required'}
+    if (_timestamp(new_filing['accepted_at']) <= _timestamp(old_filing['accepted_at'])
+            or _timestamp(new_filing['observed_at']) < _timestamp(old_filing['observed_at'])
+            or _timestamp(right['observed_at']) < _timestamp(left['observed_at'])):
+        return {'status': 'withheld', 'reason': 'A later SEC acceptance and ordered observations are required'}
+    fields = {}
+    for name in NATIVE_COMPARISON_FIELDS:
+        old, new = (row['fields'].get(name) for row in (old_row, new_row))
+        reason = None
+        if old is None or new is None:
+            cumulative_only = all(
+                name not in row['fields'] and (row.get('cumulative_fields', {}).get(name) or {}).get(
+                    'reported_numeric_schema') == ARCHIVE_NUMBER_SCHEMA for row in (old_row, new_row))
+            reason = ('Both filings report only a year-to-date figure' if cumulative_only
+                      else 'No standalone-quarter figure in both filings')
+        elif not _definition(old, new):
+            reason = 'Filing field definitions differ'
+        change = None if reason else new['value'] - old['value']
+        status = 'withheld' if change is None else 'increased' if change > 0 else 'decreased' if change < 0 else 'unchanged'
+        fields[name] = dict(status=status, reason=reason, baseline=old, current=new, change=change)
+    return dict(status='available', comparison_basis='quarter_over_quarter', currency=old_row['currency'],
+                baseline=old_filing, current=new_filing, fields=fields)
+
+
+def find_saved_filing_pair(snapshots, after):
+    """Select a compatible saved baseline using the current filing's comparison method."""
+    current = _comparison_context(after)
+    if _direct_native_quarter(current):
+        return find_saved_native_filing_pair(snapshots, after)
+    if not _archive_quarter(current):
+        return None
+    for snapshot in snapshots:
+        if _archive_quarter(snapshot['context']):
+            pair = compare_exact_filing_pair(snapshot, after)
             if pair['status'] == 'available':
                 return snapshot, pair
     return None

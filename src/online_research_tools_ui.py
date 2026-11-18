@@ -253,12 +253,19 @@ def _forward_decision(st, context):
         st.json({'forward_view': forward, 'research_process': decision}, expanded=False)
 
 
-def _native_filing_pair(st, pair):
-    st.markdown('#### Same-quarter SEC filing comparison')
+def _filing_pair(st, pair):
+    sequential = pair.get('comparison_basis') == 'quarter_over_quarter'
+    st.markdown('#### Quarter-over-quarter SEC filing comparison' if sequential else
+                '#### Same-quarter SEC filing comparison' if pair['status'] == 'available' else '#### SEC filing comparison')
     if pair['status'] != 'available':
         st.warning(pair['reason'])
         return
-    st.caption(f"{pair['period_start']} through {pair['period_end']} · {pair['currency']} · Direct quarter")
+    if sequential:
+        for key, label in (('baseline', 'Baseline'), ('current', 'Later')):
+            filing = pair[key]
+            st.caption(f"{label} quarter · {filing['period_start']} through {filing['period_end']} · {pair['currency']}")
+    else:
+        st.caption(f"{pair['period_start']} through {pair['period_end']} · {pair['currency']} · Direct quarter")
     links = [f"[{label} SEC filing · {pair[key]['filed']}]({pair[key]['source_url']})"
              for key, label in (('baseline', 'Baseline'), ('current', 'Later'))]
     st.markdown(' · '.join(links))
@@ -266,6 +273,8 @@ def _native_filing_pair(st, pair):
         for key, label in (('baseline', 'Baseline'), ('current', 'Later')):
             filing = pair[key]
             st.caption(f"{label} · {filing['accession']} · Accepted {filing['accepted_at']} · Observed {filing['observed_at']}")
+            if sequential:
+                st.caption(f"Filing SHA-256 · `{filing['payload_sha256']}`")
     labels = {'revenue': 'Revenue', 'operating_income': 'Operating income',
               'cash_from_operations': 'Operating cash flow', 'capital_expenditures': 'PP&E purchases'}
     scales = {0: 'units', 3: 'thousands', 6: 'millions', 9: 'billions'}
@@ -273,18 +282,29 @@ def _native_filing_pair(st, pair):
         for name, field in pair['fields'].items():
             status = field['status'].replace('_', ' ').capitalize()
             st.write(f"**{labels[name]}** · {status}" + (f" · {field['reason']}" if field['reason'] else ''))
-            amounts = [f"{title} {value['reported_text']} {value['unit']} {scales[value['scale']]}"
-                       for key, title in (('baseline', 'Baseline'), ('current', 'Later'))
-                       if (value := field[key])]
+            amounts = []
+            for key, title in (('baseline', 'Baseline'), ('current', 'Later')):
+                value = field[key]
+                if value:
+                    if sequential:
+                        amounts.append(f"[{title} {value['unit']} {value['value']:,.12g}]({value['source_ref']})")
+                    else:
+                        amounts.append(f"{title} {value['reported_text']} {value['unit']} {scales[value['scale']]}")
+            if sequential and field['change'] is not None:
+                amounts.append(f"Change {pair['currency']} {field['change']:+,.12g}")
             if amounts:
                 st.caption(' · '.join(amounts))
             definition_evidence = field.get('definition_evidence')
-            if definition_evidence or field['reason'] == 'Filing field definitions differ':
+            if sequential and field['reason'] == 'Filing field definitions differ':
+                st.caption(f"Reported concepts · Baseline: {field['baseline']['concept']} · Later: {field['current']['concept']}")
+            elif definition_evidence or field['reason'] == 'Filing field definitions differ':
                 st.caption(f"Reported lines · Baseline: {field['baseline']['row_label']} · Later: {field['current']['row_label']}")
             if definition_evidence:
                 st.caption(f"{definition_evidence['explanation']} "
                            f"[{definition_evidence['source_label']}]({definition_evidence['source_url']})")
     st.caption('Year-to-date figures appear separately in Financial Trends.')
+    if sequential:
+        st.caption('Different reporting quarters can reflect seasonality.')
     if 'cash_reconciliation' in pair:
         from src.sec_online_quarter_view import tsm_cash_reconciliation_html
 
@@ -296,7 +316,7 @@ def _snapshots(st, context, bundle):
         st.info('Personal online research replay is unavailable in this workspace.')
         return
     from src.online_research_context_store import (
-        compare_native_filing_pair, compare_research_contexts, find_saved_native_filing_pair,
+        compare_exact_filing_pair, compare_research_contexts, find_saved_filing_pair,
         list_research_contexts, load_research_context, save_research_context,
     )
     with st.expander('Saved online research · replay and compare', expanded=bool(st.query_params.get('research_snapshot'))):
@@ -321,7 +341,7 @@ def _snapshots(st, context, bundle):
                 st.info('Historical replay · ' + historical['observed_at'])
                 if baseline_id:
                     baseline = load_research_context(baseline_id, **scope, project_root=PROJECT_ROOT)
-                    _native_filing_pair(st, compare_native_filing_pair(baseline, historical))
+                    _filing_pair(st, compare_exact_filing_pair(baseline, historical))
                 trend = historical['context'].get('business_trend') or {}
                 if trend.get('ase_net_ppe_payments'):
                     st.markdown(ase_net_ppe_html(trend['ase_net_ppe_payments']), unsafe_allow_html=True)
@@ -357,9 +377,9 @@ def _snapshots(st, context, bundle):
                     st.markdown(security, unsafe_allow_html=True)
                 _evidence(st, historical['context'])
             elif not baseline_id:
-                live_match = find_saved_native_filing_pair(snapshots, context)
+                live_match = find_saved_filing_pair(snapshots, context)
                 if live_match:
-                    _native_filing_pair(st, live_match[1])
+                    _filing_pair(st, live_match[1])
                 net = (context.get('business_trend') or {}).get('ase_net_ppe_payments')
                 if net:
                     st.markdown(ase_net_ppe_html(net), unsafe_allow_html=True)
@@ -420,7 +440,7 @@ def render_online_research_monitor(st, *, profile_key):
         st.info('Personal online research snapshots are unavailable in this workspace.')
         return
     from src.online_research_context_store import (
-        compare_native_filing_pair, compare_research_contexts, find_saved_native_filing_pair,
+        compare_exact_filing_pair, compare_research_contexts, find_saved_filing_pair,
         list_research_context_scopes, list_research_contexts, load_research_context,
     )
     st.markdown('### Saved online research updates')
@@ -451,20 +471,20 @@ def render_online_research_monitor(st, *, profile_key):
             exact_scope = dict(profile_key=profile_key, ticker=scope['ticker'], sec_cik=scope['sec_cik'], project_root=PROJECT_ROOT)
             latest = load_research_context(st.query_params.get('return_research_snapshot'), **exact_scope)
             baseline = load_research_context(baseline_id, **exact_scope)
-            native_match = (baseline, compare_native_filing_pair(baseline, latest))
+            filing_match = (baseline, compare_exact_filing_pair(baseline, latest))
         else:
-            native_match = find_saved_native_filing_pair(snapshots[1:], latest) if len(snapshots) >= 2 else None
+            filing_match = find_saved_filing_pair(snapshots[1:], latest) if len(snapshots) >= 2 else None
         st.caption(('Selected observation: ' if baseline_id else 'Latest observation: ') + latest['observed_at'])
         trend = latest['context'].get('business_trend') or {}
         pair = trend.get('bank_interim_comparison')
-        if len(snapshots) >= 2 and not native_match:
+        if len(snapshots) >= 2 and not filing_match:
             label = 'Saved snapshot comparison' if pair else 'Latest pair'
             st.write(label + ': ' + _label(compare_research_contexts(snapshots[1], latest)['status']))
         if pair:
             from src.sec_exact_filing_view import bank_quarter_comparison_html
             st.markdown(bank_quarter_comparison_html(trend['bank_interim'], pair), unsafe_allow_html=True)
-        if native_match:
-            _native_filing_pair(st, native_match[1])
+        if filing_match:
+            _filing_pair(st, filing_match[1])
         if trend.get('ase_net_ppe_payments'):
             st.markdown(ase_net_ppe_html(trend['ase_net_ppe_payments']), unsafe_allow_html=True)
         if trend.get('nee_quarter_cash'):
@@ -482,9 +502,9 @@ def render_online_research_monitor(st, *, profile_key):
             st.write(_label(gap))
         query = dict(mode='research', page='company-workbench', ticker=scope['ticker'],
             section='notes', research_cik=scope['sec_cik'], research_snapshot=latest['snapshot_id'])
-        if native_match:
-            query['research_baseline'] = native_match[0]['snapshot_id']
-        st.button('Reopen exact filing pair' if pair or native_match else 'Reopen exact saved research', key='online-research-monitor-open:' + profile_key,
+        if filing_match:
+            query['research_baseline'] = filing_match[0]['snapshot_id']
+        st.button('Reopen exact filing pair' if pair or filing_match else 'Reopen exact saved research', key='online-research-monitor-open:' + profile_key,
             on_click=st.query_params.from_dict, args=(query,))
     except (OSError, ValueError, TypeError, UnicodeError, IndexError):
         st.warning('Online research snapshots could not be verified. Existing SEC review and company notes remain separate.')
