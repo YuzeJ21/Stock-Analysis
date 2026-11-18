@@ -90,6 +90,37 @@ def test_selected_security_evidence_qualifies_only_the_literal_common_eps(monkey
     assert build(c)['reason']=='selected_security_eps_conflict'
 
 
+def test_selected_preferred_title_cannot_borrow_another_cover_rows_common_title(monkeypatch):
+    from selected_security_fixtures import scoped_collection
+    from test_online_peer_valuation import build
+
+    policy, collection = scoped_collection()
+    install(monkeypatch, policy)
+    assert build(collection)['subject']['multiple'] == 30
+
+    cover = collection['issuers'][0]['selected_security_evidence']['documents']['cover']
+    raw = base64.b64decode(cover['payload_raw_base64'])
+    start = raw.index(b'<x:context id="common">')
+    end = raw.index(b'</x:context>', start) + len(b'</x:context>')
+    independent_context = raw[start:end].replace(b'id="common"', b'id="other-row"')
+    raw = raw.replace(b'</x:context><ix:nonNumeric', b'</x:context>' + independent_context + b'<ix:nonNumeric', 1)
+    raw = raw.replace(b'>Common Stock</ix:nonNumeric>', b'>Series A Preferred Stock</ix:nonNumeric>')
+    common_row = (
+        b'<ix:nonNumeric id="other-title" name="dei:Security12bTitle" contextRef="other-row">Common Stock</ix:nonNumeric>'
+        b'<ix:nonNumeric id="other-symbol" name="dei:TradingSymbol" contextRef="other-row">FICT</ix:nonNumeric>'
+        b'<ix:nonNumeric id="other-exchange" name="dei:SecurityExchangeName" contextRef="other-row">Nasdaq</ix:nonNumeric>'
+    )
+    raw = raw.replace(b'</html>', common_row + b'</html>')
+    sha = hashlib.sha256(raw).hexdigest()
+    policy['documents']['cover']['sha256'] = sha
+    cover.update(payload_sha256=sha, payload_raw_base64=base64.b64encode(raw).decode())
+    install(monkeypatch, policy)
+
+    result = build(collection)
+    assert result['subject'] is None
+    assert result['reason'] == 'multiple_issuer_share_classes_unresolved'
+
+
 def test_a_genuine_other_common_listing_is_not_resolved_by_raw_symbol_count_override(monkeypatch):
     from selected_security_fixtures import scoped_collection
     from test_online_peer_valuation import build

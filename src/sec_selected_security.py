@@ -175,8 +175,10 @@ def _cover(raw,cik,meta,doc,url,*,parsed=None,source_refs=None):
         if set(values)!={'TradingSymbol','Security12bTitle','SecurityExchangeName'}:continue
         title,symbol,exchange=(values[k][0] for k in ('Security12bTitle','TradingSymbol','SecurityExchangeName'))
         observations.append(dict(trading_symbol=symbol,title=title,exchange=exchange,context_id=context_id))
-        if classify_description(title,False)['security_type']=='common_shares':common_symbols.add(symbol)
+        is_common=classify_description(title,False)['security_type']=='common_shares'
+        if is_common:common_symbols.add(symbol)
         if [values[k][1] for k in ('Security12bTitle','TradingSymbol','SecurityExchangeName')]==doc['cover_fact_ids']:
+            _require(is_common)
             members=list(contexts[context_id].iter('{http://xbrl.org/2006/xbrldi}explicitMember'))
             _require(len(list(contexts[context_id].iter('{http://xbrl.org/2006/xbrldi}typedMember')))==0 and contexts[context_id].find(f'{{{X}}}scenario') is None)
             declared=doc.get('cover_context')
