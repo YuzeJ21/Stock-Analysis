@@ -71,7 +71,9 @@ The November 18 Nasdaq Trader directory listed DUK common stock, the Series A de
 
 The same completed-close date, direct annual diluted GAAP EPS, 35-day fiscal window and at least three eligible references still apply. A newer unreviewed SEC identity filing or a conflicting class remains a hold.
 
-The November 18 live rerun verified the selected common share and then held the comparison at the completed-close check. The vendor quote was from the open November 18 session and the last completed close was November 17. Workbench kept the comparison withheld before screening any candidates. This is a dated price-input hold.
+The November 18 intraday check verified the selected common share and held the comparison at the completed-close check. The first three refreshes after the bell still returned a quote timestamp before the session ended. Workbench kept the comparison withheld before screening any candidates.
+
+The 4:16 p.m. ET refresh verified the November 18 completed close and screened all 12 candidates. Four qualified with the same close date and the same January–December 2025 period for reported annual diluted GAAP EPS. Eight were excluded at their first failing check. Four had unresolved issuer share classes, three had a different SEC industry code, and one lacked a verified match between the provider filing link and SEC metadata. The accepted companies, exclusions and original source references are available in the Workbench valuation and source disclosures during the research session. [NYSE trading hours](https://www.nyse.com/trade/trading-information)
 
 ## Incorporated bank filing documents
 
