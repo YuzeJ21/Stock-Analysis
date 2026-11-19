@@ -59,7 +59,7 @@ TTM/forward P/E, P/S, P/FCF and EV/EBITDA need independent financial, share-coun
 
 ## Selected common securities and identity gaps
 
-A source-bound DUK/JPM/BAC/WFC/C technical scope can supplement the legacy single-code test. It requires literal common symbols, issuer-bound cover contexts, affirmative annual common-capital/EPS definitions, direct dimensionless annual USD/shares EPS agreeing with Companyfacts, unchanged current metadata and symbol sets, plus all existing price, currency, fiscal, split and peer rules. It does not classify all other issuer-associated codes or infer issuer domicile, legal security status or point-in-time continuity. Sources show each raw response digest separately from an explicitly normalized exact reviewed-body digest; see [Peer coverage method](PEER_COVERAGE_METHOD.md). Changed financial bytes or unreviewed filing versions remain withheld.
+A source-bound DUK/JPM/BAC/WFC/C/SO/NEE technical scope can supplement the legacy single-code test. It requires literal common symbols, issuer-bound cover contexts, affirmative annual common-capital/EPS definitions, direct dimensionless annual USD/shares EPS agreeing with Companyfacts, unchanged current metadata and symbol sets, plus all existing price, currency, fiscal, split and peer rules. It does not classify all other issuer-associated codes or infer issuer domicile, legal security status or point-in-time continuity. Sources show each raw response digest separately from an explicitly normalized exact reviewed-body digest; see [Peer coverage method](PEER_COVERAGE_METHOD.md). Changed financial bytes or unreviewed filing versions remain withheld.
 
 NEMCL association, TSM's ADS method and XOM's successor annual earnings basis remain separate gaps. A common title alone cannot admit a wrapper, and a one-for-one security exchange does not authorize splicing annual EPS across issuer identifiers. A single current-declared historical SEC archive may verify an old vendor link while current annual financial selection remains unchanged. Company Workbench's valuation and sources sections explain these source roles and blocked reasons; Discover keeps security-scope evidence separate from qualified annual P/E and comparison counts.
 
@@ -74,6 +74,19 @@ The same completed-close date, direct annual diluted GAAP EPS, 35-day fiscal win
 The November 18 intraday check verified the selected common share and held the comparison at the completed-close check. The first three refreshes after the bell still returned a quote timestamp before the session ended. Workbench kept the comparison withheld before screening any candidates.
 
 The 4:16 p.m. ET refresh verified the November 18 completed close and screened all 12 candidates. Four qualified with the same close date and the same January–December 2025 period for reported annual diluted GAAP EPS. Eight were excluded at their first failing check. Four had unresolved issuer share classes, three had a different SEC industry code, and one lacked a verified match between the provider filing link and SEC metadata. The accepted companies, exclusions and original source references are available in the Workbench valuation and source disclosures during the research session. [NYSE trading hours](https://www.nyse.com/trade/trading-information)
+
+### November 19 common-share source review
+
+The November 19 Nasdaq Trader other-listed directory verified JPM, DUK, SO and NEE as separate NYSE common-stock listings. The issuer-associated debt, preferred and unit codes remain outside the selected common-share calculation. Each scope binds the literal common row to the parent issuer in the FY2025 annual filing and the latest reviewed SEC cover. [Nasdaq Trader other-listed directory](https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt)
+
+| Common share | Parent CIK | Annual diluted EPS filing | Current reviewed cover |
+| --- | --- | --- | --- |
+| JPM | 0000019617 | [FY2025 10-K](https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/jpm-20251231.htm) | [November 17 8-K](https://www.sec.gov/Archives/edgar/data/19617/000001961726000407/jpm-20261117.htm) |
+| DUK | 0001326160 | [FY2025 10-K](https://www.sec.gov/Archives/edgar/data/1326160/000132616026000014/duk-20251231.htm) | [November 19 8-K](https://www.sec.gov/Archives/edgar/data/1326160/000110465926130154/tm2630241d1_8k.htm) |
+| SO | 0000092122 | [FY2025 10-K](https://www.sec.gov/Archives/edgar/data/92122/000009212226000006/so-20251231.htm) | [November 17 8-K](https://www.sec.gov/Archives/edgar/data/92122/000009212226000082/so-20261112.htm) |
+| NEE | 0000753308 | [FY2025 10-K](https://www.sec.gov/Archives/edgar/data/753308/000075330826000015/nee-20251231.htm) | [November 5 8-K](https://www.sec.gov/Archives/edgar/data/753308/000075330826000084/nee-20261105.htm) |
+
+The November 17 JPM and November 19 DUK covers superseded their previous reviewed covers. SO's annual and current covers show different par values. Its charter amendment changed common par value from $5 to $0.01 while preserving share rights and the authorized share count. The common-share scope keeps the annual EPS period and source unchanged. NEE's cover separately lists corporate units. [SO proxy](https://www.sec.gov/Archives/edgar/data/92122/000009212226000028/so-20260402.htm) · [SO charter amendment](https://www.sec.gov/Archives/edgar/data/92122/000009212226000040/ex31socertificateofamendme.htm)
 
 ## Incorporated bank filing documents
 

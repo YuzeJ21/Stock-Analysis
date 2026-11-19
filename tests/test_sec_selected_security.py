@@ -1,9 +1,65 @@
 from copy import deepcopy
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 import base64,hashlib
 import pytest
 
 from selected_security_fixtures import fixture,install,validate,digest,NOW
+
+
+@pytest.mark.parametrize(('ticker', 'cik', 'annual_accession', 'cover_accession'), (
+    ('JPM', '0000019617', '0001628280-26-008131', '0000019617-26-000407'),
+    ('DUK', '0001326160', '0001326160-26-000014', '0001104659-26-130154'),
+    ('SO', '0000092122', '0000092122-26-000006', '0000092122-26-000082'),
+    ('NEE', '0000753308', '0000753308-26-000015', '0000753308-26-000084'),
+))
+def test_november_19_common_scopes_bind_both_exact_filings_and_reject_newer_covers(
+    ticker, cik, annual_accession, cover_accession,
+):
+    from src.sec_selected_security import (
+        KEYS, POLICIES, fetch_selected_security_evidence, known_security_scope, validate_selected_security_evidence,
+    )
+
+    assert known_security_scope(ticker, cik)
+    policy = next(policy for policy in POLICIES if (policy['ticker'], policy['sec_cik']) == (ticker, cik))
+    annual, cover = (policy['documents'][role]['metadata'] for role in ('annual', 'cover'))
+    assert annual['accessionNumber'] == annual_accession
+    assert cover['accessionNumber'] == cover_accession
+    now = datetime(2026, 11, 19, 22, tzinfo=timezone.utc)
+    issuer_symbols = policy['issuer_symbols']
+    profile = dict(status='ready', source_url=f'https://data.sec.gov/submissions/CIK{cik}.json',
+                   observed_at=now.isoformat(), payload=dict(cik=int(cik), tickers=list(issuer_symbols),
+                   exchanges=['NYSE'] * len(issuer_symbols), filings={'recent': {
+                       key: [annual[key], cover[key]] for key in KEYS}}))
+    request_urls = []
+
+    def fetch(url, user_agent):
+        request_urls.append(url)
+        return b'Constructed capture. The body needs independent verification.', {}, url
+
+    def acquire():
+        return fetch_selected_security_evidence(ticker, cik, profile, user_agent='Constructed contact',
+                                                fetcher=fetch, observed_at=now)
+
+    captured = acquire()
+    assert captured['status'] == 'observed'
+    assert len(request_urls) == 2
+    assert {url.split('/')[-2] for url in request_urls} == {
+        annual_accession.replace('-', ''), cover_accession.replace('-', '')}
+    assert validate_selected_security_evidence(captured, ticker=ticker, cik=cik, profile=profile,
+        issuer_symbols=issuer_symbols, as_of=now)['status'] == 'withheld'
+    recent = profile['payload']['filings']['recent']
+    newer_cover = dict(cover, reportDate='2026-11-19', filingDate='2026-11-19',
+                       acceptanceDateTime='2026-11-19T21:55:00.000Z',
+                       accessionNumber='0000000001-26-000001', primaryDocument='unreviewed.htm')
+    for key in KEYS:
+        recent[key].append(newer_cover[key])
+    assert acquire()['status'] == 'not_applicable'
+    for key in KEYS:
+        recent[key].pop()
+    profile['payload']['tickers'].append(ticker + '-P')
+    profile['payload']['exchanges'].append('NYSE')
+    assert acquire()['status'] == 'not_applicable'
+    assert len(request_urls) == 2
 
 
 def test_literal_selected_common_is_rederived_without_assigning_other_symbols(monkeypatch):
