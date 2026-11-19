@@ -181,6 +181,18 @@ NVDA, JPM, BAC, C, and DUK retained their earlier qualifications. The five remai
 
 Discover and Workbench passed browser checks at 1440 × 1000 and 390 × 844. Discover reproduced the saved study counts. Workbench showed both SEC index links, the separate annual EPS source, and the four qualifying references and eight exclusions. The checks made zero provider requests and preserved all 89 protected files and the original source inputs.
 
+### November 19 AMD annual EPS rerun
+
+The same twelve companies were rerun with observation times from 18:28:38 to 18:41:36 ET. AMD brought same-basis peer P/E coverage from **7/12 to 8/12**. All twelve still had a verified November 19 close, with **10/12** current annual facts, **10/12** direct-quarter facts, **5/12** scenario eligibility, and **11/12** exact research replay. The run recorded 299 raw source callbacks and 497 adapter operations with no SEC access pause.
+
+AMD's FY2025 annual diluted EPS was USD 2.65 for December 29, 2024 through December 27, 2025. The original filing and Companyfacts agree. The same-period 10-K/A corrected Client segment percentages. Workbench binds both filing versions to their exact sources and uses the original EPS for the P/E denominator. The broader structured annual and Scenario Lab revenue-base holds stay visible. [Exact amendment scope](ONLINE_PEER_VALUATION.md#exact-amd-amendment-scope)
+
+AMD qualified with NVDA, TXN, MRVL, NXPI, MPWR, and ALAB. AVGO, MU, and ADI fell outside the fiscal window. SKHY's listing or share basis was unverified, INTC failed the positive annual EPS check, and QCOM had a different SEC industry code. Every comparison retains the same-day completed close, compatible annual diluted GAAP EPS, 35-day fiscal window, and minimum of three eligible industry references.
+
+NVDA, JPM, BAC, C, DUK, SO, and NEE retained their earlier qualifications. QCOM still lacked three eligible references, TSM's ADS requires a separate method, and SAP's listing-to-issuer match was unverified. IBN's provider context was unavailable and its generic replay remained held.
+
+Discover and Workbench passed browser checks at 1440 × 1000 and 390 × 844. Discover reproduced the retained cohort and displayed the AMD annual-financial hold, QCOM peer minimum, and TSM ADS hold. Workbench displayed both SEC sources, the original EPS, and the six references and six exclusions. The checks made zero provider requests and preserved all 89 protected files and the original source inputs.
+
 ## November 8 controlled repair
 
 Reprocessing the same twelve captured source observations before and after the shared catalog repair improved usable filing catalogs from **5/12 to 12/12**. This is a controlled comparison using the same source inputs, not a fresh market-coverage pass.
