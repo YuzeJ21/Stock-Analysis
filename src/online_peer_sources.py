@@ -147,6 +147,9 @@ def _collect_issuer(ticker,cik,deps,user_agent,as_of,vendor=None):
         result.update(status='unavailable',reason='issuer_source_unavailable')
     if any(isinstance(result.get(k),Mapping) and result[k].get('status')=='unavailable' and result[k].get('reason') in {'vendor_history_source_unavailable','selected_security_source_unavailable','source_component_unavailable'} for k in ('vendor_history','selected_security_evidence')):
         result.update(status='unavailable',reason='issuer_source_unavailable')
+    history=result['vendor_history']
+    if isinstance(history,Mapping) and history.get('status')=='unavailable' and history.get('reason')=='vendor_joint_filing_source_unavailable':
+        result.update(status='unavailable',reason=history['reason'])
     return result
 
 

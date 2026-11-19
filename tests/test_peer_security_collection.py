@@ -45,6 +45,26 @@ def test_scope_outage_counts_as_access_failure_but_unsupported_scope_is_a_gap():
     assert _subject_source_failure(view,dict(collection=dict(issuers=[row]))) is False
 
 
+@pytest.mark.parametrize('reason,outage', [('vendor_joint_filing_source_unavailable',True),
+    ('vendor_joint_filing_unverified',False)])
+def test_joint_index_outage_uses_the_existing_source_budget(reason,outage):
+    from src.online_peer_coverage import _subject_source_failure
+    from src.online_peer_sources import _collect_issuer
+    from test_online_peer_valuation import issuer
+
+    cik='0000092122';row=issuer('SO',cik,30)
+    def sec(url,**kwargs):
+        return row['profile' if '/submissions/' in url else 'facts']
+    deps=dict(sec=sec,prices=lambda *args,**kw:row['prices'],
+        history=lambda *args,**kw:dict(status='unavailable',reason=reason),
+        security=lambda *args,**kw:dict(status='not_applicable'))
+    result=_collect_issuer('SO',cik,deps,'Synthetic contact',NOW,row['vendor'])
+    assert (result.get('status')=='unavailable') is outage
+    if outage:assert result['reason']==reason
+    assert _subject_source_failure(dict(ticker='SO',reason='vendor_filing_not_matched_to_sec'),
+        dict(collection=dict(issuers=[result]))) is outage
+
+
 def test_history_source_outages_pause_peer_candidates_and_are_counted_for_subjects(monkeypatch):
     from src.online_peer_sec_history import fetch_vendor_history_match
     from src.online_peer_coverage import _subject_source_failure

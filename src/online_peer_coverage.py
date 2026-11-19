@@ -15,7 +15,8 @@ SCHEMA='online-peer-coverage-v1'
 METHOD='reported-annual-pe-selected-security-v1'
 DEFAULT_SAMPLE=('AMD','TXN','QCOM','MSFT','JPM','JNJ','XOM','PG','MCD','CAT','NEM','DUK','O','VZ','TSM')
 _SOURCE_FAILURES={'vendor_context_source_unavailable','industry_candidate_source_unavailable','listing_classification_unavailable',
-    'issuer_source_unavailable','sec_source_unavailable_or_mismatched','peer_source_unavailable','amendment_source_unavailable'}
+    'issuer_source_unavailable','sec_source_unavailable_or_mismatched','peer_source_unavailable','amendment_source_unavailable',
+    'vendor_joint_filing_source_unavailable'}
 _STATE_KEYS={'schema_version','method_version','requested_tickers','packets','classifications','adapter_operation_count','source_failure_streak','digest'}
 
 
@@ -101,7 +102,8 @@ def _subject_source_failure(view,packet):
             component=row.get(key)
             if (isinstance(component,Mapping) and component.get('status')=='unavailable'
                     and component.get('reason') in {'price_source_unavailable','sec_receipt_unavailable',
-                        'amendment_source_unavailable','selected_security_source_unavailable','vendor_history_source_unavailable','source_component_unavailable'}):return True
+                        'amendment_source_unavailable','selected_security_source_unavailable','vendor_history_source_unavailable',
+                        'vendor_joint_filing_source_unavailable','source_component_unavailable'}):return True
     return False
 
 
