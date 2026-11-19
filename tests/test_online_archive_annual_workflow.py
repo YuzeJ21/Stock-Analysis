@@ -76,7 +76,7 @@ def test_archive_corroboration_cannot_unlock_peer_valuation(monkeypatch):
     monkeypatch.setattr(online_peer_sources, '_read', lambda *_: dict(
         status='research_comparison', subject=subject, peer_median=10, premium_fraction=.2))
     qualified = _peer_context({'packet_digest': 'constructed'}, ticker=view['ticker'], cik=CIK,
-                              now=OBSERVED, coverage=coverage,
+                              now=OBSERVED, coverage=coverage, inventory=view['filing_inventory'],
                               prices=dict(status='inspection_only', last_price_date='2026-10-29', close=12))
     assert qualified['status'] == 'withheld'
     assert qualified['reason'] == 'latest_annual_filing_not_corroborated'

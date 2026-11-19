@@ -102,6 +102,69 @@ def test_current_version_metadata_and_companyfacts_agreement_are_required(monkey
     assert result['subject'] is None and result['premium_fraction'] is None
 
 
+def test_an_intervening_unreviewed_amendment_cannot_be_ignored(monkeypatch):
+    c,_,policy=fixture(monkeypatch)
+    interim={**policy['amendment'],'accessionNumber':'0000001001-26-000003',
+             'filingDate':'2026-02-15','acceptanceDateTime':'2026-02-15T12:00:00Z'}
+    recent=c['issuers'][0]['profile']['payload']['filings']['recent']
+    for key,value in interim.items():
+        recent[key].append(value)
+    assert build(c)['reason']=='amendment_scope_unverified'
+
+
+@pytest.mark.parametrize('change', [None, 'newer_amendment', 'wrong_primary', 'wrong_acceptance',
+    'original_missing', 'changed_price', 'changed_price_date'])
+def test_workbench_resolves_only_eps_when_both_annual_filing_tracks_match(monkeypatch,change):
+    from src.online_filing_context import build_filing_inventory
+    from src.online_research_tools import build_online_research_context
+
+    peers,_,policy=fixture(monkeypatch)
+    row=peers['issuers'][0]
+    profile=deepcopy(row['profile'])
+    recent=profile['payload']['filings']['recent']
+    if change=='newer_amendment':
+        newer={**policy['amendment'],'accessionNumber':'0000001001-26-000003',
+               'filingDate':'2026-04-01','acceptanceDateTime':'2026-04-01T12:00:00Z'}
+        for key,value in newer.items():
+            recent[key].append(value)
+    elif change=='wrong_primary':
+        recent['primaryDocument'][-1]='another.htm'
+    elif change=='wrong_acceptance':
+        recent['acceptanceDateTime'][-1]='2026-03-01T20:01:00Z'
+    elif change=='original_missing':
+        for values in recent.values():
+            values.pop(0)
+    prices=deepcopy(row['prices'])
+    if change=='changed_price':
+        prices['bars'][-1]['close']+=.01
+    elif change=='changed_price_date':
+        prices['bars'][-1]['date']=prices['last_price_date']='2026-10-29'
+    ticker,cik='FICT','0000001001'
+    source=f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json'
+    identity=dict(status='source_matched',ticker=ticker,sec_cik=cik,source_url=source,observed_at=STAMP,
+        payload_sha256='a'*64,association_observed_at=STAMP,association_source_url='https://www.sec.gov/files/company_tickers.json',
+        association_payload_sha256='b'*64)
+    inventory=build_filing_inventory(profile,ticker=ticker,expected_cik=cik,as_of=NOW)
+    financial=dict(ticker=ticker,sec_cik=cik,status='inspection_only',source_url=source,
+                   companyfacts_identity=identity,filing_inventory=inventory)
+    view=build_online_research_context(financial,prices,peers,ticker=ticker,profile_key='personal',expected_cik=cik,as_of=NOW)
+    result=view['peer_read_through']
+    assert view['filing_coverage']['current']['annual']['status']=='amendment_unresolved'
+    assert view['scenario_base']['status']=='withheld' and view['scenario_base']['revenue'] is None
+    assert view['commercial_eligible'] is False and view['saved_readiness_promoted'] is False
+    if change is None:
+        assert result['status']=='research_comparison'
+        assert result['subject']['eps']==7.5 and result['subject']['accession']==policy['original']['accessionNumber']
+        assert result['peer_count']==3
+        assert result['subject']['amendment_scope']['amendment_flag_discrepancy'] is True
+    else:
+        assert result['status']=='withheld' and result['premium_fraction'] is None
+        assert result['reason']=={
+            'changed_price':'peer_subject_price_differs_from_current_prices',
+            'changed_price_date':'peer_subject_price_date_differs_from_current_prices',
+        }.get(change,'latest_annual_filing_not_corroborated')
+
+
 @pytest.mark.parametrize('change',['dei','dimension','period','unit','reversed_unit','namespace','continuing','conflict','nil','transform','amendment_flag'])
 def test_even_byte_bound_policy_cannot_admit_invalid_financial_context(monkeypatch,change):
     raw=document().decode();amend=None

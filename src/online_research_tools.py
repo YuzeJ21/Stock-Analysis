@@ -284,7 +284,36 @@ def _receipt_rows(financial, prices, inventory, peers):
     return _json(rows)
 
 
-def _peer_context(peers, *, ticker, cik, now, coverage, prices):
+def _amendment_eps_anchor(subject, current, inventory):
+    """Bind already-validated EPS scope to both versions in Workbench's inventory."""
+    scope = subject.get('amendment_scope', {})
+    if current.get('status') != 'amendment_unresolved' or scope.get('status') != 'supported':
+        return None
+    latest = inventory.get('latest', {}).get('annual')
+    if not latest or latest != current.get('anchor'):
+        return None
+    period_end = subject['period_end']
+    versions = [row for row in inventory['periods']['annual'] if row['period_end'] == period_end]
+    gaps = inventory.get('metadata_gaps', [])
+    receipts = scope['source_receipts']
+    if len(versions) != 2 or len(receipts) != 2 or any(
+            gap['form'] in {'10-K', '10-K/A', '20-F', '20-F/A'} and gap['period_end'] >= period_end for gap in gaps):
+        return None
+    original = next((row for row in versions if row['accession'] == subject['accession']), None)
+    if original is None or original == latest:
+        return None
+    keys = {'accession': 'accessionNumber', 'form': 'form', 'filed': 'filingDate',
+            'period_end': 'reportDate', 'primary_document': 'primaryDocument'}
+    for role, filing, receipt in zip(('original', 'amendment'), (original, latest), receipts):
+        reviewed = scope[role]
+        if (any(filing[key] != reviewed[field] for key, field in keys.items())
+                or _utc_timestamp(filing['accepted_at']) != _utc_timestamp(reviewed['acceptanceDateTime'])
+                or filing['source_url'] != receipt['source_url']):
+            return None
+    return original
+
+
+def _peer_context(peers, *, ticker, cik, now, coverage, inventory, prices):
     if peers is None:
         from src.online_peer_valuation import _empty
         result = {**_empty(ticker,'online_peer_update_not_requested'),'status':'not_requested'}
@@ -301,11 +330,12 @@ def _peer_context(peers, *, ticker, cik, now, coverage, prices):
     subject = result.get('subject') or {}
     reason = None
     if subject:
-        if current.get('status') != 'corroborated':
+        anchor = (current.get('anchor') or {}) if current.get('status') == 'corroborated' else _amendment_eps_anchor(subject, current, inventory)
+        if anchor is None:
             reason = 'latest_annual_filing_not_corroborated'
-        elif (current.get('anchor') or {}).get('period_end', (current.get('anchor') or {}).get('report_date')) != subject.get('period_end'):
+        elif anchor.get('period_end', anchor.get('report_date')) != subject.get('period_end'):
             reason = 'peer_subject_annual_period_differs_from_current_financials'
-        elif any((current.get('anchor') or {}).get(key) != subject.get(key) for key in ('accession', 'form', 'filed')):
+        elif any(anchor.get(key) != subject.get(key) for key in ('accession', 'form', 'filed')):
             reason = 'peer_subject_filing_version_differs_from_current_financials'
         elif prices.get('status') != 'inspection_only' or prices.get('last_price_date') != subject.get('price_date'):
             reason = 'peer_subject_price_date_differs_from_current_prices'
@@ -553,7 +583,7 @@ def build_online_research_context(financial, prices, peers=None, association=Non
         price = {k: price_history.get(k) for k in ('ticker', 'provider_symbol', 'source_url', 'observed_at',
             'payload_sha256', 'currency', 'last_price_date')}
         price.update(status='inspection_only', close=price_history['bars'][-1]['close'])
-    peer = _peer_context(peers, ticker=ticker, cik=cik, now=now, coverage=coverage, prices=price)
+    peer = _peer_context(peers, ticker=ticker, cik=cik, now=now, coverage=coverage, inventory=inventory, prices=price)
     notes_value, notes_summary, decision = _notes_context(notes, ticker=ticker, cik=cik, profile_key=profile_key, now=now)
     earnings = _validated_earnings_components(financial.get('earnings_components'), ticker=ticker,
         cik=cik, inventory=inventory, identity=identity if identity_valid else {}, now=now)

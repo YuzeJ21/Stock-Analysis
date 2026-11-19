@@ -36,6 +36,9 @@ def _known_pair(ticker,cik,filings):
     annual=[r for r in filings if isinstance(r,Mapping) and r.get('form') in {'10-K','10-K/A','20-F','20-F/A'}]
     if not annual or any(_iso_date(r.get('reportDate')) is None or _iso_date(r.get('filingDate')) is None for r in annual):return None
     end=max(r['reportDate'] for r in annual);same=[r for r in annual if r['reportDate']==end]
+    # The reviewed policy covers one original and one amendment for this period.
+    # Any additional version requires a new scope review, even if it is not latest.
+    if len(same)!=2:return None
     filed=max(r['filingDate'] for r in same);same=[r for r in same if r['filingDate']==filed]
     if any(_utc_timestamp(r.get('acceptanceDateTime')) is None for r in same):return None
     accepted=max(_utc_timestamp(r['acceptanceDateTime']) for r in same)
