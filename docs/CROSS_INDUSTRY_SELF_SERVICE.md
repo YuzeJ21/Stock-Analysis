@@ -77,6 +77,28 @@ The November 19 verification reparsed retained SEC filing bytes and matched the 
 
 Desktop (1440 × 1000) and phone (390 × 844) automation checks the Inspect and Recheck actions, original filing links, the quarterly cash-flow hold, unchanged replay, and unchanged study counts. Moving between companies or reopening the study uses the recorded proof without new source requests.
 
+## November 19 midday study rerun
+
+All twelve companies were attempted again on November 19, 2026. The observations span 13:38–13:41 Toronto time, before the regular close. The study used the same companies, four groups, and capability denominators. It recorded 58 raw source callbacks and 106 adapter operations, with no SEC access pause. Provider SDK requests have separate accounting.
+
+| Capability | November 16 | November 19 |
+| --- | ---: | ---: |
+| SEC issuer match | 11/12 | 11/12 |
+| Usable filing catalog | 12/12 | 12/12 |
+| Current annual facts | 10/12 | 10/12 |
+| Current direct-quarter facts | 10/12 | 10/12 |
+| Current interim facts | 1/12 | 1/12 |
+| Dated close | 12/12 | 12/12 |
+| Same-basis industry comparison | 4/12 | 0/12 |
+| Compatible Business Trend metrics | 11/12 | 11/12 |
+| Hypothetical scenario eligibility | 5/12 | 5/12 |
+| Exact private research replay | 10/12 | 7/12 |
+
+- **Price and peer coverage.** All twelve dated closes were from November 18. AMD, NVDA, BAC, and C had quote chronology holds. QCOM and DUK lacked quotes for the most recent common completed session required by the peer comparison. JPM, SO, and NEE had issuer share-class holds. TSM requires a separate ADS approach, SAP's listing-to-CIK match was unverified, and IBN lacked vendor context. The peer rules stayed at the same-day close, compatible annual diluted EPS, 35-day window, and three eligible references.
+- **Financial and replay holds.** AMD's annual amendment remained unresolved and SAP lacked a supported direct-quarter filing. AMD, NVDA, BAC, and C each reopened at their individual capture times. At the shared study cutoff, their quote context had changed and the bound replay proofs required an explicit recheck. IBN remained held under the original revenue-based replay measure, with separate verified bank evidence and unchanged bank replay. The TSM result in the same-source recheck above uses a different observation.
+
+The release candidate reproduced all rows and request counts at the recorded cutoff. Desktop and phone Discover checks showed the same denominators, group counts and held states. Reopening the retained study made zero new source requests.
+
 ## November 8 controlled repair
 
 Reprocessing the same twelve captured source observations before and after the shared catalog repair improved usable filing catalogs from **5/12 to 12/12**. This is a controlled comparison using the same source inputs, not a fresh market-coverage pass.

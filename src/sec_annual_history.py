@@ -98,7 +98,10 @@ def build_sec_annual_history(
     }
 
 
-def fetch_sec_online_research_view(ticker: str, *, user_agent: str, ticker_map_receipt=None, source_fetcher=None, observed_at=None) -> dict[str, Any]:
+def fetch_sec_online_research_view(
+    ticker: str, *, user_agent: str, ticker_map_receipt=None, source_fetcher=None, observed_at=None,
+    exact_quarter_requested: bool = False, expected_cik: str | None = None,
+) -> dict[str, Any]:
     """Fetch Companyfacts once for independent annual and direct quarterly views."""
     from src.sec_fundamentals_preview import build_sec_fundamentals_preview
     from src.online_sec_receipt import fetch_sec_json_receipt
@@ -213,7 +216,10 @@ def fetch_sec_online_research_view(ticker: str, *, user_agent: str, ticker_map_r
         view['archive_quarterly'] = fetch_archive_quarter(
             view, user_agent=user_agent, ticker_map_receipt=captured.get('map_receipt'),
             submissions_receipt=profile_receipt, source_fetcher=source_fetcher, observed_at=observed_at,
+            exact_quarter_requested=exact_quarter_requested, expected_cik=expected_cik,
         )
+        if exact_quarter_requested:
+            view['exact_quarter_requested'] = True
         from src.sec_online_annual_evidence import fetch_archive_annual
         view['archive_annual'] = fetch_archive_annual(
             view, user_agent=user_agent, ticker_map_receipt=captured.get('map_receipt'),

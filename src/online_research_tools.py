@@ -480,7 +480,8 @@ def build_online_research_context(financial, prices, peers=None, association=Non
     if archive:
         rows = next((rows for kind, rows, _ in histories if kind == 'quarterly'), [])
         histories = [history for history in histories if history[0] != 'quarterly']
-        histories.append(('quarterly', merge_archive_quarter(rows, archive), archive['unit']))
+        exact_for_review = financial.get('exact_quarter_requested') is True
+        histories.append(('quarterly', merge_archive_quarter(rows, archive, prefer_exact=exact_for_review), archive['unit']))
     from src.sec_online_annual_evidence import validated_archive_annual
     from src.sec_native_annual_history import native_archive_annual_rows
     native_annual = validated_archive_annual(financial, ticker=ticker, expected_cik=cik, inventory=inventory,

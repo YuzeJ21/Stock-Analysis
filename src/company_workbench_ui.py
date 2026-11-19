@@ -41,14 +41,16 @@ def retain_saved_tool_inputs(state,profile_scope,ticker,*,identity_scope=None):
 
 
 def load_workbench_observations(ticker, state, *, refresh_financials=False, refresh_prices=False,
-                                expected_cik=None, user_agent=None):
+                                exact_quarter_requested=False, expected_cik=None, user_agent=None):
     """Only explicit actions reach transport; ordinary section reruns reuse attempts."""
     user_agent=user_agent if user_agent is not None else os.getenv('SEC_USER_AGENT')
     reason=_mode_reason('research')
     if reason:
         financial=prices={'ticker':ticker,'status':'unavailable','reason':reason}
     else:
-        financial=get_company_sec_annual_preview(ticker,state,refresh_requested=refresh_financials,user_agent=user_agent)
+        financial=get_company_sec_annual_preview(ticker,state,
+            refresh_requested=refresh_financials or exact_quarter_requested,user_agent=user_agent,
+            exact_quarter_requested=exact_quarter_requested,expected_cik=expected_cik)
         prices=get_online_company_prices(ticker,state,refresh_requested=refresh_prices,
             include_verified_session_close=True)
     projection=workbench_projection(ticker,financial,prices,expected_cik=expected_cik)
@@ -90,6 +92,8 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
                 update_all=st_api.button('Research company' if enable_online_tools else 'Refresh financials and prices',key='company-refresh-all',type='secondary',width='content')
                 with st_api.popover('Refresh options'):
                     update_financial=st_api.button('Financials only',key='company-refresh-financials',width='content')
+                    update_exact_quarter=enable_online_tools and st_api.button(
+                        'Refresh exact SEC quarter',key='company-refresh-exact-quarter',width='content')
                     update_prices=st_api.button('Prices only',key='company-refresh-prices',width='content')
                     if enable_online_tools and not os.getenv('SEC_USER_AGENT'):
                         from src.online_research_tools_ui import sec_request_identification
@@ -98,13 +102,14 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
             return _render_company_content(st_api,ticker,profile_scope=profile_scope,scope=scope,
                 candidate=candidate,expected_cik=expected_cik,selected=section_key(selected),
                 update_all=update_all,update_financial=update_financial,update_prices=update_prices,
+                update_exact_quarter=update_exact_quarter,
                 saved_available=saved_available,saved_receipt_only=saved_receipt_only,
                 render_saved=render_saved,render_sources=render_sources,render_notes=render_notes,
                 enable_online_tools=enable_online_tools)
 
 
 def _render_company_content(st_api,ticker,*,profile_scope,scope,candidate,expected_cik,selected,
-                            update_all,update_financial,update_prices,saved_available,
+                            update_all,update_financial,update_prices,update_exact_quarter,saved_available,
                             saved_receipt_only,render_saved,render_sources,render_notes=None,enable_online_tools=False):
     """The main column stays focused on the selected company's analysis."""
     header=st_api.empty()
@@ -114,6 +119,7 @@ def _render_company_content(st_api,ticker,*,profile_scope,scope,candidate,expect
         user_agent = user_agent or st_api.session_state.get(SEC_AGENT_KEY)
     bundle=load_workbench_observations(ticker,st_api.session_state,
         refresh_financials=bool(update_all or update_financial),refresh_prices=bool(update_all or update_prices),
+        exact_quarter_requested=bool(update_exact_quarter),
         expected_cik=expected_cik,user_agent=user_agent)
     financial,prices,projection=bundle['financial'],bundle['prices'],bundle['projection']
     if selected!='overview' or 'section' in st_api.query_params:
@@ -164,6 +170,8 @@ def _render_company_content(st_api,ticker,*,profile_scope,scope,candidate,expect
             unsafe_allow_html=True)
         if enable_online_tools:
             st_api.markdown(filing_status_html(context),unsafe_allow_html=True)
+            if financial.get('exact_quarter_requested') is True and selected not in {'financials', 'sources'}:
+                st_api.caption('See Financial Trends for the exact SEC quarter and any filing gaps.')
         if selected=='overview':
             if projection['attempted'] or projection['facts']:
                 foreign=validated_foreign_financials(financial)

@@ -516,10 +516,9 @@ def test_linkedin_brief_has_now_next_not_yet_share_framing():
     assert "Company Search → Overview → Financial Trends → Valuation & Peers → Research Notes → Data Sources → Monitor" in linkedin
     assert "## Now / Next / Not Yet" in linkedin
     assert "| Now | Share the dated SEC filing case as the Featured example" in linkedin
-    assert "| Next | Review one named peer relationship" in linkedin
-    assert "qualify a new issuer or period" in linkedin
-    assert "financial or filing changes" in linkedin
-    assert "issuer-association metadata changes" in linkedin
+    assert "| Next | Remeasure the fixed industry sample" in linkedin
+    assert "qualify more filing comparisons for Workbench and Monitor" in linkedin
+    assert "Report dated results by capability and keep the remaining gaps visible" in linkedin
     assert "| Not yet | Host the full Streamlit workspace" in linkedin
     assert "A public full Streamlit deployment remains a separate gate" in linkedin
     assert "stable GitHub repository link only after" not in linkedin

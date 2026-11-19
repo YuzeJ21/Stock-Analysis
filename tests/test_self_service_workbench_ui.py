@@ -105,6 +105,33 @@ def test_online_tools_reachable_without_local_company_inputs(tmp_path, monkeypat
     assert not list(tmp_path.rglob('*.csv'))
 
 
+def test_exact_quarter_action_refreshes_only_financials_and_reuses_the_attempt(monkeypatch):
+    from src import company_workbench_ui, sec_annual_history
+
+    attempts = []
+
+    def refresh(ticker, **kwargs):
+        attempts.append((ticker, kwargs))
+        return {'status': 'unavailable', 'ticker': ticker, 'safe_to_apply': False}
+
+    def passive(ticker, state, *, refresh_requested, **kwargs):
+        assert refresh_requested is False
+        return {'status': 'not_requested', 'ticker': ticker}
+
+    monkeypatch.setenv('SEC_USER_AGENT', 'Synthetic contact')
+    monkeypatch.setattr(sec_annual_history, 'fetch_sec_online_research_view', refresh)
+    monkeypatch.setattr(company_workbench_ui, 'get_online_company_prices', passive)
+    monkeypatch.setattr(company_workbench_ui, 'get_online_peer_valuation', passive)
+    monkeypatch.setattr(company_workbench_ui, 'get_price_filing_association',
+                        lambda ticker, identity, prices, state, **kwargs: passive(ticker, state, **kwargs))
+    app = AppTest.from_function(_app).run()
+    app.button(key='company-refresh-exact-quarter').click().run()
+    app.radio[0].set_value('notes').run()
+    assert not app.exception
+    assert attempts == [('FICT', dict(user_agent='Synthetic contact', exact_quarter_requested=True,
+                                     expected_cik='0000001234'))]
+
+
 def test_online_only_scenario_snapshot_and_unchanged_replay_need_no_prepared_files(tmp_path, monkeypatch):
     from datetime import datetime, timezone
     from tests.test_self_service_financial_refresh import _fetcher

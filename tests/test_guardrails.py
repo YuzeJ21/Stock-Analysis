@@ -128,7 +128,7 @@ def test_public_docs_explain_single_stock_reader_guide():
     expected_readme_phrases = (
         "company search → overview → financial trends → valuation & peers → research notes → data sources → monitor",
         "filing links, concepts, units, periods",
-        "source and observation dates stay visible",
+        "publication and observation dates",
         "missing fields and unsupported comparisons stay withheld",
         "data health",
         "proof history",

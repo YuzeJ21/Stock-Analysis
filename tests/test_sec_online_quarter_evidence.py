@@ -214,6 +214,46 @@ def test_loader_adds_only_latest_archive_document_to_existing_source_requests():
     assert view['quarterly_history']['status'] == 'withheld'
 
 
+@pytest.mark.parametrize('case', ['ordinary', 'exact', 'wrong_cik', 'wrong_document'])
+def test_covered_quarter_exact_refresh_is_explicit_and_identity_bound(case):
+    from src.online_research_tools import build_online_research_context
+    from src.sec_annual_history import fetch_sec_online_research_view
+
+    _, mapping, _, fetch, calls = _transport()
+    facts = dict(cik=1234, facts={'us-gaap': {'RegulatedAndUnregulatedOperatingRevenue': {'units': {'USD': [dict(
+        start='2026-04-01', end='2026-06-30', filed='2026-08-01',
+        accn='0000004321-26-000001', form='10-Q', val=1234000000)]}}}})
+
+    def loader_fetch(url, agent):
+        if url == FACTS:
+            calls.append(url)
+            return json.dumps(facts).encode(), {}, url
+        raw, headers, final = fetch(url, agent)
+        if url == SOURCE and case == 'wrong_document':
+            raw = raw.replace(b'>0000001234</ix:nonNumeric>', b'>0000009999</ix:nonNumeric>')
+        return raw, headers, final
+
+    options = {} if case == 'ordinary' else {
+        'exact_quarter_requested': True,
+        'expected_cik': '0000009999' if case == 'wrong_cik' else CIK,
+    }
+    view = fetch_sec_online_research_view('FICT', user_agent='Constructed research contact',
+        ticker_map_receipt=mapping, source_fetcher=loader_fetch, observed_at=OBSERVED, **options)
+    assert calls == ([FACTS, SUB, SOURCE] if case in {'exact', 'wrong_document'} else [FACTS, SUB])
+    coverage = view['filing_coverage']
+    assert coverage.get('structured_quarterly', coverage['current']['quarterly'])['status'] == 'corroborated'
+    assert view['archive_quarterly']['status'] == ('inspection_only' if case == 'exact' else 'withheld')
+    context = build_online_research_context(view, {}, ticker='FICT', profile_key='personal',
+                                            expected_cik=CIK, as_of=OBSERVED)
+    quarter = next(row for row in context['business_trend']['periods'] if row['kind'] == 'quarterly')
+    revenue = quarter['fields']['revenue']
+    assert revenue['value'] == 1234000000
+    assert ('reported_numeric_schema' in revenue) is (case == 'exact')
+    exact_receipts = [r for r in context['source_receipts'] if r['source'] == 'exact_quarter_receipt']
+    assert len(exact_receipts) == (3 if case == 'exact' else 0)
+    assert context['saved_readiness_promoted'] is False
+
+
 def _bank_financial():
     from test_sec_inline_bank_context import bank_input
     from src.sec_exact_filing import select_sec_filing

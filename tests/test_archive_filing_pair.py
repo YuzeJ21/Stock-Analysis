@@ -7,7 +7,7 @@ from test_sec_inline_filing import OBSERVED, _extract, _selection, _xml
 from test_sec_online_quarter_evidence import CIK, _financial, _profile_receipt
 
 
-def _context(*, later=False, concept=None):
+def _context(*, later=False, concept=None, structured_caught_up=False):
     from src.online_filing_context import build_filing_inventory
     from src.online_research_tools import build_online_research_context
     from src.sec_inline_filing import extract_inline_filing
@@ -34,16 +34,32 @@ def _context(*, later=False, concept=None):
         receipt = dict(status='ready', source_url=source['source_url'], observed_at='2026-10-30T21:00:00Z',
                        payload_sha256=sha256(raw).hexdigest(), source_last_modified=None)
         packet = extract_inline_filing(raw, source, receipt)
+    if structured_caught_up:
+        from src.sec_quarterly_history import build_sec_quarterly_history
+
+        identity = financial['companyfacts_identity']
+        quarter = packet['periods'][0]
+        payload = dict(cik=int(CIK), facts={'us-gaap': {
+            'RegulatedAndUnregulatedOperatingRevenue': {'units': {'USD': [dict(
+                start=quarter['period_start'], end=packet['period_end'], filed=packet['filed'],
+                accn=packet['accession'], form=packet['form'], val=quarter['fields']['revenue']['value'],
+            )]}}}})
+        financial['quarterly_history'] = build_sec_quarterly_history('FICT', payload, expected_cik=CIK,
+            observed_at=identity['observed_at'], source_url=identity['source_url'], payload_sha256=identity['payload_sha256'])
+        financial['exact_quarter_requested'] = True
     financial['archive_quarterly'] = build_archive_quarter(financial, packet, as_of=OBSERVED)
     return build_online_research_context(financial, {}, ticker='FICT', profile_key='research', as_of=OBSERVED)
 
 
-def test_adjacent_archive_quarters_replay_exact_saved_pair(tmp_path):
+@pytest.mark.parametrize('structured_caught_up', [False, True], ids=['archive-fallback', 'explicit-exact'])
+def test_adjacent_archive_quarters_replay_exact_saved_pair(tmp_path, structured_caught_up):
     from src.online_research_context_store import (
         compare_exact_filing_pair, find_saved_filing_pair, load_research_context, save_research_context,
     )
 
-    baseline, current = _context(), _context(later=True)
+    baseline, current = _context(), _context(later=True, structured_caught_up=structured_caught_up)
+    if structured_caught_up:
+        assert current['filing_coverage']['structured_quarterly']['status'] == 'corroborated'
     scope = dict(profile_key='research', ticker='FICT', sec_cik=CIK, project_root=tmp_path)
     earlier = save_research_context(baseline, **scope)
     later = save_research_context(current, **scope)

@@ -283,8 +283,9 @@ def _receipt_gap(financial, verified, ticker_map_receipt, submissions_receipt, a
 
 
 def fetch_archive_quarter(financial, *, user_agent, ticker_map_receipt, submissions_receipt,
-                          source_fetcher=None, observed_at=None):
-    """Acquire only an unresolved current quarter, reusing the original receipts."""
+                          source_fetcher=None, observed_at=None, exact_quarter_requested=False,
+                          expected_cik=None):
+    """Acquire the current exact quarter when needed or explicitly requested."""
     ticker = financial.get('ticker') if isinstance(financial, Mapping) else None
     cik = financial.get('sec_cik') if isinstance(financial, Mapping) else None
     held = _held(ticker, cik, 'archive_quarter_not_required')
@@ -293,20 +294,22 @@ def fetch_archive_quarter(financial, *, user_agent, ticker_map_receipt, submissi
         verified = _identity_inventory(financial, ticker, cik, inventory, observed_at)
         if not verified:
             return _held(ticker, cik, 'archive_quarter_current_source_unavailable')
+        if exact_quarter_requested and expected_cik is not None and cik != expected_cik:
+            return _held(ticker, cik, 'archive_quarter_selected_issuer_mismatch')
         gap = _receipt_gap(financial, verified, ticker_map_receipt, submissions_receipt, observed_at)
         if gap:
             return _held(ticker, cik, 'archive_quarter_' + gap)
         anchor = verified['latest']['quarterly']
         if not anchor or anchor['form'] not in _QUARTER_FORMS:
-            return held
-        # Recompute from the fresh structured evidence; caller-supplied coverage
-        # cannot force a source request for an already covered quarter.
+            return _held(ticker, cik, 'archive_quarter_supported_filing_unavailable') if exact_quarter_requested else held
+        # Recompute from the fresh structured evidence. Only an explicit action
+        # or reviewed supplemental scope can inspect an already covered quarter.
         from src.online_filing_context import corroborate_online_financials
         current = corroborate_online_financials(financial, verified, as_of=observed_at)['current']['quarterly']
         supplemental = ((ticker, cik) == (_NEE_TICKER, _NEE_CIK) and anchor['accession'] == _NEE_REVIEWED_ACCESSION
                         and anchor['form'] == '10-Q')
         needed = current.get('status') in {'facts_pending', 'withheld', 'amendment_unresolved'}
-        if not needed and not (current.get('status') == 'corroborated' and supplemental):
+        if not needed and not (current.get('status') == 'corroborated' and (supplemental or exact_quarter_requested)):
             return held
         from src.sec_exact_filing import fetch_sec_filing_preview
         packet = fetch_sec_filing_preview(ticker, period_kind='quarterly', user_agent=user_agent,

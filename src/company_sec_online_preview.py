@@ -378,6 +378,8 @@ def get_company_sec_annual_preview(
     refresh_requested: bool,
     user_agent: str | None,
     preview_builder: Callable[..., Mapping[str, Any]] | None = None,
+    exact_quarter_requested: bool = False,
+    expected_cik: str | None = None,
 ) -> dict[str, Any]:
     normalized = str(ticker or "").strip().upper()
     if not re.fullmatch(r"[A-Z0-9][A-Z0-9.-]{0,19}", normalized):
@@ -411,7 +413,8 @@ def get_company_sec_annual_preview(
         if preview_builder is None:
             from src.sec_annual_history import fetch_sec_online_research_view
 
-            view = fetch_sec_online_research_view(normalized, user_agent=user_agent)
+            options = dict(exact_quarter_requested=True, expected_cik=expected_cik) if exact_quarter_requested else {}
+            view = fetch_sec_online_research_view(normalized, user_agent=user_agent, **options)
         else:
             preview = preview_builder(normalized, user_agent=user_agent)
             view = present_company_sec_annual_preview(normalized, preview)

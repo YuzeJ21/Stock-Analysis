@@ -16,8 +16,8 @@ _STYLE = ('<style>.company-archive-quarter{min-width:0;overflow-wrap:anywhere;ma
           '.company-archive-quarter summary{cursor:pointer;min-height:44px;align-content:center}.company-archive-quarter summary:focus-visible{outline:3px solid #245842}</style>')
 
 
-def merge_archive_quarter(rows, archive):
-    """Replace a whole missing/version-mismatched row, never individual fields."""
+def merge_archive_quarter(rows, archive, *, prefer_exact=False):
+    """Keep the chosen source for the whole row and preserve distinct durations."""
     result = deepcopy(rows)
     if not archive:
         return result
@@ -25,7 +25,9 @@ def merge_archive_quarter(rows, archive):
     if not quarter:
         return result
     existing = next((r for r in result if r['period_end'] == quarter['period_end']), None)
-    if existing and existing['status'] == 'available' and all(existing.get(k) == quarter.get(k) for k in ('accession', 'form', 'filed')):
+    if (existing and existing['status'] == 'available'
+            and all(existing.get(k) == quarter.get(k) for k in ('accession', 'form', 'filed'))
+            and not (prefer_exact and quarter['status'] == 'available')):
         return result
     row = deepcopy(quarter)
     cumulative = next((r for r in archive['periods'] if r['kind'] == 'cumulative'), {})
