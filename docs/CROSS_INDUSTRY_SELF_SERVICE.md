@@ -111,7 +111,32 @@ Rechecking AMD, NVDA, BAC, and C at the original midday cutoff raised exact repl
 
 The corrected live run observed the same twelve companies from 13:53 to 13:58 ET. All twelve dated closes still came from November 18. AMD, NVDA, BAC, and C now show the same intraday-versus-completed-close hold as QCOM and DUK. Exact replay qualified for **11/12**, direct-quarter facts for **10/12**, and same-basis peer comparison for **0/12**. The run made 58 raw callbacks and 106 adapter operations with no SEC access pause.
 
-The November 16 after-close cohort provides the retained positive control with four qualifying peer comparisons. The November 18 DUK check shows that the two provider responses can settle at different times after the bell. The November 19 post-close cohort remains pending until matching completed-session evidence is available. [NYSE trading schedule](https://www.nyse.com/trade/hours-calendars) · [DUK post-close review](ONLINE_PEER_VALUATION.md)
+The November 16 after-close cohort provides the retained positive control with four qualifying peer comparisons. The November 18 DUK check shows that the two provider responses can settle at different times after the bell. [NYSE trading schedule](https://www.nyse.com/trade/hours-calendars) · [DUK post-close review](ONLINE_PEER_VALUATION.md)
+
+### November 19 post-close rerun
+
+The same twelve companies were measured from 16:16 to 16:23 ET, after the regular 16:00 close. All twelve had a verified November 19 closing price. Same-basis peer P/E rose from **0/12** in the corrected midday run to **1/12**. All other capability counts matched that run, including **10/12** direct-quarter facts and **11/12** exact research replay. The study made 172 raw source callbacks and 310 adapter operations with no SEC access pause.
+
+The comparison uses a common completed closing date, compatible annual diluted GAAP EPS, the 35-day fiscal window, and at least three eligible industry references.
+
+| Company | Peer valuation result |
+| --- | --- |
+| AMD | Withheld. Its current annual filing is still uncorroborated in Workbench. |
+| NVDA | Qualified. Six references passed: AMD, TXN, MRVL, NXPI, MPWR, and ALAB. |
+| QCOM | Withheld. Zero of at least three required references qualified. |
+| JPM | Withheld. The selected common-share scope was unresolved. |
+| BAC | Withheld. One reference qualified (C). Three are required. |
+| C | Withheld. Two references qualified (BAC and WFC). Three are required. |
+| DUK | Withheld. The selected common-share scope was unresolved in this refresh. |
+| SO | Withheld. The selected common-share scope was unresolved. |
+| NEE | Withheld. The selected common-share scope was unresolved. |
+| TSM | Withheld. The ADS needs its own currency and per-share method. |
+| SAP | Withheld. The selected listing-to-SEC-issuer match was unverified. |
+| IBN | Unavailable. The quote provider's company context was unavailable. |
+
+AMD's admission as an NVDA reference uses the peer method's annual filing evidence. Its own Workbench result also requires corroboration of the current structured annual filing. DUK's November 18 result remains a dated comparison. The November 19 run required current common-share evidence again. [Valuation and evidence method](ONLINE_PEER_VALUATION.md)
+
+Desktop (1440 × 1000) and phone (390 × 844) Discover checks reproduced the retained counts at the recorded cutoff and showed the NVDA qualification and AMD hold. Replay made zero provider requests. All 89 protected files and the original retained inputs matched.
 
 ## November 8 controlled repair
 
