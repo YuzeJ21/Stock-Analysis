@@ -593,7 +593,7 @@ def validated_coverage_view(value):
         return None
 
 
-def _collect(ticker, state, deps, now, user_agent):
+def _collect(ticker, state, deps, as_of, user_agent):
     operations, requests, access = [], [], {}
     memo, failures = {}, {}
     memo_bytes = 0
@@ -634,18 +634,18 @@ def _collect(ticker, state, deps, now, user_agent):
             return dict(status='unavailable',reason='source_component_unavailable',ticker=ticker)
         except (OSError, RuntimeError, TimeoutError, ValueError, TypeError, KeyError, AttributeError):
             return dict(status='unavailable',reason='source_component_unavailable',ticker=ticker)
-    classification = _recent_classification(state, now)
+    classification = _recent_classification(state, _now(as_of))
     mapping = classification['inventory']['map_receipt'] if classification else None
     if mapping and not any(isinstance(row,Mapping) and row.get('ticker') == ticker
         for row in mapping.get('payload',{}).values()):
         mapping = None
     financial = call('financial', deps['financial'], ticker, user_agent=user_agent,
-        source_fetcher=raw, ticker_map_receipt=mapping, observed_at=now)
+        source_fetcher=raw, ticker_map_receipt=mapping, observed_at=as_of)
     identity = _mapping(financial.get('companyfacts_identity'))
     inventory = _mapping(financial.get('filing_inventory'))
     cik = identity.get('sec_cik') or inventory.get('sec_cik')
     prices = dict(status='unavailable',reason='source_access_paused') if access else call(
-        'prices',deps['prices'],ticker,observed_at=now,include_verified_session_close=True)
+        'prices',deps['prices'],ticker,observed_at=as_of,include_verified_session_close=True)
     slot = {}
     if classification:
         envelope = dict(schema_version=LISTING_SCHEMA,classification=classification)
@@ -654,7 +654,7 @@ def _collect(ticker, state, deps, now, user_agent):
     association = dict(status='withheld',reason='source_access_paused' if access else 'financial_identity_unavailable')
     if not access:
         association = call('association',get_price_filing_association,ticker,identity,prices,slot,
-            refresh_requested=True,user_agent=user_agent,fetcher=raw,observed_at=now)
+            refresh_requested=True,user_agent=user_agent,fetcher=raw,observed_at=as_of)
         peer_deps = dict(deps['peer_dependencies'])
         peer_deps.setdefault('sec',lambda url,**kwargs:fetch_sec_json_receipt(url,fetcher=raw,**kwargs))
         peer_deps.setdefault('classification',lambda **kwargs:peer_sources.fetch_classification(fetcher=raw,**kwargs))
@@ -671,8 +671,10 @@ def _collect(ticker, state, deps, now, user_agent):
                 return call('peer_'+name,function,*args,**kwargs)
             return invoke
         call('peers',peer_sources.get_online_peer_valuation,ticker,slot,refresh_requested=True,
-            expected_cik=cik,user_agent=user_agent,as_of=now,
+            expected_cik=cik,user_agent=user_agent,as_of=as_of,
             dependencies={name:counted(name,fn) for name,fn in peer_deps.items()})
+    # A live attempt keeps the adapters' receipt clocks and evaluates them after acquisition.
+    now = _now(as_of)
     packet = dict(ticker=ticker,observed_at=now.isoformat(),financial=financial,prices=prices,association=association,
         peer_packet=_compact_peer(slot.get(peer_sources.SESSION_KEY,{}),state), source_access_limit=access or None,
         source_failures=list(failures.values()))
@@ -708,7 +710,7 @@ def _collect(ticker, state, deps, now, user_agent):
     return state
 
 
-def get_self_service_coverage(session_state, *, inspect_requested=False, retry_ticker=None, reset_requested=False,
+def get_self_service_coverage(session_state, *, inspect_requested=False, retry_ticker=None, replay_ticker=None, reset_requested=False,
     user_agent=None, dependencies=None, as_of=None):
     """Inspect one next/retried company explicitly; ordinary reads never transport."""
     try:
@@ -726,6 +728,20 @@ def get_self_service_coverage(session_state, *, inspect_requested=False, retry_t
         return _summary(state,now,reason=reason)
     if type(inspect_requested) is not bool or type(reset_requested) is not bool:
         return _summary(state,now,reason='invalid_self_service_coverage_action')
+    if replay_ticker is not None:
+        if (not isinstance(replay_ticker, str) or replay_ticker not in state['packets']
+                or inspect_requested or retry_ticker is not None or reset_requested):
+            return _summary(state,now,reason='invalid_self_service_replay_target')
+        original = state['packets'][replay_ticker]
+        packet = dict(original)
+        group = next(group for group,tickers in SAMPLE_GROUPS if replay_ticker in tickers)
+        _row(replay_ticker,group,packet,state,now,collect_replay=True)
+        state['packets'][replay_ticker] = packet
+        if len(_bytes(packet)) > MAX_PACKET_BYTES or len(_bytes(state)) > MAX_STATE_BYTES:
+            state['packets'][replay_ticker] = original
+            return _summary(state,now,reason='self_service_replay_retention_size_limit')
+        session_state[SESSION_KEY] = _seal(state)
+        return _summary(state,now)
     if reset_requested:
         session_state[SESSION_KEY] = state
         return _summary(state,now)
@@ -747,7 +763,8 @@ def get_self_service_coverage(session_state, *, inspect_requested=False, retry_t
         return _summary(state,now,reason='invalid_self_service_coverage_dependencies')
     if not isinstance(user_agent,str) or not user_agent.strip() or any(c in user_agent for c in '\r\n'):
         return _summary(state,now,reason='sec_user_agent_required')
-    state = _collect(target,state,deps,now,user_agent)
+    state = _collect(target,state,deps,as_of,user_agent)
+    now = _now(as_of)
     if len(_bytes(state)) > MAX_STATE_BYTES:
         # An explicit unsuccessful replacement must never leave the prior
         # successful packet current on the next ordinary read.

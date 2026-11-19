@@ -41,6 +41,8 @@ def _explain(reason):
         return 'Workbench has qualified bank annual facts. The study requires revenue in the general period table for this count.'
     if reason == 'exact_ibn_interim_table_and_filing':
         return 'Workbench has qualified bank interim facts. The study requires revenue in the general period table for this count.'
+    if reason == 'snapshot_proof_needs_explicit_recheck':
+        return 'The retained observations need a new replay check.'
     translated = _reason(reason)
     if translated == 'Source, identity, or field evidence could not be verified. This input is withheld.':
         return _label(reason)
@@ -196,7 +198,6 @@ def bank_filing_evidence_html(evidence):
     replay = evidence['snapshot_replay']
     reason = {
         'exact_private_context_replay': 'The saved context reopened unchanged in a disposable store.',
-        'snapshot_proof_needs_explicit_recheck': 'Recheck IBN to verify exact replay for this observation.',
         'verified_bank_filing_required': 'Exact replay requires a verified bank filing.',
     }.get(replay.get('reason'), _explain(replay.get('reason')))
     return ('<section class="self-service-coverage coverage-dated" aria-label="Bank filing evidence">'
@@ -231,17 +232,27 @@ def render_self_service_coverage(st):
     # rerun, so Streamlit's widget cleanup cannot reset it to the first ticker.
     selected = st.radio('Company evidence',tuple(by_ticker),horizontal=True,
         key='self-service-coverage-company') if by_ticker else None
+    row = by_ticker.get(selected, {})
     inspect = st.button('Inspect next company',key='self-service-coverage-next',
         disabled=bool(view.get('paused')) or view.get('pending_count',12)==0 or view.get('status')!='inspection_only')
     retry = None
-    can_recheck = selected and by_ticker[selected]['attempted'] and view.get('status')=='inspection_only'
+    can_recheck = row.get('attempted') and view.get('status') == 'inspection_only'
     if st.button('Recheck company',key='self-service-coverage-retry',disabled=not can_recheck):retry=selected
     reset = st.button('Restart study',key='self-service-coverage-reset')
+    bank_replay = (row.get('bank_evidence') or {}).get('snapshot_replay')
+    proofs = (row.get('snapshot_replay'), bank_replay)
+    if can_recheck and any(proof and proof.get('status') == 'held'
+                           and proof.get('reason') == 'snapshot_proof_needs_explicit_recheck' for proof in proofs):
+        st.caption('Checks existing observations in a temporary store with no provider refresh.')
+        if st.button('Recheck retained replay', key='self-service-coverage-replay'):
+            with st.spinner('Checking retained research replay…'):
+                get_self_service_coverage(st.session_state, replay_ticker=selected)
+            st.rerun()
     if inspect or retry or reset:
         with st.spinner('Checking online sources and research tools…'):
             view = get_self_service_coverage(st.session_state,inspect_requested=inspect,retry_ticker=retry,
                 reset_requested=reset,user_agent=sec_request_identification(st))
         st.rerun()
     st.markdown(self_service_coverage_html(view),unsafe_allow_html=True)
-    if selected:
-        _company_details(st,by_ticker[selected])
+    if row:
+        _company_details(st,row)

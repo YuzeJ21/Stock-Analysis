@@ -1,5 +1,8 @@
 """Compact sample coverage cannot imply a market-wide research census."""
+from contextlib import nullcontext
 from copy import deepcopy
+
+import pytest
 
 
 def test_initial_study_shows_all_unattempted_companies_and_fixed_denominator():
@@ -85,3 +88,66 @@ def test_paused_study_keeps_manual_recheck_available(monkeypatch):
     assert buttons['self-service-coverage-next'] is True
     assert buttons['self-service-coverage-retry'] is False
     assert buttons['self-service-coverage-reset'] is False
+
+
+@pytest.mark.parametrize('lane,ticker', [('general', 'AMD'), ('bank', 'IBN'), ('available', 'AMD')])
+def test_retained_replay_action_is_scoped_to_an_eligible_selected_company(monkeypatch, lane, ticker):
+    from src import self_service_research_coverage_ui as ui
+
+    class Rerun(Exception):
+        pass
+
+    replay_key = 'self-service-coverage-replay'
+    calls, buttons, captions = [], [], []
+
+    class Surface:
+        def __init__(self):
+            self.session_state = {}
+
+        def caption(self, message):
+            captions.append(message)
+
+        def markdown(self, *args, **kwargs):
+            pass
+
+        def button(self, label, *, key, disabled=False):
+            buttons.append((label, key, disabled))
+            return key == replay_key
+
+        def radio(self, label, options, **kwargs):
+            return ticker
+
+        def spinner(self, message):
+            return nullcontext()
+
+        def rerun(self):
+            raise Rerun
+
+    hold = {'status': 'held', 'reason': 'snapshot_proof_needs_explicit_recheck'}
+    available = {'status': 'available', 'reason': 'exact_private_context_replay'}
+    row = {'ticker': ticker, 'attempted': True, 'snapshot_replay': hold if lane == 'general' else available}
+    if lane == 'bank':
+        row.update(snapshot_replay={'status': 'held', 'reason': 'usable_current_research_fields_required'},
+                   bank_evidence={'snapshot_replay': hold})
+    view = {'status': 'inspection_only', 'paused': True, 'pending_count': 10,
+            'rows': [{'ticker': 'NVDA', 'attempted': True, 'snapshot_replay': hold}, row]}
+
+    def coverage(state, **kwargs):
+        calls.append(kwargs)
+        return view
+
+    monkeypatch.setattr(ui, 'get_self_service_coverage', coverage)
+    monkeypatch.setattr(ui, 'sec_request_identification', lambda st: None)
+    monkeypatch.setattr(ui, 'validated_coverage_view', lambda value: value)
+    monkeypatch.setattr(ui, 'self_service_coverage_html', lambda value: '')
+    monkeypatch.setattr(ui, '_company_details', lambda st, value: None)
+    if lane == 'available':
+        ui.render_self_service_coverage(Surface())
+        assert all(key != replay_key for _, key, _ in buttons)
+        assert calls == [{'user_agent': None}]
+    else:
+        with pytest.raises(Rerun):
+            ui.render_self_service_coverage(Surface())
+        assert ('Recheck retained replay', replay_key, False) in buttons
+        assert any('existing observations' in text and 'no provider refresh' in text for text in captions)
+        assert calls == [{'user_agent': None}, {'replay_ticker': ticker}]

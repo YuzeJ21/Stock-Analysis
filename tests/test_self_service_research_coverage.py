@@ -164,6 +164,79 @@ def test_explicit_next_uses_actual_tools_and_private_disposable_exact_replay_the
     assert not any(key in json.dumps(result) for key in ['enterprise_value','projected_fcfs','"close":','"revenue":'])
 
 
+def test_live_inspection_uses_source_clocks_and_validates_at_completion(monkeypatch):
+    from src import self_service_research_coverage as coverage
+    from src.sec_annual_history import fetch_sec_online_research_view
+
+    source_clock = [NOW]
+    finished = NOW + timedelta(seconds=12)
+    monkeypatch.setattr(coverage, '_now', lambda value: value or source_clock[0])
+    monkeypatch.setattr(coverage.peer_sources, '_now', lambda value=None: value or source_clock[0])
+    deps, _ = dependencies()
+    original_vendor = deps['peer_dependencies']['vendor']
+    observed_arguments = []
+
+    def financial(ticker, *, observed_at, **kwargs):
+        observed_arguments.append(observed_at)
+        return fetch_sec_online_research_view(ticker, observed_at=observed_at or source_clock[0], **kwargs)
+
+    def time_prices(adapter):
+        def prices(ticker, *, observed_at, **kwargs):
+            observed_arguments.append(observed_at)
+            source_clock[0] = finished
+            return {**adapter(ticker, **kwargs), 'observed_at': (observed_at or finished).isoformat()}
+        return prices
+
+    def vendor(ticker, *, observed_at):
+        observed_arguments.append(observed_at)
+        return {**original_vendor(ticker), 'observed_at': (observed_at or finished).isoformat()}
+
+    deps.update(financial=financial, prices=time_prices(deps['prices']))
+    deps['peer_dependencies'].update(vendor=vendor, prices=time_prices(deps['peer_dependencies']['prices']))
+    state = {}
+    view = coverage.get_self_service_coverage(state, inspect_requested=True,
+        user_agent='Constructed research contact', dependencies=deps)
+    assert observed_arguments and all(value is None for value in observed_arguments)
+    packet = state[coverage.SESSION_KEY]['packets']['AMD']
+    assert packet['observed_at'] == packet['prices']['observed_at'] == finished.isoformat()
+    for capability in ('dated_price', 'peer_comparison', 'snapshot_replay'):
+        assert view['counts'][capability] == 1, view['rows'][0]['capabilities'][capability]
+    assert coverage.get_self_service_coverage(state) == view
+
+
+def test_retained_replay_recheck_does_not_recollect_or_renew_source_receipts(monkeypatch):
+    from src import self_service_research_coverage as coverage
+
+    deps, calls = dependencies()
+    session = {}
+    study(session, inspect=True, deps=deps)
+    study(session, inspect=True, deps=deps)
+    packet = session[coverage.SESSION_KEY]['packets']['AMD']
+    packet['replay_proof']['context_sha256'] = '0' * 64
+    coverage._seal(session[coverage.SESSION_KEY])
+    before = deepcopy(session[coverage.SESSION_KEY])
+    attempted_sources = list(calls)
+    assert study(session, deps=deps)['rows'][0]['capabilities']['snapshot_replay']['status'] == 'held'
+
+    def unexpected_collection(*args, **kwargs):
+        pytest.fail('Retained replay requested online sources')
+
+    monkeypatch.setattr(coverage, '_collect', unexpected_collection)
+    replayed = coverage.get_self_service_coverage(session, replay_ticker='AMD', as_of=NOW)
+    assert replayed['rows'][0]['snapshot_replay']['comparison_status'] == 'unchanged'
+    assert replayed['counts']['attempted'] == replayed['counts']['snapshot_replay'] == 2
+    assert calls == attempted_sources
+    after = deepcopy(session[coverage.SESSION_KEY])
+    assert after['packets']['AMD'].pop('replay_proof') != before['packets']['AMD'].pop('replay_proof')
+    assert {key: value for key, value in after.items() if key != 'digest'} == {
+        key: value for key, value in before.items() if key != 'digest'}
+
+    assert coverage.get_self_service_coverage(session, replay_ticker='QCOM', as_of=NOW)['status'] == 'unavailable'
+    stale = coverage.get_self_service_coverage(session, replay_ticker='AMD', as_of=NOW + timedelta(hours=25))
+    assert stale['rows'][0]['capabilities']['snapshot_replay']['status'] == 'held'
+    assert calls == attempted_sources
+
+
 def test_next_and_retry_replace_only_selected_attempt_and_preserve_classification_dedup():
     from src.self_service_research_coverage import SESSION_KEY
     deps,calls=dependencies();state={}

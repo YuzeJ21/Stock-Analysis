@@ -99,6 +99,20 @@ All twelve companies were attempted again on November 19, 2026. The observations
 
 The release candidate reproduced all rows and request counts at the recorded cutoff. Desktop and phone Discover checks showed the same denominators, group counts and held states. Reopening the retained study made zero new source requests.
 
+### Receipt timing and retained replay
+
+The November 19 investigation traced the four quote chronology holds to the collection clock. The study previously supplied the same attempt-start timestamp to every adapter. AMD, NVDA, BAC, and C returned market events two to four seconds after that start. Those quotes were from the November 19 intraday session, while the completed price bars were dated November 18.
+
+Live collection now lets each adapter record when it obtained its evidence and evaluates the packet after collection ends. A fixed verification clock remains available for deterministic replay. The valuation comparison still requires the same completed price date, compatible annual diluted EPS and at least three qualifying references in the existing 35-day window.
+
+When a selected company's proof needs checking again, **Recheck retained replay** verifies the saved context from the existing observations in a disposable store. The action preserves source receipts and dates. Stale inputs can still hold the result. **Recheck company** collects new inputs.
+
+Rechecking AMD, NVDA, BAC, and C at the original midday cutoff raised exact replay from **7/12 to 11/12** on the same inputs. The four contexts reopened as Unchanged. Peer comparison stayed **0/12**, every other count matched, and no provider requests or user-store writes occurred. Desktop and phone automation exercised the action and verified unchanged source receipts and protected files.
+
+The corrected live run observed the same twelve companies from 13:53 to 13:58 ET. All twelve dated closes still came from November 18. AMD, NVDA, BAC, and C now show the same intraday-versus-completed-close hold as QCOM and DUK. Exact replay qualified for **11/12**, direct-quarter facts for **10/12**, and same-basis peer comparison for **0/12**. The run made 58 raw callbacks and 106 adapter operations with no SEC access pause.
+
+The November 16 after-close cohort provides the retained positive control with four qualifying peer comparisons. The November 18 DUK check shows that the two provider responses can settle at different times after the bell. The November 19 post-close cohort remains pending until matching completed-session evidence is available. [NYSE trading schedule](https://www.nyse.com/trade/hours-calendars) · [DUK post-close review](ONLINE_PEER_VALUATION.md)
+
 ## November 8 controlled repair
 
 Reprocessing the same twelve captured source observations before and after the shared catalog repair improved usable filing catalogs from **5/12 to 12/12**. This is a controlled comparison using the same source inputs, not a fresh market-coverage pass.

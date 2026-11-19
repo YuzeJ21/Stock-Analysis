@@ -330,3 +330,17 @@ def test_same_day_observation_needs_close_proof_even_on_later_replay(proof_kind)
     else:
         assert view["status"] == "withheld"
         assert view["reason"] == "quote_not_same_recent_completed_day"
+
+
+@pytest.mark.parametrize("early_receipt", ["vendor", "prices"])
+def test_quote_after_either_source_receipt_remains_ineligible(early_receipt):
+    packet = collection()
+    subject = packet["issuers"][0]
+    subject["vendor"]["payload"]["info"]["regularMarketTime"] = int((NOW - timedelta(seconds=1)).timestamp())
+    rehash_vendor(subject)
+    subject[early_receipt]["observed_at"] = (NOW - timedelta(seconds=2)).isoformat()
+
+    view = build(packet)
+    assert view["status"] == "withheld"
+    assert view["reason"] == "price_quote_chronology_invalid"
+    assert view["peer_median"] is None
