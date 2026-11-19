@@ -9,7 +9,9 @@ import socket
 import pytest
 
 
-NOW = datetime(2026, 11, 8, 4, tzinfo=timezone.utc)
+# Observe after the newest reviewed bank cover and its completed market session.
+NOW = datetime(2026, 11, 20, 4, tzinfo=timezone.utc)
+CLOSE = datetime(2026, 11, 19, 21, tzinfo=timezone.utc)
 BANKS = ('JPM', 'BAC', 'C')
 
 
@@ -38,10 +40,11 @@ def bank_dependencies(record):
     nasdaq = 'Symbol|Security Name|Market Category|Test Issue|Financial Status|Round Lot Size|ETF|NextShares\n'
     nasdaq += ''.join(f'{ticker}|Constructed {ticker} - {"Common Stock" if ticker in coverage.SAMPLE else "Preferred Stock"}|Q|N|N|100|N|N\n'
                       for ticker in symbols)
-    nasdaq += 'File Creation Time: 1106202615:41|||||||\n'
+    footer = CLOSE.strftime('%m%d%Y') + '15:41'
+    nasdaq += f'File Creation Time: {footer}|||||||\n'
     other = ('ACT Symbol|Security Name|Exchange|CQS Symbol|ETF|Round Lot Size|Test Issue|NASDAQ Symbol\n'
              'UNMAP|Constructed Unmapped - Common Stock|N|UNMAP|N|100|N|UNMAP\n'
-             'File Creation Time: 1106202615:41|||||||\n')
+             f'File Creation Time: {footer}|||||||\n')
     bodies = {N_URL: nasdaq.encode(), O_URL: other.encode(), M_URL: json.dumps(mapping).encode(),
               E_URL: json.dumps(exchange).encode()}
     source_documents = {}
@@ -87,7 +90,7 @@ def bank_dependencies(record):
         vendor['observed_at'] = NOW.isoformat()
         vendor['payload']['info'].update(industryKey='banks-regional' if ticker in BANKS else 'semiconductors',
                                         sectorKey='financial-services' if ticker in BANKS else 'technology',
-                                        regularMarketTime=int(datetime(2026, 11, 6, 21, tzinfo=timezone.utc).timestamp()))
+                                        regularMarketTime=int(CLOSE.timestamp()))
         vendor['normalized_sha256'] = normalized_digest(vendor['payload'])
         vendors[ticker] = vendor
         profiles[ticker] = profile
@@ -120,8 +123,9 @@ def bank_dependencies(record):
     def prices(ticker, **kwargs):
         record('prices:' + ticker)
         result = issuer(ticker, ciks[ticker], 30)['prices']
-        result.update(observed_at=NOW.isoformat(), instrument_type='EQUITY', last_price_date='2026-11-06')
-        result['bars'][-1]['date'] = '2026-11-06'
+        close_date = CLOSE.date().isoformat()
+        result.update(observed_at=NOW.isoformat(), instrument_type='EQUITY', last_price_date=close_date)
+        result['bars'][-1]['date'] = close_date
         return result
 
     def vendor(ticker, **kwargs):

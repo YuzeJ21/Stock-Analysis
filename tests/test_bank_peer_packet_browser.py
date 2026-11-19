@@ -12,7 +12,7 @@ from urllib.parse import urlsplit
 import pytest
 
 from src.public_performance_gate import _free_port, _wait_for_dom_stability, _wait_for_health, find_chrome_executable
-from tests.bank_peer_packet_browser_fixture import BANKS
+from tests.bank_peer_packet_browser_fixture import BANKS, NOW
 from tests.test_research_monitor_roundtrip_browser import assert_rendered_english
 
 
@@ -163,7 +163,7 @@ def test_bank_packets_are_losslessly_retained_and_rechecked_without_promoting_pe
                 playwright.expect(retained).to_contain_text('exact restoration verified')
                 detail = expand('Reporting periods and original source receipts')
                 playwright.expect(detail).to_contain_text('SHA-256')
-                playwright.expect(detail).to_contain_text('Observed 2026-11-08')
+                playwright.expect(detail).to_contain_text(f'Observed {NOW.date().isoformat()}')
                 row = next(row for row in read('study-view.json')['rows'] if row['ticker'] == ticker)
                 assert row['capabilities']['peer_comparison'] == dict(status='held', reason='multiple_issuer_share_classes_unresolved')
                 assert row['capabilities']['scenario_eligibility']['reason'] == 'financial_sector_operating_company_dcf_excluded'

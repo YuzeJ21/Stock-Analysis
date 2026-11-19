@@ -138,6 +138,31 @@ AMD's admission as an NVDA reference uses the peer method's annual filing eviden
 
 Desktop (1440 × 1000) and phone (390 × 844) Discover checks reproduced the retained counts at the recorded cutoff and showed the NVDA qualification and AMD hold. Replay made zero provider requests. All 89 protected files and the original retained inputs matched.
 
+### November 19 common-share rerun
+
+The same twelve companies were rerun from 16:38:49 to 16:51:08 ET. The SEC filings and dated Nasdaq Trader exchange directory verified JPM, DUK, SO, and NEE as the selected NYSE common shares. Same-basis peer P/E coverage rose from **1/12 to 6/12** across the two post-close runs. All twelve still had a verified November 19 close. Other capability counts matched the earlier run, including **10/12** current annual facts, **10/12** direct-quarter facts, and **11/12** exact research replay. The rerun recorded 265 raw source callbacks and 447 adapter operations with no SEC access pause. [Common-share source review](ONLINE_PEER_VALUATION.md#november-19-common-share-source-review)
+
+The same-day completed close, compatible annual diluted GAAP EPS, 35-day fiscal window, and minimum of three eligible industry references were applied to every comparison.
+
+| Company | Peer valuation result | Eligible references |
+| --- | --- | --- |
+| AMD | Withheld because Workbench could not corroborate the current structured annual filing. | Six references cleared the peer checks. The subject filing gate still holds the comparison. |
+| NVDA | Qualified | AMD, TXN, MRVL, NXPI, MPWR, ALAB |
+| QCOM | Withheld because zero of the required three references qualified. | — |
+| JPM | Qualified | BAC, WFC, C |
+| BAC | Qualified | JPM, WFC, C |
+| C | Qualified | JPM, BAC, WFC |
+| DUK | Qualified | ED, WEC, PEG, AEE |
+| SO | Withheld because the provider's exhibit link could not be matched to the SEC parent issuer. | — |
+| NEE | Qualified | AEP, D, ETR |
+| TSM | Withheld because the ADS needs a separate currency and per-share method. | — |
+| SAP | Withheld because the selected listing-to-SEC-issuer match is unverified. | — |
+| IBN | Unavailable because the quote provider's company context was unavailable. Generic replay remained held. | — |
+
+SO's NYSE common-share evidence passed independently. The fresh quote-provider packet linked the exhibit for accession `0000092122-25-000084` under Southern Power's CIK `0001160661`. The SEC index lists both Southern Power and The Southern Company as filers. The existing valuation check still requires an exhibit bound to the parent issuer's CIK `0000092122`. [SEC joint filing index](https://www.sec.gov/Archives/edgar/data/92122/000009212225000084/0000092122-25-000084-index.htm)
+
+Desktop (1440 × 1000) and phone (390 × 844) Discover checks reproduced the 12-company results. Workbench displayed the exact verified common-share sources for all four issuers and the separate SO hold. The checks made zero provider requests and preserved all 89 protected files and the original source inputs.
+
 ## November 8 controlled repair
 
 Reprocessing the same twelve captured source observations before and after the shared catalog repair improved usable filing catalogs from **5/12 to 12/12**. This is a controlled comparison using the same source inputs, not a fresh market-coverage pass.
