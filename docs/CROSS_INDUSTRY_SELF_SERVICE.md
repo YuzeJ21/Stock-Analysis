@@ -163,6 +163,24 @@ SO's NYSE common-share evidence passed independently. The fresh quote-provider p
 
 Desktop (1440 × 1000) and phone (390 × 844) Discover checks reproduced the 12-company results. Workbench displayed the exact verified common-share sources for all four issuers and the separate SO hold. The checks made zero provider requests and preserved all 89 protected files and the original source inputs.
 
+### November 19 joint-filing rerun
+
+The same twelve companies were rerun with observation times from 17:14:09 to 17:27:26 ET. Same-basis peer P/E coverage moved from **6/12 to 7/12**. All twelve companies still had a verified November 19 close, with **10/12** current annual facts, **10/12** direct-quarter facts, and **11/12** exact research replay. The run recorded 299 raw source callbacks and 497 adapter operations with no SEC access pause.
+
+SO qualified with NEE, AEP, D, and ETR. DUK, ED, WEC, PEG, and AEE had a different SEC industry code. XEL and PCG had unresolved issuer share classes. EXC's provider filing link remained unmatched. NEE also gained SO as an eligible reference alongside AEP, D, and ETR. The joint filing resolves SO's provider identity. Its annual diluted EPS comes from the parent's FY2025 10-K. The comparison retains the same-day completed close, compatible annual diluted GAAP EPS, 35-day fiscal window, and minimum of three eligible industry references. [Exact joint-filing review](ONLINE_PEER_VALUATION.md#southern-company-joint-filing-identity)
+
+NVDA, JPM, BAC, C, and DUK retained their earlier qualifications. The five remaining comparison gaps were:
+
+| Company | First unresolved check |
+| --- | --- |
+| AMD | Workbench could not corroborate the current structured annual filing. |
+| QCOM | Zero of the required three industry references qualified. |
+| TSM | The ADS requires a separate currency and per-share method. |
+| SAP | The selected listing-to-SEC-issuer match is unverified. |
+| IBN | Provider company context was unavailable. Generic replay remained held. |
+
+Discover and Workbench passed browser checks at 1440 × 1000 and 390 × 844. Discover reproduced the saved study counts. Workbench showed both SEC index links, the separate annual EPS source, and the four qualifying references and eight exclusions. The checks made zero provider requests and preserved all 89 protected files and the original source inputs.
+
 ## November 8 controlled repair
 
 Reprocessing the same twelve captured source observations before and after the shared catalog repair improved usable filing catalogs from **5/12 to 12/12**. This is a controlled comparison using the same source inputs, not a fresh market-coverage pass.
