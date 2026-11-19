@@ -12,6 +12,7 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 
 from src.public_performance_gate import _free_port, _wait_for_health, _wait_for_dom_stability, find_chrome_executable
+from tests.cross_industry_browser_fixture import IBN_ANNUAL_URL, IBN_QUARTER_URL
 from tests.test_research_monitor_roundtrip_browser import assert_rendered_english
 
 
@@ -137,8 +138,8 @@ def test_failure_inclusive_study_and_four_company_workflows(cross_industry_serve
             playwright.expect(page.get_by_role('radio', name='JPM', exact=True)).to_be_checked()
             playwright.expect(page.get_by_role('heading', name='JPM · Banks', exact=True)).to_be_visible()
             final_study = study()
-            assert final_study['capability_status_counts']['scenario_eligibility']['excluded'] == 3
-            assert final_study['capability_status_counts']['matched_identity']['failed'] == 1
+            assert final_study['capability_status_counts']['scenario_eligibility']['excluded'] == 4
+            assert final_study['capability_status_counts']['matched_identity']['failed'] == 2
             assert final_study['counts']['dated_price'] == final_study['counts']['peer_comparison'] == 0
             assert not final_study['user_notes_read'] and not final_study['user_store_written']
             assert final_study['saved_readiness_promoted'] is False and final_study['commercial_eligible'] is False
@@ -154,7 +155,7 @@ def test_failure_inclusive_study_and_four_company_workflows(cross_industry_serve
             playwright.expect(detail.get_by_role('link', name='Original source', exact=True).first).to_have_attribute('href', 'https://data.sec.gov/api/xbrl/companyfacts/CIK0000001004.json')
             method = region.locator('summary').filter(has_text='All tool counts and method exclusions')
             method.click()
-            playwright.expect(region).to_contain_text('3 excluded')
+            playwright.expect(region).to_contain_text('4 excluded')
             assert calls() == before_details
             surface('complete-bank-exclusion')
             previous_requests = study()['source_request_count']
@@ -169,6 +170,57 @@ def test_failure_inclusive_study_and_four_company_workflows(cross_industry_serve
             playwright.expect(region).to_contain_text('Unattempted: 0 / 12.')
             assert study()['attempted_count'] == 12 and len(calls()) > len(before_details)
             assert 'sec:https://data.sec.gov/api/xbrl/companyfacts/CIK0000001004.json' in calls()[len(before_details):]
+
+            before_ibn = calls()
+            choose_company('IBN')
+            playwright.expect(page.get_by_role('heading', name='IBN · Foreign issuers', exact=True)).to_be_visible()
+            bank = page.get_by_role('region', name='Bank filing evidence', exact=True)
+            expected_filings = (
+                ('Annual bank statements', '2025-04-01 to 2026-03-31', IBN_ANNUAL_URL),
+                ('Direct-quarter bank results', '2026-07-01 to 2026-09-30', IBN_QUARTER_URL),
+                ('Year-to-date bank results', '2026-04-01 to 2026-09-30', IBN_QUARTER_URL),
+            )
+            for label, period, url in expected_filings:
+                filing = bank.get_by_role('listitem').filter(has=page.get_by_text(label, exact=True))
+                playwright.expect(filing).to_contain_text(f'{period} · INR')
+                playwright.expect(filing.get_by_role('link')).to_have_attribute('href', url)
+                assert before_ibn.count('sec:' + url) == 1
+            playwright.expect(bank).to_contain_text('Quarterly operating cash flow')
+            playwright.expect(bank).to_contain_text('Withheld')
+            playwright.expect(bank).to_contain_text('six-month', ignore_case=True)
+            playwright.expect(bank).to_contain_text('The saved context reopened unchanged in a disposable store.')
+            assert calls() == before_ibn
+            before_recheck = study()
+            ibn = before_recheck['rows'][-1]
+            assert ibn['ticker'] == 'IBN' and ibn['sec_cik'] == '0001103838'
+            assert all(ibn['capabilities'][kind]['status'] == 'held'
+                       for kind in ('current_annual', 'direct_quarter', 'interim', 'snapshot_replay'))
+            page.get_by_role('button', name='Recheck company', exact=True).click()
+            deadline = monotonic() + 12
+            while study()['source_request_count'] == before_recheck['source_request_count'] and monotonic() < deadline:
+                sleep(0.05)
+            assert study()['source_request_count'] > before_recheck['source_request_count']
+            _wait_for_dom_stability(page, timeout_seconds=8, stable_checks=2)
+            settle()
+            rechecked = study()
+            assert rechecked['requested_count'] == rechecked['attempted_count'] == 12
+            for key in ('counts', 'by_group', 'capability_status_counts'):
+                assert rechecked[key] == before_recheck[key], key
+            replay = rechecked['rows'][-1]['bank_evidence']['snapshot_replay']
+            assert replay['status'] == 'available' and replay['comparison_status'] == 'unchanged'
+            assert replay['exact_context_match'] and replay['disposable_store']
+            assert not replay['user_store_written'] and not (tmp_path / 'outputs').exists()
+            for url in (IBN_ANNUAL_URL, IBN_QUARTER_URL):
+                assert calls()[len(before_ibn):].count('sec:' + url) == 1
+            playwright.expect(bank).to_contain_text('The saved context reopened unchanged in a disposable store.')
+            after_recheck = calls()
+            choose_company('JPM')
+            choose_company('IBN')
+            playwright.expect(bank).to_contain_text('The saved context reopened unchanged in a disposable store.')
+            assert study()['rows'][-1]['bank_evidence'] == rechecked['rows'][-1]['bank_evidence']
+            assert calls() == after_recheck
+            surface('ibn-bank-replay')
+
             before_reset = calls()
             page.get_by_role('button', name='Restart study', exact=True).click()
             playwright.expect(region).to_contain_text('Unattempted: 12 / 12.')

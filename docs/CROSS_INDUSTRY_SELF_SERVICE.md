@@ -67,6 +67,16 @@ Discover's **Dated study results** shows the per-company changes and unresolved 
 
 The repaired snapshot store reopened TSM's exact retained November 16 research context and compared it as **Unchanged**, preserving all four fiscal 2025 IFRS diluted EPS observations and the notes in the selected-security evidence. On those same twelve-company inputs, exact replay rose from **10/12 to 11/12**. The original dated run remains recorded above. IBN's bank-only evidence retains its separate Workbench result. TSM's ADS valuation remains withheld, and the cohort's peer comparison count stays **4/12**. [TSM replay verification](TSM_SNAPSHOT_REPLAY_RELEASE.md#same-source-recheck-of-the-november-16-study)
 
+### Bank-specific evidence in Discover
+
+Select IBN under **Company evidence** after inspection. **Bank filing evidence** shows the verified consolidated annual, direct-quarter and fiscal year-to-date periods, with their INR reporting basis and filing and observation dates. The July 20 Form 20-F covers the fiscal year ended March 31, 2026. The October 22 Form 6-K covers the July–September direct quarter and April–September fiscal year to date. The cash-flow statement covers six months, so Discover labels quarterly operating cash flow **Withheld**. [Exact annual filing](https://www.sec.gov/Archives/edgar/data/1103838/000095010326010820/dp249803_20f.htm) · [Exact interim filing](https://www.sec.gov/Archives/edgar/data/1103838/000095010326015987/dp255170_6k.htm)
+
+**Inspect next company** and **Recheck company** verify replay in a disposable store and bind the result to the full research context. **Unchanged** means the saved context reopened exactly with the same inputs. Passive navigation revalidates the recorded result. Older sessions may need an explicit recheck to record the bank replay proof. The twelve-company table continues to measure the original revenue-based capabilities. [ICICI Bank evidence scope](IBN_NON_XBRL_RESEARCH.md)
+
+The November 19 verification reparsed retained SEC filing bytes and matched the annual, direct-quarter and six-month fields in the November 16 Toronto study observation. A disposable replay reopened the exact normalized IBN context as **Unchanged**. Revalidating the original study at its capture time preserved all aggregate and group counts, including **12/12** attempted, **10/12** annual, **10/12** direct quarter, **1/12** interim, **4/12** peer comparison and **10/12** generic replay. The separately dated TSM recheck records its own **11/12** replay result.
+
+Desktop (1440 × 1000) and phone (390 × 844) automation checks the Inspect and Recheck actions, original filing links, the quarterly cash-flow hold, unchanged replay, and unchanged study counts. Moving between companies or reopening the study uses the recorded proof without new source requests.
+
 ## November 8 controlled repair
 
 Reprocessing the same twelve captured source observations before and after the shared catalog repair improved usable filing catalogs from **5/12 to 12/12**. This is a controlled comparison using the same source inputs, not a fresh market-coverage pass.

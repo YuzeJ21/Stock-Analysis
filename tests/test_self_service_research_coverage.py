@@ -18,6 +18,59 @@ def no_unconstructed_transport(monkeypatch):
     monkeypatch.setattr(coverage.peer_sources,'observe_industry',blocked)
 
 
+def test_ibn_bank_evidence_replays_without_advancing_revenue_based_counts(monkeypatch):
+    from src import self_service_research_coverage as coverage
+    from test_sec_online_ibn_interim_evidence import OBSERVED, online
+
+    packet = dict(ticker='IBN', observed_at=OBSERVED.isoformat(), financial=online())
+    state = coverage._new()
+    state['packets']['IBN'] = packet
+    original = coverage._summary(state, OBSERVED)
+    row = coverage._row('IBN', 'Foreign issuers', packet, state, OBSERVED, collect_replay=True)
+    bank = row['bank_evidence']
+    assert all(bank['periods'][kind]['status'] == 'available' for kind in ('annual', 'quarterly', 'interim'))
+    assert bank['periods']['quarterly']['period_start'] == '2026-07-01'
+    assert bank['periods']['interim']['period_start'] == '2026-04-01'
+    assert bank['quarterly_cash_flow'] == {
+        'status': 'held', 'reason': 'six_month_cash_flow_only',
+    }
+    assert bank['snapshot_replay']['comparison_status'] == 'unchanged'
+    assert row['capabilities']['snapshot_replay']['status'] == 'held'
+    from src.self_service_research_coverage_ui import bank_filing_evidence_html
+
+    html = bank_filing_evidence_html(bank)
+    assert 'Bank filing evidence' in html and 'reopened unchanged' in html
+    assert 'Direct-quarter bank results' in html and 'Year-to-date bank results' in html
+    assert 'Quarterly operating cash flow</strong> · Withheld' in html
+    assert 'six-month cash flow' in html
+    assert bank['periods']['quarterly']['source_url'] in html
+
+    def unexpected_replay(*args, **kwargs):
+        pytest.fail('Passive study read wrote a disposable snapshot')
+
+    monkeypatch.setattr(coverage, '_replay_probe', unexpected_replay)
+    read = coverage._summary(state, OBSERVED)
+    assert coverage.validated_coverage_view(read)
+    assert read['rows'][-1]['bank_evidence'] == bank
+    assert read['counts'] == original['counts'] and read['by_group'] == original['by_group']
+
+    forged = deepcopy(read)
+    forged['rows'][-1]['bank_evidence']['periods']['quarterly']['source_url'] = 'https://example.com/filing'
+    assert coverage.validated_coverage_view(forged) is None
+    forged = deepcopy(read)
+    forged['rows'][-1]['bank_evidence']['quarterly_cash_flow']['status'] = 'available'
+    assert coverage.validated_coverage_view(forged) is None
+
+    packet['bank_replay_proof']['context_sha256'] = 'a' * 64
+    assert coverage._summary(state, OBSERVED)['rows'][-1]['bank_evidence']['snapshot_replay']['status'] == 'held'
+    stale = coverage._summary(state, OBSERVED + timedelta(hours=25))['rows'][-1]['bank_evidence']
+    assert all(period['status'] == 'held' for period in stale['periods'].values())
+    assert stale['quarterly_cash_flow'] == {
+        'status': 'held', 'reason': 'exact_bank_filing_unverified',
+    }
+    assert stale['snapshot_replay']['status'] == 'held'
+
+
 def dependencies():
     from test_sec_annual_history import _payload
     from test_sec_quarterly_history import _quarter_payload

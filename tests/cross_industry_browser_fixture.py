@@ -2,8 +2,34 @@
 from datetime import datetime, timezone
 import json
 import socket
+from urllib.error import HTTPError
 
 import pytest
+
+
+IBN_ANNUAL_URL = 'https://www.sec.gov/Archives/edgar/data/1103838/000095010326010820/dp249803_20f.htm'
+IBN_QUARTER_URL = 'https://www.sec.gov/Archives/edgar/data/1103838/000095010326015987/dp255170_6k.htm'
+
+
+def _ibn_sources():
+    """Use constructed statement bodies and the accessions of the reviewed filings."""
+    from test_sec_html_bank import URL as constructed_annual_url
+    from test_sec_online_ibn_evidence import SUB
+    from test_sec_online_ibn_interim_evidence import comparison_sources
+
+    sources, constructed_quarter_url, _, _ = comparison_sources()
+    filings = sources[SUB]['filings']['recent']
+    for old_url, url, accession, filed in (
+        (constructed_annual_url, IBN_ANNUAL_URL, '0000950103-26-010820', '2026-07-20'),
+        (constructed_quarter_url, IBN_QUARTER_URL, '0000950103-26-015987', '2026-10-22'),
+    ):
+        index = filings['primaryDocument'].index(old_url.rsplit('/', 1)[-1])
+        filings['primaryDocument'][index] = url.rsplit('/', 1)[-1]
+        filings['accessionNumber'][index] = accession
+        filings['filingDate'][index] = filed
+        filings['acceptanceDateTime'][index] = filed + 'T12:00:00Z'
+        sources[url] = sources.pop(old_url)
+    return sources
 
 
 def run_cross_industry_fixture(root):
@@ -16,10 +42,14 @@ def run_cross_industry_fixture(root):
     from tests.test_sec_annual_history import _payload
     from tests.test_sec_quarterly_history import _quarter_payload
     from tests.test_sec_industry_financials import _foreign_payload
+    from test_sec_online_ibn_evidence import CIK as IBN_CIK, FACTS as IBN_FACTS
 
     ciks = {ticker: str(1001 + index).zfill(10) for index, ticker in enumerate(coverage.SAMPLE)}
+    ciks['IBN'] = IBN_CIK
     by_cik = {value: ticker for ticker, value in ciks.items()}
     banks, utilities = {'JPM', 'BAC', 'C'}, {'DUK', 'SO', 'NEE'}
+    ibn_sources = _ibn_sources()
+    sap_quarter_url = f'https://www.sec.gov/Archives/edgar/data/{int(ciks["SAP"])}/{ciks["SAP"]}26000002/quarter.htm'
 
     def record(value):
         with (root / 'provider-calls.txt').open('a', encoding='utf-8') as handle:
@@ -72,6 +102,10 @@ def run_cross_industry_fixture(root):
         if url == 'https://www.sec.gov/files/company_tickers.json':
             body = {str(index): dict(ticker=ticker, cik_str=int(ciks[ticker]), title='Constructed ' + ticker)
                     for index, ticker in enumerate(coverage.SAMPLE)}
+        elif url in {IBN_FACTS, sap_quarter_url}:
+            raise HTTPError(url, 404, 'Constructed source unavailable', {}, None)
+        elif url in ibn_sources:
+            body = ibn_sources[url]
         else:
             cik = next((cik for cik in by_cik if 'CIK' + cik in url), None)
             if cik is None:
@@ -85,7 +119,11 @@ def run_cross_industry_fixture(root):
                 body = profile(ticker)
             else:
                 raise AssertionError('Unexpected constructed source URL: ' + url)
-        return json.dumps(body).encode(), {}, url
+        if isinstance(body, str):
+            body = body.encode()
+        elif not isinstance(body, bytes):
+            body = json.dumps(body).encode()
+        return body, {}, url
 
     def held_prices(ticker, **kwargs):
         record('prices-held:' + ticker)

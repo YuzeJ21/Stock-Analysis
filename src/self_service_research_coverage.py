@@ -63,6 +63,11 @@ MAX_STATE_BYTES = 64 * 1024 * 1024
 _STATE_KEYS = {'schema_version', 'sample', 'packets', 'classifications', 'listing_ref',
     'adapter_operation_count', 'source_request_count', 'source_access_limit', 'digest'}
 _STATUSES = ('available', 'partial', 'held', 'excluded', 'failed', 'unattempted')
+_BANK_PERIODS = {'annual': 'annual', 'quarterly': 'quarterly', 'interim': 'cumulative'}
+_BANK_FILING_FIELDS = ('period_start', 'period_end', 'accession', 'form', 'filed', 'source_url', 'observed_at', 'unit')
+_BANK_FILING_HOLD = 'exact_bank_filing_unverified'
+_BANK_QUARTER_CASH_HOLD = 'direct_quarter_cash_statement_unavailable'
+_BANK_CUMULATIVE_CASH_ONLY = 'six_month_cash_flow_only'
 _PEER_DEPENDENCIES = {'classification', 'vendor', 'industry', 'sec', 'prices', 'amendment', 'security', 'history'}
 _DIRECTORY_URLS = frozenset(row[2] for row in _SOURCES)
 
@@ -276,6 +281,95 @@ def _saved_replay(proof, context):
         return held
 
 
+def _capture_replay(packet, key, context, usable, *, collect):
+    if not collect:
+        return _saved_replay(packet.get(key), context)
+    result = _replay_probe(context, usable)
+    proof = dict(schema_version='self-service-private-replay-proof-v1', context_sha256=normalized_digest(context),
+                 source_revision=context['source_revision'], result=result)
+    packet[key] = dict(proof, digest=normalized_digest(proof))
+    return result
+
+
+def _bank_evidence(context, packet, *, collect):
+    from src.sec_online_ibn_evidence import valid_saved_ibn_annual
+    from src.sec_online_ibn_interim_evidence import valid_saved_ibn_interim
+
+    trend = context['business_trend']
+    annual, interim = trend.get('bank_annual'), trend.get('bank_interim')
+    annual_valid = bool(annual and valid_saved_ibn_annual(annual, context=context))
+    interim_valid = bool(annual_valid and interim and valid_saved_ibn_interim(interim, context=context))
+    periods = {}
+    for key, kind in _BANK_PERIODS.items():
+        if key == 'annual':
+            archive = annual if annual_valid else None
+        else:
+            archive = interim if interim_valid else None
+        period = next((p for p in archive['periods'] if p['kind'] == kind and p['period_end'] == archive['period_end']),
+                      None) if archive else None
+        if period:
+            periods[key] = dict(_cell('available', 'exact_bank_filing_verified'),
+                                **{field: period.get(field, archive.get(field)) for field in _BANK_FILING_FIELDS})
+        else:
+            periods[key] = _cell('held', _BANK_FILING_HOLD)
+    cash_reason = _BANK_FILING_HOLD
+    if periods['quarterly']['status'] == 'available':
+        cumulative_cash = any(row['kind'] == 'cumulative' and 'cash_from_operations' in row['fields']
+                              for row in interim['periods'])
+        cash_reason = _BANK_CUMULATIVE_CASH_ONLY if cumulative_cash else _BANK_QUARTER_CASH_HOLD
+    if annual_valid:
+        replay = _capture_replay(packet, 'bank_replay_proof', context, True, collect=collect)
+    else:
+        replay = dict(_saved_replay(None, context), reason='verified_bank_filing_required')
+    return dict(periods=periods, quarterly_cash_flow=_cell('held', cash_reason), snapshot_replay=replay)
+
+
+def _exact_replay(result):
+    return (isinstance(result, Mapping) and result.get('status') == 'available'
+            and result.get('exact_context_match') is True and result.get('comparison_status') == 'unchanged'
+            and result.get('disposable_store') is True and result.get('user_store_written') is False)
+
+
+def _valid_bank_evidence(row):
+    bank = row['bank_evidence']
+    if (row['ticker'] != 'IBN' or not row['attempted'] or not isinstance(bank, Mapping)
+            or set(bank) != {'periods', 'quarterly_cash_flow', 'snapshot_replay'} or not isinstance(bank['periods'], Mapping)
+            or set(bank['periods']) != set(_BANK_PERIODS)):
+        return False
+    for kind, filing in bank['periods'].items():
+        if filing == _cell('held', _BANK_FILING_HOLD):
+            continue
+        if (not isinstance(filing, Mapping) or set(filing) != {'status', 'reason', *_BANK_FILING_FIELDS}
+                or filing['status'] != 'available' or filing['reason'] != 'exact_bank_filing_verified'
+                or row['sec_cik'] != '0001103838' or filing['unit'] != 'INR'
+                or filing['form'] not in ({'20-F', '20-F/A'} if kind == 'annual' else {'6-K', '6-K/A'})):
+            return False
+        start, end, filed = (_iso_date(filing[key]) for key in ('period_start', 'period_end', 'filed'))
+        observed = _utc_timestamp(filing['observed_at'])
+        accession = filing['accession']
+        if (not (start and end and filed and observed and start < end <= filed <= observed.date())
+                or not isinstance(accession, str) or not re.fullmatch(r'\d{10}-\d{2}-\d{6}', accession)
+                or not isinstance(filing['source_url'], str)
+                or not re.fullmatch(r'https://www\.sec\.gov/Archives/edgar/data/1103838/'
+                    + accession.replace('-', '') + r'/[A-Za-z0-9_][A-Za-z0-9_.-]*\.html?', filing['source_url'])
+                or not any(ref.get('source_url') == filing['source_url'] and ref.get('observed_at') == filing['observed_at']
+                           for ref in row['source_receipts'] if isinstance(ref, Mapping))):
+            return False
+    allowed_cash_reasons = {_BANK_FILING_HOLD}
+    if bank['periods']['quarterly']['status'] == 'available':
+        allowed_cash_reasons = {_BANK_QUARTER_CASH_HOLD}
+        if bank['periods']['interim']['status'] == 'available':
+            allowed_cash_reasons.add(_BANK_CUMULATIVE_CASH_ONLY)
+    if not any(bank['quarterly_cash_flow'] == _cell('held', reason) for reason in allowed_cash_reasons):
+        return False
+    replay = bank['snapshot_replay']
+    if not isinstance(replay, Mapping) or replay.get('disposable_store') is not True or replay.get('user_store_written') is not False:
+        return False
+    if replay.get('status') == 'available':
+        return bank['periods']['annual']['status'] == 'available' and _exact_replay(replay)
+    return replay.get('status') in {'held', 'failed'} and type(replay.get('exact_context_match')) is bool
+
+
 def _receipts(context):
     result = []
     def add(value, source=None):
@@ -374,14 +468,7 @@ def _row(ticker, group, packet, state, now, mode_reason=None, *, collect_replay=
     if scenario.get('status') == 'calculated':
         replay_context = build_online_research_context(financial, prices, peer_packet, packet.get('association'),
             ticker=ticker, profile_key=PROBE_PROFILE, expected_cik=cik, notes=None, scenario=scenario, as_of=now)
-    if collect_replay:
-        replay = _replay_probe(replay_context, usable)
-        proof = dict(schema_version='self-service-private-replay-proof-v1', context_sha256=normalized_digest(replay_context),
-            source_revision=replay_context['source_revision'], result=replay)
-        proof['digest'] = normalized_digest(proof)
-        packet['replay_proof'] = proof
-    else:
-        replay = _saved_replay(packet.get('replay_proof'), replay_context)
+    replay = _capture_replay(packet, 'replay_proof', replay_context, usable, collect=collect_replay)
     capabilities['snapshot_replay'] = _cell(replay['status'], replay['reason'])
     available = sum(cell['status'] == 'available' for cell in capabilities.values())
     failed = any(cell['status'] == 'failed' for cell in capabilities.values())
@@ -402,6 +489,8 @@ def _row(ticker, group, packet, state, now, mode_reason=None, *, collect_replay=
     row['price_date'] = price_context.get('last_price_date')
     if storage:
         row['peer_storage'] = storage
+    if ticker == 'IBN':
+        row['bank_evidence'] = _bank_evidence(context, packet, collect=collect_replay)
     return row
 
 
@@ -464,10 +553,9 @@ def validated_coverage_view(value):
             if row['capabilities']['dated_price']['status']=='available' and _iso_date(row.get('price_date')) is None:
                 return None
             replay = row.get('snapshot_replay')
-            if row['capabilities']['snapshot_replay']['status']=='available' and (
-                not isinstance(replay,Mapping) or replay.get('status')!='available'
-                or replay.get('exact_context_match') is not True or replay.get('comparison_status')!='unchanged'
-                or replay.get('disposable_store') is not True or replay.get('user_store_written') is not False):
+            if row['capabilities']['snapshot_replay']['status']=='available' and not _exact_replay(replay):
+                return None
+            if 'bank_evidence' in row and not _valid_bank_evidence(row):
                 return None
             for receipt in row['source_receipts']:
                 if not isinstance(receipt,Mapping) or any(v is not None and not isinstance(v,str) for v in receipt.values()):

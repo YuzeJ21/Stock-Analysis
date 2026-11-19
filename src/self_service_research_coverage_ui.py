@@ -149,6 +149,8 @@ def _company_details(st,row):
         cap = row['capabilities'][key]
         rows.append('<tr><th scope="row">'+escape(label)+'</th><td>'+escape(_label(cap['status']).title())+'</td><td>'+escape(_explain(cap.get('reason')))+'</td></tr>')
     st.markdown('<section class="self-service-coverage"><div class="coverage-table-scroll" role="region" aria-label="Selected company capabilities" tabindex="0"><table><thead><tr><th scope="col">Capability</th><th scope="col">State</th><th scope="col">Evidence or gap</th></tr></thead><tbody>'+''.join(rows)+'</tbody></table></div></section>',unsafe_allow_html=True)
+    if row.get('bank_evidence'):
+        st.markdown(bank_filing_evidence_html(row['bank_evidence']), unsafe_allow_html=True)
     if row.get('price_date'):
         st.caption('Completed closing-price date: '+row['price_date'])
     storage = row.get('peer_storage') or {}
@@ -171,6 +173,36 @@ def _company_details(st,row):
             st.caption('Industry references excluded from this observation')
             st.json(row['peer_exclusions'],expanded=False)
         st.json(row.get('snapshot_replay') or {},expanded=False)
+
+
+def bank_filing_evidence_html(evidence):
+    rows = []
+    for kind, label in (('annual', 'Annual bank statements'), ('quarterly', 'Direct-quarter bank results'),
+                        ('interim', 'Year-to-date bank results')):
+        filing = evidence['periods'][kind]
+        if filing['status'] == 'available':
+            detail = escape(f"{filing['period_start']} to {filing['period_end']} · {filing['unit']} · "
+                            f"Filed {filing['filed']} · Observed {filing['observed_at']}")
+            detail += ' · ' + _link(filing['source_url'], 'SEC ' + filing['form'])
+        else:
+            detail = 'A current exact consolidated bank filing could not be verified.'
+        rows.append(f'<li><strong>{label}</strong> · {filing["status"].title()}<br>{detail}</li>')
+    cash_reason = {
+        'six_month_cash_flow_only': 'The filing reports six-month cash flow under Year-to-date bank results.',
+        'direct_quarter_cash_statement_unavailable': 'The verified filing does not establish standalone quarterly cash flow.',
+        'exact_bank_filing_unverified': 'A current exact consolidated quarter could not be verified.',
+    }[evidence['quarterly_cash_flow']['reason']]
+    rows.append('<li><strong>Quarterly operating cash flow</strong> · Withheld<br>' + cash_reason + '</li>')
+    replay = evidence['snapshot_replay']
+    reason = {
+        'exact_private_context_replay': 'The saved context reopened unchanged in a disposable store.',
+        'snapshot_proof_needs_explicit_recheck': 'Recheck IBN to verify exact replay for this observation.',
+        'verified_bank_filing_required': 'Exact replay requires a verified bank filing.',
+    }.get(replay.get('reason'), _explain(replay.get('reason')))
+    return ('<section class="self-service-coverage coverage-dated" aria-label="Bank filing evidence">'
+            '<h3>Bank filing evidence</h3><p>ICICI Bank consolidated results · Personal inspection only</p><ul>'
+            + ''.join(rows) + '<li><strong>Exact bank research replay</strong> · '
+            + escape(replay['status'].title()) + '<br>' + escape(reason) + '</li></ul></section>')
 
 
 def peer_storage_proof_html(storage):
