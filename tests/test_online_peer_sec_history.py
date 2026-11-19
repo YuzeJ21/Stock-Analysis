@@ -7,6 +7,100 @@ from test_online_peer_valuation import collection,NOW,issuer,build,digest
 CIK='0000001001'
 URL='https://data.sec.gov/submissions/CIK0000001001-submissions-001.json'
 
+SO_PARENT = '0000092122'
+SO_CHILD = '0001160661'
+SO_ACCESSION = '0000092122-25-000084'
+SO_EXHIBIT = 'https://cdn.yahoofinance.com/prod/sec-filings/0001160661/000009212225000084/so-20250930.htm'
+SO_INDICES = [f'https://www.sec.gov/Archives/edgar/data/{cik}/000009212225000084/{SO_ACCESSION}-index.htm'
+              for cik in ('92122', '1160661')]
+
+
+@pytest.fixture
+def so_joint(monkeypatch):
+    from src import online_peer_sec_history
+
+    row = issuer('SO', SO_PARENT, 30)
+    recent = row['profile']['payload']['filings']['recent']
+    recent.update(acceptanceDateTime=['2026-02-01T12:00:00Z'], isInlineXBRL=[1], isXBRL=[1])
+    joint = dict(form='10-Q', reportDate='2025-09-30', filingDate='2025-10-30',
+        acceptanceDateTime='2025-10-29T21:40:57.000Z', accessionNumber=SO_ACCESSION,
+        primaryDocument='so-20250930.htm', isInlineXBRL=1, isXBRL=1)
+    for key, value in joint.items():
+        recent[key].append(value)
+    vendor = row['vendor']
+    vendor['payload']['filings'] = [dict(type='10-Q', date='2025-10-30',
+        edgarUrl=f'https://finance.yahoo.com/sec-filing/SO/{SO_ACCESSION}_92122',
+        exhibits={'10-Q': SO_EXHIBIT})]
+    vendor['normalized_sha256'] = digest(vendor['payload'])
+    raw = b'<html><body>Constructed index bytes for two co-registrants</body></html>'
+    monkeypatch.setattr(online_peer_sec_history, '_SO_INDEX_SHA256', hashlib.sha256(raw).hexdigest(), raising=False)
+    return row, raw
+
+
+def _capture_joint(row, transport):
+    from src.online_peer_sec_history import fetch_vendor_history_match
+    return fetch_vendor_history_match(SO_PARENT, row['profile'], row['vendor'],
+        user_agent='Synthetic contact', observed_at=NOW, fetcher=transport)
+
+
+def test_so_joint_identity_keeps_parent_annual_eps_and_discloses_both_indices(so_joint):
+    from src.online_peer_valuation import _annual_eps, _filings, _vendor_identity
+    from src.online_peer_valuation_ui import _history_html
+
+    row, raw = so_joint
+    requests = []
+    def transport(url, agent):
+        requests.append(url)
+        return raw, {}, url
+
+    row['vendor_history'] = _capture_joint(row, transport)
+    assert requests == SO_INDICES
+    filings = _filings(row['profile']['payload'], NOW)
+    identity = _vendor_identity(row, row['vendor']['payload'], filings, 'SO', SO_PARENT, NOW)
+    assert identity['accession'] == SO_ACCESSION
+    assert identity['joint_filing']['co_registrant_cik'] == SO_CHILD
+    assert identity['joint_filing']['exhibit_ref'] == SO_EXHIBIT
+    assert [ref['source_url'] for ref in identity['joint_filing']['indices']] == SO_INDICES
+    assert identity['financial_denominator_modified'] is False
+    annual = _annual_eps(row['facts']['payload'], filings, NOW.date())
+    assert (annual['form'], annual['accession'], annual['eps']) == ('10-K', '0000092122-26-000001', 1.0)
+    html = _history_html(identity)
+    assert 'SEC joint filing match' in html and all(url in html for url in SO_INDICES)
+
+
+@pytest.mark.parametrize('change', ['child_index_bytes', 'redirect', 'wrong_exhibit_cik',
+    'wrong_accession', 'wrong_form', 'wrong_receipt_date', 'parent_metadata', 'duplicate_provider_row'])
+def test_so_joint_match_rejects_unreviewed_vendor_scope_and_index_receipt(so_joint, change):
+    from src.online_peer_valuation import _filings, _vendor_identity
+
+    row, raw = so_joint
+    vendor = row['vendor']['payload']['filings'][0]
+    if change == 'wrong_exhibit_cik':
+        vendor['exhibits']['10-Q'] = SO_EXHIBIT.replace(SO_CHILD, '0000003153')
+    elif change == 'wrong_accession':
+        vendor['edgarUrl'] = vendor['edgarUrl'].replace('000084', '000076')
+    elif change == 'wrong_form':
+        vendor.update(type='10-K', exhibits={'10-K': SO_EXHIBIT})
+    elif change == 'parent_metadata':
+        row['profile']['payload']['filings']['recent']['reportDate'][1] = '2025-06-30'
+    elif change == 'duplicate_provider_row':
+        row['vendor']['payload']['filings'].append(deepcopy(vendor))
+    row['vendor']['normalized_sha256'] = digest(row['vendor']['payload'])
+
+    def transport(url, agent):
+        if url == SO_INDICES[1] and change == 'child_index_bytes':
+            return raw + b'changed', {}, url
+        if url == SO_INDICES[1] and change == 'redirect':
+            return raw, {}, SO_INDICES[0]
+        return raw, {}, url
+
+    row['vendor_history'] = _capture_joint(row, transport)
+    if change == 'wrong_receipt_date':
+        row['vendor_history']['indices'][1]['observed_at'] = '2026-09-01T00:00:00Z'
+    filings = _filings(row['profile']['payload'], NOW)
+    with pytest.raises(ValueError, match='vendor_filing_not_matched_to_sec|vendor_joint_filing'):
+        _vendor_identity(row, row['vendor']['payload'], filings, 'SO', SO_PARENT, NOW)
+
 
 def history_fixture():
     c=collection();row=c['issuers'][0];old=deepcopy(row['vendor']['payload']['filings'][0]);acc='0000001001-25-000003'

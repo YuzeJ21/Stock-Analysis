@@ -1,4 +1,4 @@
-"""One current-pointer-bound historical SEC match, used for vendor identity only."""
+"""Exact SEC filing evidence used for vendor identity only."""
 from collections.abc import Mapping
 from datetime import datetime,timezone
 import base64,binascii,hashlib,re
@@ -7,14 +7,101 @@ from src.online_company_identity import _mode_reason
 from src.company_sec_online_preview import _iso_date,_utc_timestamp
 from src.online_sec_receipt import fetch_sec_json_receipt,MAX_RETAINED_SEC_JSON_BYTES
 from src.sec_association_receipt import _json_object
-from src.sec_exact_filing import _digest
-from src.sec_selected_security import _fresh,FINANCIAL_FORMS,KEYS
+from src.sec_exact_filing import _digest, _fetch_html
+from src.sec_selected_security import _fresh, _metadata, FINANCIAL_FORMS, KEYS
 
 SCHEMA='vendor-sec-history-v1'
+_SO_JOINT_SCHEMA = 'so-vendor-sec-joint-filing-v1'
+_SO_PARENT = '0000092122'
+_SO_CO_REGISTRANT = '0001160661'
+_SO_FILING = dict(form='10-Q', reportDate='2025-09-30', filingDate='2025-10-30',
+    acceptanceDateTime='2025-10-29T21:40:57.000Z', accessionNumber='0000092122-25-000084',
+    primaryDocument='so-20250930.htm', isInlineXBRL=1, isXBRL=1)
+_SO_ACCESSION = _SO_FILING['accessionNumber']
+_SO_DIRECTORY = _SO_ACCESSION.replace('-', '')
+_SO_VENDOR_PAGE = f'https://finance.yahoo.com/sec-filing/SO/{_SO_ACCESSION}_92122'
+_SO_EXHIBIT = f'https://cdn.yahoofinance.com/prod/sec-filings/{_SO_CO_REGISTRANT}/{_SO_DIRECTORY}/{_SO_FILING["primaryDocument"]}'
+_SO_INDICES = tuple(f'https://www.sec.gov/Archives/edgar/data/{int(cik)}/{_SO_DIRECTORY}/{_SO_ACCESSION}-index.htm'
+                    for cik in (_SO_PARENT, _SO_CO_REGISTRANT))
+# The two official indices list both registrants and the same primary document.
+# This digest binds the entire reviewed response under each exact SEC URL.
+_SO_INDEX_SHA256 = '14234b05613231bcfd9b7ebb67c83054b3c6c8b151ade666618d0482d07d430e'
+_SO_INDEX_MAX_BYTES = 128 * 1024
 
 
 def _need(value):
     if not value:raise ValueError('vendor_history_scope_unverified')
+
+
+def _so_joint_candidate(cik, profile, vendor, now):
+    if cik != _SO_PARENT:
+        return False
+    try:
+        _need(isinstance(now, datetime) and now.utcoffset() is not None)
+        _need(profile.get('status') == 'ready' and profile.get('source_url') == 'https://data.sec.gov/submissions/CIK0000092122.json'
+              and _fresh(profile.get('observed_at'), now))
+        body = profile['payload']
+        _need(str(int(body['cik'])).zfill(10) == cik and isinstance(body['tickers'], list) and 'SO' in body['tickers']
+              and ('normalized_sha256' not in profile or profile['normalized_sha256'] == _digest(body)))
+        matches = [row for row in _metadata(profile) if row['accessionNumber'] == _SO_ACCESSION]
+        _need(matches == [_SO_FILING] and all(type(matches[0][key]) is int for key in ('isInlineXBRL', 'isXBRL'))
+              and _utc_timestamp(_SO_FILING['acceptanceDateTime']) <= now)
+        payload = vendor['payload']
+        _need(vendor.get('status') == 'observed' and vendor.get('source_ref') == 'https://finance.yahoo.com/quote/SO/'
+              and _fresh(vendor.get('observed_at'), now) and vendor.get('normalized_sha256') == _digest(payload)
+              and payload['info']['symbol'] == 'SO')
+        filings = payload['filings']
+        _need(isinstance(filings, list) and 0 < len(filings) <= 256 and all(isinstance(row, Mapping) for row in filings))
+        matches = [row for row in filings if row.get('edgarUrl') == _SO_VENDOR_PAGE]
+        return (len(matches) == 1 and matches[0].get('type') == _SO_FILING['form']
+                and matches[0].get('date') == _SO_FILING['filingDate'] and matches[0].get('exhibits', {}).get('10-Q') == _SO_EXHIBIT)
+    except (ValueError, TypeError, KeyError, AttributeError, OverflowError, RecursionError):
+        return False
+
+
+def _fetch_so_joint(user_agent, fetcher, observed_at):
+    held = dict(schema_version=_SO_JOINT_SCHEMA, status='unavailable', reason='vendor_joint_filing_source_unavailable')
+    try:
+        _need(isinstance(user_agent, str) and user_agent.strip() and not any(c in user_agent for c in '\r\n'))
+        indices = []
+        for url in _SO_INDICES:
+            raw, _, final = (fetcher(url, user_agent.strip()) if fetcher else
+                             _fetch_html(url, user_agent.strip(), max_bytes=_SO_INDEX_MAX_BYTES))
+            _need(isinstance(raw, bytes) and 0 < len(raw) <= _SO_INDEX_MAX_BYTES and final == url)
+            sha256 = hashlib.sha256(raw).hexdigest()
+            if sha256 != _SO_INDEX_SHA256:
+                return {**held, 'reason': 'vendor_joint_filing_unverified'}
+            stamp = observed_at or datetime.now(timezone.utc)
+            indices.append(dict(source_url=url, observed_at=stamp.isoformat(), payload_sha256=sha256,
+                payload_raw_base64=base64.b64encode(raw).decode('ascii')))
+        return dict(schema_version=_SO_JOINT_SCHEMA, status='observed', indices=indices)
+    except (OSError, ValueError, TypeError, RuntimeError):
+        return held
+
+
+def validated_so_joint_match(packet, *, cik, profile, vendor, as_of):
+    """Recheck the SO provider tuple and both exact index receipts on every read."""
+    if not isinstance(packet, Mapping) or packet.get('schema_version') != _SO_JOINT_SCHEMA:
+        return None
+    if _mode_reason('research') or not _so_joint_candidate(cik, profile, vendor, as_of):
+        return None
+    try:
+        indices = packet['indices']
+        _need(packet.get('status') == 'observed' and isinstance(indices, list) and len(indices) == len(_SO_INDICES))
+        refs = []
+        for receipt, url in zip(indices, _SO_INDICES):
+            encoded = receipt['payload_raw_base64']
+            _need(receipt['source_url'] == url and _fresh(receipt['observed_at'], as_of)
+                  and isinstance(encoded, str) and 0 < len(encoded) <= 4 * ((_SO_INDEX_MAX_BYTES + 2) // 3))
+            raw = base64.b64decode(encoded, validate=True)
+            _need(0 < len(raw) <= _SO_INDEX_MAX_BYTES and hashlib.sha256(raw).hexdigest() == receipt['payload_sha256'] == _SO_INDEX_SHA256)
+            refs.append({key: receipt[key] for key in ('source_url', 'observed_at', 'payload_sha256')})
+        return dict(source_ref=_SO_VENDOR_PAGE, accession=_SO_ACCESSION, filed=_SO_FILING['filingDate'],
+            financial_denominator_modified=False, joint_filing=dict(co_registrant_cik=_SO_CO_REGISTRANT,
+                period_end=_SO_FILING['reportDate'], accepted_at=_SO_FILING['acceptanceDateTime'],
+                exhibit_ref=_SO_EXHIBIT, indices=refs))
+    except (ValueError, TypeError, KeyError, AttributeError, OverflowError):
+        return None
 
 
 def _request(cik,profile,vendor,now):
@@ -54,15 +141,23 @@ def _request(cik,profile,vendor,now):
 def fetch_vendor_history_match(cik,profile,vendor,*,user_agent,fetcher=None,observed_at=None,workspace_mode='research'):
     held=dict(status='unavailable',reason=_mode_reason(workspace_mode) or 'vendor_history_scope_unverified')
     if _mode_reason(workspace_mode):return held
+    now=observed_at or datetime.now(timezone.utc)
     try:
-        now=observed_at or datetime.now(timezone.utc);target,pointer=_request(cik,profile,vendor,now)
+        target,pointer=_request(cik,profile,vendor,now)
         if target is None:return dict(status='not_applicable')
         url='https://data.sec.gov/submissions/'+pointer['name']
         receipt=fetch_sec_json_receipt(url,user_agent=user_agent,fetcher=fetcher,observed_at=observed_at,retain_raw=True)
-        if receipt.get('status')!='ready':return dict(status='unavailable',reason='vendor_history_source_unavailable')
-        packet=dict(schema_version=SCHEMA,status='observed',sec_cik=cik,target=target,pointer=pointer,receipt=receipt)
-        return packet if validated_vendor_history_match(packet,cik=cik,profile=profile,vendor=vendor,as_of=observed_at or datetime.now(timezone.utc)) else held
-    except (ValueError,TypeError,KeyError,AttributeError,OverflowError,RecursionError):return held
+        if receipt.get('status')!='ready':
+            held=dict(status='unavailable',reason='vendor_history_source_unavailable')
+        else:
+            packet=dict(schema_version=SCHEMA,status='observed',sec_cik=cik,target=target,pointer=pointer,receipt=receipt)
+            if validated_vendor_history_match(packet,cik=cik,profile=profile,vendor=vendor,as_of=observed_at or datetime.now(timezone.utc)):
+                return packet
+    except (ValueError,TypeError,KeyError,AttributeError,OverflowError,RecursionError):
+        pass
+    if _so_joint_candidate(cik, profile, vendor, now):
+        return _fetch_so_joint(user_agent, fetcher, observed_at)
+    return held
 
 
 def validated_vendor_history_match(packet,*,cik,profile,vendor,as_of):

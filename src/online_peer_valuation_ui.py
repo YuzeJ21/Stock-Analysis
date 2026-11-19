@@ -43,6 +43,8 @@ REASONS = {
     'source_observation_stale_or_future':'The source observation is over 24 hours old or in the future. Refresh explicitly.',
     'vendor_filing_not_matched_to_sec':'The provider filing link did not match SEC filing metadata.',
     'vendor_filing_issuer_conflict':'The provider filing link has an issuer identity conflict.',
+    'vendor_joint_filing_source_unavailable':'One of the two SEC joint filing indices was unavailable.',
+    'vendor_joint_filing_unverified':'The SEC joint filing index differs from the reviewed copy.',
     'quote_identity_or_type_mismatch':'Provider symbol or security type does not match.',
     'quote_exchange_mismatch':'The provider exchange differs from the independent listing source.',
     'unsupported_quote_or_financial_currency':'Price and financial currencies do not meet the supported USD basis.',
@@ -289,7 +291,19 @@ def _selected_security_html(scope):
 
 
 def _history_html(identity):
-    if not isinstance(identity,Mapping) or not identity.get('history_source_ref'):return ''
+    if not isinstance(identity,Mapping):return ''
+    joint=identity.get('joint_filing')
+    if isinstance(joint,Mapping):
+        html='<p><strong>SEC joint filing match</strong> · accession '+_text(identity.get('accession'))
+        html+=' · period end '+_text(joint.get('period_end'))+' · filed '+_text(identity.get('filed'))
+        html+=' · accepted '+_text(joint.get('accepted_at'))+' · co-registrant CIK '+_text(joint.get('co_registrant_cik'))+'. '
+        html+='This 10-Q verifies the provider link. Annual EPS still comes from the selected annual filing. '
+        html+=_link(identity.get('source_ref'),'Provider filing')+' · '+_link(joint.get('exhibit_ref'),'Provider exhibit')+'</p><ul>'
+        for ref,label in zip(joint.get('indices',[]),('Parent SEC filing index','Co-registrant SEC filing index')):
+            html+='<li>'+_link(ref.get('source_url'),label)+' · observed '+_text(ref.get('observed_at'))
+            html+=' · SHA-256 <code>'+_text(ref.get('payload_sha256'))+'</code></li>'
+        return html+'</ul>'
+    if not identity.get('history_source_ref'):return ''
     return '<p>The historical SEC index is used only for provider identity review. Annual EPS still comes from the selected current annual filing. '+_link(identity.get('history_source_ref'),'Official history index')+' · observed '+_text(identity.get('history_observed_at'))+' · SHA-256 <code>'+_text(identity.get('history_sha256'))+'</code></p>'
 
 

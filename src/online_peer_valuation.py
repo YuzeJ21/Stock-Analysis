@@ -17,7 +17,7 @@ from src.online_company_identity import _mode_reason, _VENUES
 from src.online_peer_earnings import annual_eps_context
 from src.annual_amendment_evidence import validate_amendment_evidence
 from src.sec_selected_security import validate_selected_security_evidence,is_investment_company_form,valid_profile_metadata_shape
-from src.online_peer_sec_history import validated_vendor_history_match
+from src.online_peer_sec_history import validated_so_joint_match, validated_vendor_history_match
 from src.online_research_history_view import validated_online_price_history
 from src.security_classification import validated_classification, _selected
 
@@ -123,7 +123,7 @@ def _filings(profile, as_of):
     return result
 
 
-def _vendor_filing_match(filings, sec_filings, ticker, cik):
+def _vendor_filing_match(filings, sec_filings, ticker, cik, joint=None):
     _need(isinstance(filings, list) and 0<len(filings)<=256, 'vendor_filing_identity_missing')
     matched=None
     for row in filings:
@@ -138,16 +138,30 @@ def _vendor_filing_match(filings, sec_filings, ticker, cik):
             if (link[1],row.get('type'),row.get('date'))!=(sec['accessionNumber'],sec['form'],sec['filingDate']):
                 continue
             exhibit='https://cdn.yahoofinance.com/prod/sec-filings/'+cik+'/'+link[1].replace('-','')+'/'+sec['primaryDocument']
-            if isinstance(row.get('exhibits'),Mapping) and row['exhibits'].get(row['type'])==exhibit:
-                if matched is None or sec['filingDate']>matched['filed']:
-                    matched=dict(source_ref=url, accession=link[1], filed=sec['filingDate'])
+            actual=row['exhibits'].get(row['type']) if isinstance(row.get('exhibits'),Mapping) else None
+            if actual==exhibit:
+                identity=dict(source_ref=url, accession=link[1], filed=sec['filingDate'])
+            elif joint and joint['source_ref']==url and actual==joint['joint_filing']['exhibit_ref']:
+                identity=joint
+            else:
+                continue
+            if matched is None or sec['filingDate']>matched['filed']:
+                matched=identity
     _need(matched is not None, 'vendor_filing_not_matched_to_sec')
     return matched
 
 
 def _vendor_identity(row,vendor,filings,ticker,cik,as_of):
-    historical=validated_vendor_history_match(row.get('vendor_history'),cik=cik,profile=row.get('profile'),vendor=row.get('vendor'),as_of=as_of)
-    identity=_vendor_filing_match(vendor.get('filings'),filings+historical,ticker,cik)
+    packet=row.get('vendor_history')
+    historical=validated_vendor_history_match(packet,cik=cik,profile=row.get('profile'),vendor=row.get('vendor'),as_of=as_of)
+    joint=validated_so_joint_match(packet,cik=cik,profile=row.get('profile'),vendor=row.get('vendor'),as_of=as_of)
+    try:
+        identity=_vendor_filing_match(vendor.get('filings'),filings+historical,ticker,cik,joint)
+    except _Hold as error:
+        if str(error)=='vendor_filing_not_matched_to_sec' and isinstance(packet,Mapping) and packet.get('reason') in {
+                'vendor_joint_filing_source_unavailable','vendor_joint_filing_unverified'}:
+            raise _Hold(packet['reason']) from error
+        raise
     if any(r['accessionNumber']==identity['accession'] for r in historical):
         receipt=row['vendor_history']['receipt'];identity.update(history_source_ref=receipt['source_url'],history_observed_at=receipt['observed_at'],history_sha256=receipt['payload_sha256'],financial_denominator_modified=False)
     return identity
