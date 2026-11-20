@@ -10,6 +10,14 @@ Product principle:
 
 Research-only boundary: the app does not connect to brokers, place orders, route trades, auto-trade, provide direct buy/sell instructions, fabricate missing inputs, or turn readiness queues into recommendations.
 
+## Local Workbench and Monitor rehearsal
+
+Run `make private-pilot-rehearsal` from a full Git checkout with the existing development dependencies and Chrome installed. The test runner uses temporary profiles, constructed source observations and loopback-only browser servers. It checks both screen sizes, cross-profile snapshot and journal access, exact Monitor returns, a provider timeout and explicit retry, snapshot write interruptions, and rollback compatibility. It leaves its screenshots and proof files in the test runner's temporary directories. The protected-artifact guard checks the application's existing data and saved stores.
+
+The reader rollback reference is verified revision `3682b320cf27a2c5b7af84c6d4566e808057a7e5`. A separate local application switch uses `c1cb630854bc2e21831d04effef248bf2a640981`. The rehearsal copies code into temporary directories and retains the disposable saved store through the switch. Review the results before selecting a different rollback revision.
+
+The operated-pilot decision still needs provider permission for the intended access, display, storage and outputs, authenticated workspace access with revocation, durable audit events, retention rules, and verification in the intended hosting environment. The current local profile key partitions data. The separate authorization policy must be connected to authenticated requests before testing with external user accounts. [Current pilot audit](PILOT_READINESS_AUDIT.md#workbench-and-monitor-private-pilot)
+
 ## 1. Setup
 
 Run from the repository root:

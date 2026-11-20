@@ -1366,6 +1366,10 @@ hosted-demo-readiness:
 private-beta-readiness:
 	@python3 -m src.private_beta_readiness
 
+.PHONY: private-pilot-rehearsal
+private-pilot-rehearsal:
+	$(NO_WRITE_GUARD) python3 -m pytest -q -p no:cacheprovider tests/test_private_pilot_rehearsal.py tests/test_private_pilot_rehearsal_browser.py tests/test_private_pilot_recovery_browser.py tests/test_online_research_context_store.py tests/test_company_research_notes.py tests/test_hosted_access_control.py tests/test_private_beta_readiness.py tests/test_online_peer_sources.py
+
 commercial-beta-check:
 	@echo "Commercial Research Beta Check"
 	@echo "Read-only: checks source rights, refresh-operation safety, and private-beta readiness without fetching or applying data."
