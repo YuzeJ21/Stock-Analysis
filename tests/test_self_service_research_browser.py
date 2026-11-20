@@ -310,6 +310,8 @@ def test_online_only_company_reaches_trend_scenario_notes_snapshot_and_monitor(
             assert route['ticker'] == ['FICT'] and route['research_cik'] == [CIK]
             assert route['research_snapshot'] == [saved['snapshot_id']] and route['section'] == ['notes']
             playwright.expect(page.get_by_text(summary, exact=True).first).to_be_visible()
+            playwright.expect(page.get_by_role('link', name='Open issuer notes', exact=True)).to_have_attribute(
+                'href', f'?mode=research&page=company-workbench&ticker=FICT&section=notes&notes_cik={CIK}')
             assert calls() == original_calls, 'Historical return must not fetch source observations'
             assert list_research_contexts(**scope, project_root=tmp_path) == first
             surface('historical-return')

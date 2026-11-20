@@ -270,8 +270,11 @@ def test_research_pages_start_with_company_search_and_keep_diagnostics_folded(
             playwright.expect(page.get_by_role("textbox", name="Search saved companies", exact=True)).to_be_visible()
             coverage.focus()
             page.keyboard.press("Enter")
-            playwright.expect(coverage.locator("..").get_by_role("tab")).to_have_count(4)
-            for tab in coverage.locator("..").get_by_role("tab").all():
+            study_tabs = coverage.locator("..").get_by_role("tab")
+            playwright.expect(study_tabs).to_have_text([
+                "Peer valuation", "U.S. listings", "Security types", "Industry financials", "Self-service",
+            ])
+            for tab in study_tabs.all():
                 tab.click()
             assert calls() == ["search"]
             check_surface("coverage")

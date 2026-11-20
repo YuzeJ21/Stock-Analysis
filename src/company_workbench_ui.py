@@ -126,9 +126,16 @@ def render_saved_company_replay(st, snapshot, *, baseline=None):
                     st.caption('Scenario Lab drafts use the saved annual revenue basis. Edits are separate from the saved result.')
                     _scenario(st, context, _scenario_key(profile, ticker, cik))
                 if selected == 'notes':
+                    from src.company_research_notes import saved_company_notes_scope
+
                     thesis = (context.get('notes_summary') or {}).get('current_thesis')
                     if thesis:
                         st.text(thesis)
+                    if saved_company_notes_scope(ticker, profile, sec_cik=cik) is not None:
+                        notes_url = '?' + urlencode(dict(mode='research', page='company-workbench',
+                                                        ticker=ticker, section='notes', notes_cik=cik))
+                        st.markdown(f'<p><a href="{escape(notes_url, quote=True)}" target="_self">Open issuer notes</a></p>',
+                                    unsafe_allow_html=True)
                     _forward_decision(st, context)
                 if selected == 'sources':
                     st.json(context.get('source_receipts') or [], expanded=False)
