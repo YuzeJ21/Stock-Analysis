@@ -1376,6 +1376,7 @@ workspace-authorization-check:
 		tests/test_workspace_authorization.py tests/test_workspace_authorized_storage.py \
 		tests/test_sec_workspace_authorized_storage.py tests/test_workspace_record_ledger_guards.py \
 		tests/test_workspace_authorization_browser.py tests/test_hosted_access_control.py \
+		tests/test_workspace_audit.py tests/test_workspace_audit_browser.py \
 		tests/test_sec_research_review.py tests/test_sec_research_review_ui.py tests/test_sec_review_disposition.py \
 		tests/test_online_research_context_store.py tests/test_company_research_notes.py \
 		tests/test_research_record_authoring.py tests/test_research_thesis_journal.py \

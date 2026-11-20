@@ -76,7 +76,7 @@ def workspace_evidence(tmp_path):
 
 
 @contextmanager
-def _workspace_server(directory, config_file, workspace, subject):
+def _workspace_server(directory, config_file, workspace, subject, *, audit_db=None):
     directory.mkdir()
     identity = directory / "server-identity.json"
     _write_json(identity, dict(is_logged_in=True, sub=subject, iss=ISSUER, aud=AUDIENCE,
@@ -87,10 +87,12 @@ def _workspace_server(directory, config_file, workspace, subject):
         "from pathlib import Path\nfrom workspace_authorization_browser_fixture import run\n"
         f"run(Path({str(identity)!r}), Path({str(unexpected)!r}))\n", encoding="utf-8")
     address = f"http://127.0.0.1:{_free_port()}"
+    audit_db = audit_db if audit_db is not None else config_file.with_name("workspace-audit") / "events.sqlite3"
     env = {**os.environ, "PYTHONPATH": os.pathsep.join((str(PROJECT), str(PROJECT / "tests"))),
            "PYTHONDONTWRITEBYTECODE": "1", "STOCK_RESEARCH_DATA_PROFILE": "demo",
            "STOCK_RESEARCH_ACCESS_MODE": "workspace",
-           "STOCK_RESEARCH_WORKSPACE_CONFIG": str(config_file), "STOCK_RESEARCH_WORKSPACE_ID": workspace}
+           "STOCK_RESEARCH_WORKSPACE_CONFIG": str(config_file), "STOCK_RESEARCH_WORKSPACE_ID": workspace,
+           "STOCK_RESEARCH_WORKSPACE_AUDIT_DB": str(audit_db)}
     env.pop("COMMERCIAL_RESEARCH_MODE", None)
     env.pop("SEC_USER_AGENT", None)
     with (directory / "streamlit.log").open("w", encoding="utf-8") as log:

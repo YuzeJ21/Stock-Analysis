@@ -41,6 +41,7 @@ def _activate(monkeypatch, tmp_path, storage_root, *, role="editor", active=True
     monkeypatch.setenv("STOCK_RESEARCH_WORKSPACE_CONFIG", str(path))
     monkeypatch.setenv("STOCK_RESEARCH_WORKSPACE_ID", "alpha")
     monkeypatch.setenv("STOCK_RESEARCH_ACCESS_MODE", "workspace")
+    monkeypatch.setenv("STOCK_RESEARCH_WORKSPACE_AUDIT_DB", str(tmp_path / "audit" / "decisions.sqlite"))
     monkeypatch.setattr(authorization, "trusted_user_claims", lambda: {
         "is_logged_in": True,
         "iss": "https://identity.example",

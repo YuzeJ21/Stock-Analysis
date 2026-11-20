@@ -4,7 +4,7 @@
 
 The [November 18 Workbench and Monitor audit](PILOT_READINESS_AUDIT.md#workbench-and-monitor-private-pilot) records the private pilot hold, the tested local controls, and the evidence needed for hosted operation.
 
-The repository contains a deterministic readiness contract and an opt-in runtime authorization adapter for Workbench and Monitor. Protected processes use Streamlit's authenticated identity and a server-owned workspace registry. Authentication-provider setup, hosted persistence, durable audit storage, monitoring, health checks and operated recovery still need verification in the intended environment. Real user evidence remains `awaiting_external_review`. [Runtime configuration and scope](WORKSPACE_AUTHORIZATION.md)
+The repository contains a deterministic readiness contract and an opt-in runtime authorization adapter for Workbench and Monitor. Protected processes use Streamlit's authenticated identity and a server-owned workspace registry, with a separate local SQLite access-decision log. Authentication-provider setup, hosted persistence and audit continuity, retention, monitoring, health checks and operated recovery still need verification in the intended environment. Real user evidence remains `awaiting_external_review`. [Runtime configuration and scope](WORKSPACE_AUTHORIZATION.md)
 
 The contract is available through `src.private_beta_readiness.build_private_beta_readiness()`. It accepts only declared review facts; it does not inspect environment variables, scan files, open accounts, contact a host, or read secret material.
 
@@ -47,10 +47,12 @@ provider-neutral, deny-by-default policy contract. It requires exact
 authenticated-principal, active-membership, and workspace matches before an
 explicit role/resource/action rule can allow a request. Thesis, evidence,
 catalyst, and outcome research records remain append-only, and every allow or
-deny result carries a privacy-safe audit obligation that a future approved
-adapter must record.
+deny result carries a privacy-safe audit obligation. The protected runtime
+adapter persists the decision before permitting access.
 
-`src.workspace_authorization` connects this evaluator to the protected research routes and stores. A server process selects one workspace, and each operation reloads membership and revalidates the trusted user's issuer, audience, subject and token expiry. `src.workspace_authorization_ui` enters before the personal model and event loaders. Protected-mode legacy and operator routes are unavailable. The existing single-user personal mode remains available when no workspace settings are present. Durable authorization-event storage is still an external gate.
+`src.workspace_authorization` connects this evaluator to the protected research routes and stores. A server process selects one workspace, and each operation reloads membership and revalidates the trusted user's issuer, audience, subject and token expiry. `src.workspace_authorization_ui` enters before the personal model and event loaders. Protected-mode legacy and operator routes are unavailable. The existing single-user personal mode remains available when no workspace settings are present.
+
+`src.workspace_audit` supplies the protected adapter's separate, explicitly configured local sink. It records versioned pseudonymous access decisions, including pre-policy denials, without research contents or raw identity claims. Missing or unusable storage denies private access. The log records authorization, not completed mutation, and is application-append-only rather than administrator-tamper-proof. Personal mode does not open it. Hosted persistence, backup, retention/deletion and additional identity/administration events remain external gates. [Audit contract and limits](WORKSPACE_AUTHORIZATION.md#durable-access-decisions)
 
 The evaluator performs no authentication, persistence, audit storage,
 retention, monitoring, network, provider, dashboard, ledger, readiness, or

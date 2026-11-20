@@ -2,7 +2,9 @@
 from dataclasses import replace
 from hashlib import sha256
 
-from src.workspace_authorization import WorkspaceAccessDenied, selected_workspace_session
+from src.workspace_authorization import (
+    WorkspaceAccessDenied, deny_workspace_access, selected_workspace_session,
+)
 
 
 def render_workspace_route(st, *, page, mode):
@@ -19,7 +21,7 @@ def render_workspace_route(st, *, page, mode):
     try:
         session = selected_workspace_session()
         if mode != 'research' or page not in {'Research Desk', 'Discover', 'Company Workbench', 'Monitor'}:
-            raise WorkspaceAccessDenied('workspace_route_unavailable')
+            deny_workspace_access('workspace_route_unavailable', session=session)
     except WorkspaceAccessDenied:
         st.session_state.clear()
         st.markdown('## Workspace access unavailable')

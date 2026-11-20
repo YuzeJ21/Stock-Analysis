@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 import json
 import math
+import logging
 import os
 from pathlib import Path
 import stat
@@ -13,6 +14,7 @@ from src.hosted_access_control import (
     PrincipalContext, WorkspaceAction, WorkspaceMembership, WorkspaceResource,
     WorkspaceRole, evaluate_workspace_access, WorkspaceAccessRequest,
 )
+from src.workspace_audit import AuditUnavailable, append_workspace_audit
 
 CONFIG_ENV = 'STOCK_RESEARCH_WORKSPACE_CONFIG'
 WORKSPACE_ENV = 'STOCK_RESEARCH_WORKSPACE_ID'
@@ -108,38 +110,73 @@ def trusted_user_claims():
     return st.user.to_dict()
 
 
-def _session(profile_key=None, action=WorkspaceAction.READ, resource=WorkspaceResource.SAVED_WORKSPACE_STATE):
-    config, selected, root = _configuration()
-    workspace = config['workspaces'][selected]
+def _record_access(*, principal_id=None, workspace_id=None, action=WorkspaceAction.READ,
+                   resource=WorkspaceResource.SAVED_WORKSPACE_STATE, reason_code='allowed', request_id=None):
     try:
-        claims = trusted_user_claims()
-        now = time.time()
-        expiry = claims.get('exp')
-        audience = claims.get('aud')
-        audiences = audience if isinstance(audience, list) else [audience]
-        valid_time = type(expiry) in {int, float} and math.isfinite(expiry) and expiry > now
-        for key in ('nbf', 'iat'):
-            if key in claims:
-                value = claims[key]
-                valid_time = valid_time and type(value) in {int, float} and math.isfinite(value) and value <= now
-        if (claims.get('is_logged_in') is not True or claims.get('iss') != config['issuer']
-                or not _identifier(claims.get('sub'), 512) or config['audience'] not in audiences
-                or not valid_time):
-            raise ValueError('Unverified principal')
-        subject = claims['sub']
-    except (ValueError, TypeError, KeyError, AttributeError, RuntimeError):
-        raise WorkspaceAccessDenied('authentication_required') from None
-    principal_id = sha256(json.dumps([config['issuer'], subject]).encode()).hexdigest()
-    member = next((row for row in workspace['members'] if row['subject'] == subject), None)
-    membership = WorkspaceMembership(principal_id, selected,
-        WorkspaceRole(member['role']) if member else WorkspaceRole.VIEWER,
-        member['active'] if member else False)
-    if profile_key not in (None, workspace['profile_key']):
-        raise WorkspaceAccessDenied('workspace_mismatch')
-    decision = evaluate_workspace_access(PrincipalContext(principal_id, True), membership,
-        WorkspaceAccessRequest(uuid4().hex, selected, action, resource))
-    if not decision.allowed:
-        raise WorkspaceAccessDenied(decision.reason_code)
+        append_workspace_audit(request_id=request_id or uuid4().hex, principal_id=principal_id,
+            workspace_id=workspace_id, action=action if isinstance(action, WorkspaceAction) else 'invalid',
+            resource=resource if isinstance(resource, WorkspaceResource) else 'invalid',
+            outcome='allowed' if reason_code == 'allowed' else 'denied', reason_code=reason_code)
+    except AuditUnavailable:
+        # No claims, research, paths or underlying storage exception in diagnostics.
+        logging.getLogger(__name__).warning('Protected workspace access blocked: audit unavailable.')
+        raise WorkspaceAccessDenied('audit_unavailable') from None
+
+
+def deny_workspace_access(reason, *, session=None, action=WorkspaceAction.READ,
+                          resource=WorkspaceResource.SAVED_WORKSPACE_STATE):
+    """Persist a non-policy guard denial without recording its untrusted input."""
+    if protected_workspace_mode():
+        _record_access(principal_id=session.principal_id if session else None,
+            workspace_id=session.workspace_id if session else None,
+            action=action, resource=resource, reason_code=reason)
+    raise WorkspaceAccessDenied(reason)
+
+
+def _session(profile_key=None, action=WorkspaceAction.READ,
+             resource=WorkspaceResource.SAVED_WORKSPACE_STATE, *, audit=True):
+    selected = principal_id = None
+    request_id = uuid4().hex
+    try:
+        config, selected, root = _configuration()
+        workspace = config['workspaces'][selected]
+        try:
+            claims = trusted_user_claims()
+            now = time.time()
+            expiry = claims.get('exp')
+            audience = claims.get('aud')
+            audiences = audience if isinstance(audience, list) else [audience]
+            valid_time = type(expiry) in {int, float} and math.isfinite(expiry) and expiry > now
+            for key in ('nbf', 'iat'):
+                if key in claims:
+                    value = claims[key]
+                    valid_time = valid_time and type(value) in {int, float} and math.isfinite(value) and value <= now
+            if (claims.get('is_logged_in') is not True or claims.get('iss') != config['issuer']
+                    or not _identifier(claims.get('sub'), 512) or config['audience'] not in audiences
+                    or not valid_time):
+                raise ValueError('Unverified principal')
+            subject = claims['sub']
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError):
+            raise WorkspaceAccessDenied('authentication_required') from None
+        principal_id = sha256(json.dumps([config['issuer'], subject]).encode()).hexdigest()
+        member = next((row for row in workspace['members'] if row['subject'] == subject), None)
+        membership = WorkspaceMembership(principal_id, selected,
+            WorkspaceRole(member['role']) if member else WorkspaceRole.VIEWER,
+            member['active'] if member else False)
+        if profile_key not in (None, workspace['profile_key']):
+            raise WorkspaceAccessDenied('workspace_mismatch')
+        decision = evaluate_workspace_access(PrincipalContext(principal_id, True), membership,
+            WorkspaceAccessRequest(request_id, selected, action, resource))
+        if not decision.allowed:
+            raise WorkspaceAccessDenied(decision.reason_code)
+    except WorkspaceAccessDenied as denied:
+        if audit:
+            _record_access(principal_id=principal_id, workspace_id=selected, action=action,
+                resource=resource, reason_code=denied.reason, request_id=request_id)
+        raise
+    if audit:
+        _record_access(principal_id=principal_id, workspace_id=selected, action=action,
+            resource=resource, request_id=request_id)
     return WorkspaceSession(selected, workspace['profile_key'], root, principal_id)
 
 
@@ -156,8 +193,10 @@ def require_workspace_access(profile_key, action=WorkspaceAction.READ,
 
 def can_workspace_access(profile_key, action=WorkspaceAction.READ,
                          resource=WorkspaceResource.SAVED_WORKSPACE_STATE):
+    """UI capability probe only; actual storage guards persist the decision."""
     try:
-        require_workspace_access(profile_key, action, resource)
+        if protected_workspace_mode():
+            _session(profile_key, action, resource, audit=False)
         return True
     except WorkspaceAccessDenied:
         return False
@@ -183,7 +222,8 @@ def require_record_destination(path, profile_key, ticker, action=WorkspaceAction
         if any(part.is_symlink() for part in (destination, *destination.parents)):
             raise ValueError('Symlinked research record')
     except (ValueError, OSError):
-        raise WorkspaceAccessDenied('record_destination_mismatch') from None
+        deny_workspace_access('record_destination_mismatch', session=session,
+            action=action, resource=WorkspaceResource.RESEARCH_RECORD)
 
 
 def require_record_read_path(path):

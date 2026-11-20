@@ -1,6 +1,8 @@
 """Protected saved research rejects stale membership and caller-chosen roots."""
 
 import json
+import os
+from pathlib import Path
 import time
 
 import pytest
@@ -50,6 +52,7 @@ def protected_store(tmp_path, monkeypatch):
     monkeypatch.setenv("STOCK_RESEARCH_WORKSPACE_CONFIG", str(config_path))
     monkeypatch.setenv("STOCK_RESEARCH_WORKSPACE_ID", "alpha")
     monkeypatch.setenv("STOCK_RESEARCH_ACCESS_MODE", "workspace")
+    monkeypatch.setenv("STOCK_RESEARCH_WORKSPACE_AUDIT_DB", str(tmp_path / "audit" / "decisions.sqlite"))
     monkeypatch.setattr(access, "trusted_user_claims", lambda: dict(claims))
     return storage, config, claims, publish, access
 
@@ -161,3 +164,21 @@ def test_snapshot_save_rechecks_append_after_history_scan(protected_store, tmp_p
     with pytest.raises(access.WorkspaceAccessDenied):
         snapshots.save_research_context(context(**scope), **scope, project_root=tmp_path / "caller-root")
     assert not list((storage / "outputs/local/online-research-contexts").rglob("*.json"))
+
+
+def test_missing_audit_blocks_snapshot_read_and_append_before_saved_io(protected_store, tmp_path, monkeypatch):
+    storage, _, _, _, access = protected_store
+    scope = dict(profile_key="workspace-alpha", ticker="FICT", sec_cik="0000001234")
+    saved = snapshots.save_research_context(context(**scope), **scope)
+    path = next((storage / "outputs/local/online-research-contexts").rglob(saved["snapshot_id"] + ".json"))
+    original = path.read_bytes()
+    audit_path = Path(os.environ["STOCK_RESEARCH_WORKSPACE_AUDIT_DB"])
+    audit_path.chmod(0o666)
+    monkeypatch.setattr(snapshots, "_read", lambda *_: pytest.fail("Saved bytes read without audit"))
+    with pytest.raises(access.WorkspaceAccessDenied) as denied:
+        snapshots.load_research_context(saved["snapshot_id"], **scope)
+    assert denied.value.reason == "audit_unavailable"
+    with pytest.raises(access.WorkspaceAccessDenied) as denied:
+        snapshots.save_research_context(context(**scope, notes={"thesis": "new"}), **scope)
+    assert denied.value.reason == "audit_unavailable"
+    assert path.read_bytes() == original

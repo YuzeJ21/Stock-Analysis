@@ -20,13 +20,15 @@ def configured(tmp_path, monkeypatch):
     monkeypatch.setenv(access.CONFIG_ENV, str(path))
     monkeypatch.setenv(access.WORKSPACE_ENV, 'alpha')
     monkeypatch.setenv(access.MODE_ENV, 'workspace')
+    monkeypatch.setenv('STOCK_RESEARCH_WORKSPACE_AUDIT_DB', str(tmp_path / 'audit' / 'decisions.sqlite'))
     claims = dict(is_logged_in=True, iss=config['issuer'], aud=config['audience'], sub='alice', exp=time.time() + 3600)
     monkeypatch.setattr(access, 'trusted_user_claims', lambda: claims)
     return path, config, claims
 
 
 def test_personal_mode_preserves_existing_access_without_identity_lookup(monkeypatch):
-    for name in (access.MODE_ENV, access.CONFIG_ENV, access.WORKSPACE_ENV):
+    for name in (access.MODE_ENV, access.CONFIG_ENV, access.WORKSPACE_ENV,
+                 'STOCK_RESEARCH_WORKSPACE_AUDIT_DB'):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(access, 'trusted_user_claims', lambda: pytest.fail('Personal mode queried hosted identity'))
     assert access.selected_workspace_session() is None
