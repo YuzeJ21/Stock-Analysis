@@ -130,7 +130,11 @@ def test_amd_case_uses_dated_filing_metrics_and_withholds_market_data():
         assert text in html
     assert not document.scripts
     assert "Synthetic data" not in html and "13,377" not in html and "9,246" not in html
+    assert "FY2025 diluted EPS and amendment" in html
+    assert "2.65" not in html and "489.19" not in html
     assert {attrs["href"] for tag, attrs in document.elements if tag == "a" and attrs["href"].startswith("https:")} == {
+        "https://www.sec.gov/Archives/edgar/data/2488/000000248826000018/amd-20251227.htm#f-118",
+        "https://www.sec.gov/Archives/edgar/data/2488/000000248826000021/amd-20251227.htm",
         "https://www.sec.gov/Archives/edgar/data/2488/000000248826000014/q42025991.htm",
         "https://www.sec.gov/Archives/edgar/data/2488/000000248826000076/amd-20260328.htm",
         "https://www.sec.gov/Archives/edgar/data/2488/000000248826000123/amd-20260627.htm",
@@ -198,6 +202,10 @@ def test_shared_demo_style_preserves_dated_amd_case_layout_and_source_holds(tmp_
         expect(valuation).to_contain_text("Peer comparison withheld")
         _open_native_detail(valuation, "View why", expect)
         expect(valuation).to_contain_text("at least three eligible peers")
+        expect(valuation).to_contain_text("a separate local Workbench review")
+        evidence = _open_native_detail(page.locator("main"), "FY2025 diluted EPS and amendment", expect)
+        expect(evidence.get_by_role("link", name="Original SEC 10-K EPS fact")).to_be_visible()
+        expect(evidence.get_by_role("link", name="SEC 10-K/A explanatory note")).to_be_visible()
         page.get_by_role("navigation").get_by_role("link", name="Cash flow", exact=True).press("Enter")
         cash = page.locator("#cash-generation")
         expect(cash).to_contain_text("Nine months ended")

@@ -8,6 +8,8 @@ from scripts.build_company_demo import _STYLE
 
 _ACCESSION = "0000002488-26-000191"
 _FILING = "https://www.sec.gov/Archives/edgar/data/2488/000000248826000191/amd-20260926.htm"
+_ANNUAL_EPS_FACT = "https://www.sec.gov/Archives/edgar/data/2488/000000248826000018/amd-20251227.htm#f-118"
+_ANNUAL_AMENDMENT = "https://www.sec.gov/Archives/edgar/data/2488/000000248826000021/amd-20251227.htm"
 # Published values are derived metrics. Each row points to directly reported three-month GAAP inputs.
 _QUARTERS = (
     ("Q4 FY2025", "Dec 27, 2025", 100.0, 17.1, "8-K exhibit",
@@ -132,8 +134,8 @@ def build_amd_demo_html():
           <p class="peer-callout-answer">Peer comparison withheld</p>
           <p class="metric-context">Same-day closes needed</p>
           <details><summary>View why</summary>
-            <p class="metric-context">The project uses its price feed for personal research only. A public annual diluted P/E
-              comparison requires approved same-day closes for AMD and at least three eligible peers.</p>
+            <p class="metric-context">AMD qualified in a separate local Workbench review using price data for personal research.
+              Displaying a public annual diluted P/E comparison requires approved same-day closes for AMD and at least three eligible peers.</p>
           </details>
         </article>
       </div>
@@ -201,6 +203,12 @@ def build_amd_demo_html():
             then multiplies by 100. The Q4 figures come from the earnings release AMD furnished as Exhibit 99.1
             to Form 8-K. The quarterly table links to each source.</li>
         </ul>
+      </details>
+      <details id="annual-eps-evidence"><summary>FY2025 diluted EPS and amendment</summary>
+        <p>The local Workbench verified FY2025 diluted EPS against the original 10-K and SEC Companyfacts for the fiscal year
+          ended Dec 27, 2025. The amendment corrected Client segment percentages and states that the other disclosures remained unchanged.</p>
+        <p class="case-source"><a href="{_ANNUAL_EPS_FACT}">Original SEC 10-K EPS fact</a>
+          <a href="{_ANNUAL_AMENDMENT}">SEC 10-K/A explanatory note</a></p>
       </details>
     </main>
   </div>

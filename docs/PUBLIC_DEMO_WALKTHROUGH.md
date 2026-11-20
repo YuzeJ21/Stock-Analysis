@@ -4,7 +4,7 @@ Use the [real AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html
 
 ![English synthetic company research demo](assets/english-company-research-demo.png)
 
-The [AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html) shows real quarter drivers, four directly reported quarters, a separate nine-month cash comparison, and a sample Monitor follow-up. The filing links explain the calculations and the public peer valuation gap. Its **Try the fictional evidence review** shortcut opens the separate synthetic demo at Monitor; no AMD evidence is imported into that example.
+The [AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html) shows real quarter drivers, four directly reported quarters, a separate nine-month cash comparison, and a sample Monitor follow-up. Open **FY2025 diluted EPS and amendment** for the original annual EPS fact and the SEC amendment. The local peer comparison qualified on November 19. The public page withholds it under the price-data permissions. **Try the fictional evidence review** opens the separate synthetic Monitor with its own saved evidence. [Local study results](CROSS_INDUSTRY_SELF_SERVICE.md#november-19-amd-annual-eps-rerun)
 
 ## Share Boundary
 

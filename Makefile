@@ -630,7 +630,7 @@ linkedin-share-check:
 	@echo "Research-only: this is portfolio/demo packaging, not investment advice, data freshness proof, broker integration, or trade instruction."
 	@echo ""
 	@echo "1. Open your LinkedIn profile and confirm the Featured card title matches:"
-	@echo "   Stock Research Command Center | Company Research, Valuation & Monitoring"
+	@echo "   Stock Research Command Center | Evidence-First Equity Research"
 	@echo "2. Link to https://yuzej21.github.io/Stock-Analysis/amd.html as the primary dated SEC filing example. It is read-only; public peer valuation remains withheld pending approved same-day prices."
 	@echo "3. Use docs/assets/amd-sec-filing-case.jpg as the Featured image for the linked filing case. The image at docs/assets/linkedin-public-dashboard.png illustrates the local Workbench."
 	@echo "4. For the full interactive workflow, open the separately labelled synthetic demo at https://yuzej21.github.io/Stock-Analysis/. In Monitor, use Review saved evidence and record Reviewed or Still open. The choice resets on reload. Use a screenshot of the linked English demo."

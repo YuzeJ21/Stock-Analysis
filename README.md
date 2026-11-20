@@ -7,7 +7,7 @@ An evidence-first equity research workbench built with Python and Streamlit. Rev
 | Start here | What you can explore |
 | --- | --- |
 | [Interactive English demo](https://yuzej21.github.io/Stock-Analysis/) | A static, offline-capable fictional company case from search through five company sections and Monitor. |
-| [Real AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html) | A separate, dated Q3 FY2026 SEC filing walkthrough with quarterly drivers, operating margin, cash flow, and an open research question. [English screenshot](docs/assets/amd-sec-filing-case.jpg). |
+| [Real AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html) | A Q3 FY2026 SEC filing walkthrough with quarterly drivers, cash flow, a separate FY2025 EPS amendment review, and a Monitor follow-up. [English screenshot](docs/assets/amd-sec-filing-case.jpg). |
 
 ![English synthetic company research demo](docs/assets/english-company-research-demo.png)
 
@@ -52,7 +52,7 @@ Company search accepts a name or ticker, including companies absent from local C
 
 In **Discover → Coverage studies → U.S. listings**, see dated reviews for **Nasdaq Texas, NYSE Texas, Texas Stock Exchange (TXSE), Long-Term Stock Exchange (LTSE), and Green Impact Exchange (GIX)**. Each review shows what the sources support and which gaps remain. Discover also tracks SEC-only listing records and unresolved security types. [Venue reviews and listing evidence](docs/ONLINE_RESEARCH_COVERAGE.md#dated-venue-reviews)
 
-The separate **Self-service** study measures ten capabilities across twelve companies from semiconductors, banking, utilities, and foreign issuers. [Study sample and results](docs/CROSS_INDUSTRY_SELF_SERVICE.md)
+The separate **Self-service** study measures ten capabilities across twelve companies from semiconductors, banking, utilities, and foreign issuers. On November 19, all twelve had verified dated closes and eight qualified for same-basis peer valuation, including AMD after its annual diluted EPS was verified against the original filing and reviewed amendment. The public AMD case links to that filing evidence and keeps the peer comparison withheld under the price-data permissions. [Dated study results](docs/CROSS_INDUSTRY_SELF_SERVICE.md#november-19-amd-annual-eps-rerun)
 
 ## What You Can Do
 
