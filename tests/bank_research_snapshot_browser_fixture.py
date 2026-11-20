@@ -1,6 +1,7 @@
 """Constructed bank sources through production observation, proof and save paths."""
 from copy import deepcopy
 from datetime import datetime, timezone
+from functools import lru_cache
 from hashlib import sha256
 import json
 import socket
@@ -140,6 +141,11 @@ def snapshot_dependencies(record, now):
 
 
 def run_bank_research_snapshot_fixture(root):
+    _configure_bank_fixture(root)()
+
+
+@lru_cache(maxsize=1)
+def _configure_bank_fixture(root):
     from src import company_research_notes, company_workbench_ui, dashboard, online_company_identity
     from src import online_company_prices, online_peer_sources, online_research_context_store, online_research_tools
     from src import online_research_tools_ui, sec_annual_history, sec_research_review_ui, sec_selected_security
@@ -188,18 +194,20 @@ def run_bank_research_snapshot_fixture(root):
 
     for module in (company_research_notes, online_research_context_store, online_research_tools_ui, sec_research_review_ui):
         module.PROJECT_ROOT = root
-    with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(socket.socket, 'connect', local(original_connect))
-        patch.setattr(socket.socket, 'connect_ex', local(original_connect_ex))
-        patch.setattr(sec_selected_security, 'POLICIES', tuple(fixture['policies']))
-        patch.setattr(online_research_tools, '_now', lambda value=None: context_clock(now if value is None else value))
-        patch.setattr(dashboard, 'search_sec_company_candidates', lambda query, **kwargs:
-            search_sec_company_candidates(query, **{**kwargs,
-                'fetcher': lambda url, agent: fixture['transport'](url, agent)[:2], 'observed_at': now}))
-        patch.setattr(sec_annual_history, 'fetch_sec_online_research_view', lambda ticker, **kwargs:
-            financial(ticker, **{**kwargs, 'source_fetcher': fixture['transport'], 'observed_at': now}))
-        patch.setattr(online_company_prices, 'fetch_online_company_prices', fixture['prices'])
-        patch.setattr(online_company_identity, 'fetch_sec_company_profile', fixture['profile'])
-        patch.setattr(company_workbench_ui, 'get_online_peer_valuation', observed_peer)
-        patch.setattr(online_research_tools_ui, 'prepare_online_tools', observed_prepare)
-        dashboard.main()
+    # This dedicated subprocess can still be closing its previous Streamlit
+    # session during navigation. Keep the same fixture hooks for both runs.
+    patch = pytest.MonkeyPatch()
+    patch.setattr(socket.socket, 'connect', local(original_connect))
+    patch.setattr(socket.socket, 'connect_ex', local(original_connect_ex))
+    patch.setattr(sec_selected_security, 'POLICIES', tuple(fixture['policies']))
+    patch.setattr(online_research_tools, '_now', lambda value=None: context_clock(now if value is None else value))
+    patch.setattr(dashboard, 'search_sec_company_candidates', lambda query, **kwargs:
+        search_sec_company_candidates(query, **{**kwargs,
+            'fetcher': lambda url, agent: fixture['transport'](url, agent)[:2], 'observed_at': now}))
+    patch.setattr(sec_annual_history, 'fetch_sec_online_research_view', lambda ticker, **kwargs:
+        financial(ticker, **{**kwargs, 'source_fetcher': fixture['transport'], 'observed_at': now}))
+    patch.setattr(online_company_prices, 'fetch_online_company_prices', fixture['prices'])
+    patch.setattr(online_company_identity, 'fetch_sec_company_profile', fixture['profile'])
+    patch.setattr(company_workbench_ui, 'get_online_peer_valuation', observed_peer)
+    patch.setattr(online_research_tools_ui, 'prepare_online_tools', observed_prepare)
+    return dashboard.main

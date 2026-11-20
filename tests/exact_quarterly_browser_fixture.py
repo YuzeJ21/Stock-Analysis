@@ -6,6 +6,7 @@ and immutable research snapshots remain production code.
 """
 from copy import deepcopy
 from datetime import datetime, timezone
+from functools import lru_cache
 from hashlib import sha256
 import json
 import socket
@@ -164,6 +165,11 @@ def exact_quarterly_dependencies(record):
 
 
 def run_exact_quarterly_fixture(root):
+    _configure_exact_quarterly_fixture(root)()
+
+
+@lru_cache(maxsize=1)
+def _configure_exact_quarterly_fixture(root):
     from src import company_research_notes, company_workbench_ui, dashboard, online_company_identity
     from src import online_company_prices, online_peer_sources, online_research_context_store
     from src import online_research_tools, online_research_tools_ui, sec_annual_history, sec_research_review_ui
@@ -223,22 +229,24 @@ def run_exact_quarterly_fixture(root):
 
     for module in (company_research_notes, online_research_context_store, online_research_tools_ui, sec_research_review_ui):
         module.PROJECT_ROOT = root
-    with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(socket.socket, 'connect', local(original_connect))
-        patch.setattr(socket.socket, 'connect_ex', local(original_connect_ex))
-        patch.setattr(online_research_tools, '_now', lambda value=None: context_clock(NOW if value is None else value))
-        patch.setattr(coverage, '_now', lambda value=None: coverage_clock(NOW if value is None else value))
-        patch.setattr(online_filing_context, '_now', lambda value=None: filing_clock(NOW if value is None else value))
-        patch.setattr(sec_online_quarter_evidence, '_now', lambda value=None: filing_clock(NOW if value is None else value))
-        patch.setattr(coverage, 'default_dependencies', lambda: deps)
-        patch.setattr(coverage_ui, 'get_self_service_coverage', observed_coverage)
-        patch.setattr(dashboard, 'search_sec_company_candidates', lambda query, **kwargs:
-            search_sec_company_candidates(query, **{**kwargs,
-                'fetcher': lambda url, agent: fixture['transport'](url, agent)[:2], 'observed_at': NOW}))
-        patch.setattr(sec_annual_history, 'fetch_sec_online_research_view', observed_financial)
-        patch.setattr(online_company_prices, 'fetch_online_company_prices', fixture['prices'])
-        patch.setattr(online_company_identity, 'fetch_sec_company_profile', lambda *args, **kwargs:
-            dict(status='unavailable', reason='constructed_listing_profile_held'))
-        patch.setattr(company_workbench_ui, 'get_online_peer_valuation', observed_peer)
-        patch.setattr(online_research_tools_ui, 'prepare_online_tools', observed_prepare)
-        dashboard.main()
+    # The dedicated Streamlit subprocess may finish its previous session after
+    # navigation. Keep the same source and socket hooks for its full lifetime.
+    patch = pytest.MonkeyPatch()
+    patch.setattr(socket.socket, 'connect', local(original_connect))
+    patch.setattr(socket.socket, 'connect_ex', local(original_connect_ex))
+    patch.setattr(online_research_tools, '_now', lambda value=None: context_clock(NOW if value is None else value))
+    patch.setattr(coverage, '_now', lambda value=None: coverage_clock(NOW if value is None else value))
+    patch.setattr(online_filing_context, '_now', lambda value=None: filing_clock(NOW if value is None else value))
+    patch.setattr(sec_online_quarter_evidence, '_now', lambda value=None: filing_clock(NOW if value is None else value))
+    patch.setattr(coverage, 'default_dependencies', lambda: deps)
+    patch.setattr(coverage_ui, 'get_self_service_coverage', observed_coverage)
+    patch.setattr(dashboard, 'search_sec_company_candidates', lambda query, **kwargs:
+        search_sec_company_candidates(query, **{**kwargs,
+            'fetcher': lambda url, agent: fixture['transport'](url, agent)[:2], 'observed_at': NOW}))
+    patch.setattr(sec_annual_history, 'fetch_sec_online_research_view', observed_financial)
+    patch.setattr(online_company_prices, 'fetch_online_company_prices', fixture['prices'])
+    patch.setattr(online_company_identity, 'fetch_sec_company_profile', lambda *args, **kwargs:
+        dict(status='unavailable', reason='constructed_listing_profile_held'))
+    patch.setattr(company_workbench_ui, 'get_online_peer_valuation', observed_peer)
+    patch.setattr(online_research_tools_ui, 'prepare_online_tools', observed_prepare)
+    return dashboard.main

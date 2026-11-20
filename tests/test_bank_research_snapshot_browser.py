@@ -109,7 +109,8 @@ def test_three_bank_snapshots_save_compare_replay_and_return_offline(bank_snapsh
 
     with playwright.sync_playwright() as runtime:
         browser = runtime.chromium.launch(executable_path=str(chrome), headless=True)
-        page = browser.new_page(viewport={'width': width, 'height': height}, color_scheme=metadata['color_scheme'])
+        browser_context = browser.new_context(viewport={'width': width, 'height': height}, color_scheme=metadata['color_scheme'])
+        page = browser_context.new_page()
         page.set_default_timeout(20_000)
         blocked, errors = [], []
 
@@ -150,7 +151,8 @@ def test_three_bank_snapshots_save_compare_replay_and_return_offline(bank_snapsh
             radio = page.get_by_role('radio', name=name, exact=True)
             page.locator('label').filter(has=radio).click()
             playwright.expect(radio).to_be_checked()
-            playwright.expect(page.locator('.st-key-company-section-body').get_by_role('heading', name=name, exact=True)).to_be_visible()
+            heading = page.locator('.st-key-company-section-body').get_by_role('heading', name=name, exact=True)
+            playwright.expect(heading).to_be_visible(timeout=15_000)
             settle()
 
         def readable(label, locator):
@@ -176,9 +178,11 @@ def test_three_bank_snapshots_save_compare_replay_and_return_offline(bank_snapsh
             for ticker in BANKS:
                 page.goto(bank_snapshot_server + f'/?mode=research&page=company-workbench&ticker={ticker}&online=1')
                 research = page.get_by_role('button', name='Research company', exact=True)
-                playwright.expect(research).to_be_visible()
+                playwright.expect(research).to_be_visible(timeout=15_000)
+                settle()
                 research.click()
-                playwright.expect(page.locator('[data-online-filing-status="1"]')).to_be_visible()
+                filing_status = page.locator('[data-online-filing-status="1"]')
+                playwright.expect(filing_status).to_contain_text('Annual 2025-12-31: corroborated', timeout=15_000)
                 settle()
                 source_calls = calls()
                 context = read('workbench-' + ticker + '.json')
@@ -233,21 +237,29 @@ def test_three_bank_snapshots_save_compare_replay_and_return_offline(bank_snapsh
                 assert snapshots(ticker) == paths and path.read_bytes() == original_bytes
                 readable(ticker + '-save-action', save.get_by_text('Save research snapshot', exact=True))
                 surface(ticker.lower() + '-saved')
+                snapshot_heading = page.get_by_text(f"Snapshot {snapshot['snapshot_id'][:12]} · SEC CIK {CIKS[ticker]}", exact=True)
+                saved_replay = saved.filter(has=snapshot_heading)
                 saved.get_by_role('button', name='Open historical research snapshot', exact=True).click()
-                playwright.expect(saved).to_contain_text('Historical replay · ')
+                playwright.expect(snapshot_heading).to_be_visible(timeout=15_000)
+                playwright.expect(saved_replay).to_contain_text('Historical replay · ')
                 settle()
                 query = parse_qs(urlsplit(page.url).query)
                 assert query['ticker'] == [ticker] and query['research_cik'] == [CIKS[ticker]]
                 assert query['research_snapshot'] == [snapshot['snapshot_id']]
                 assert calls() == source_calls and path.read_bytes() == original_bytes
                 surface(ticker.lower() + '-historical')
-                saved.get_by_role('button', name='Open Monitor', exact=True).click()
+                saved_replay.get_by_role('button', name='Open Monitor', exact=True).click()
                 heading = page.get_by_role('heading', name='Saved online research updates', exact=True)
-                playwright.expect(heading).to_be_visible()
+                playwright.expect(heading).to_be_visible(timeout=15_000)
+                observation = page.get_by_text('Selected observation: ' + snapshot['observed_at'], exact=True)
+                playwright.expect(observation).to_be_visible(timeout=15_000)
+                monitor_snapshot = page.get_by_text('Snapshot ' + snapshot['snapshot_id'][:12], exact=True)
+                playwright.expect(monitor_snapshot).to_be_visible()
                 settle()
                 selector = page.get_by_test_id('stSelectbox').filter(has_text='Saved online research company')
                 box = selector.get_by_role('combobox')
                 company_label = f'{ticker} · CIK {CIKS[ticker]}'
+                playwright.expect(box).to_have_value(company_label)
                 if width < 640:
                     # The phone control is an editable combobox. Its explicit
                     # Open button launches the option dialog; input clicks edit.
@@ -266,7 +278,7 @@ def test_three_bank_snapshots_save_compare_replay_and_return_offline(bank_snapsh
                 readable(ticker + '-monitor-return', reopen.get_by_text('Reopen exact saved research', exact=True))
                 surface(ticker.lower() + '-monitor')
                 reopen.click()
-                playwright.expect(page.get_by_text('Historical replay · ', exact=False)).to_be_visible()
+                playwright.expect(snapshot_heading).to_be_visible(timeout=15_000)
                 settle()
                 route = parse_qs(urlsplit(page.url).query)
                 assert {key: route.get(key) for key in ('ticker', 'section', 'research_cik', 'research_snapshot')} == dict(
@@ -295,8 +307,8 @@ def test_three_bank_snapshots_save_compare_replay_and_return_offline(bank_snapsh
             (tmp_path / f'bank-snapshot-failure-{width}-aria.txt').write_text(page.locator('body').aria_snapshot(), encoding='utf-8')
             raise
         finally:
-            browser.close()
             (tmp_path / 'browser-proof.json').write_text(json.dumps(metadata, indent=2), encoding='utf-8')
             for path in tmp_path.iterdir():
                 if path.suffix in {'.png', '.json', '.txt', '.log'}:
                     shutil.copy2(path, destination / path.name)
+            browser_context.close()

@@ -119,7 +119,8 @@ def test_exact_quarter_company_discover_and_offline_snapshot_journey(exact_quart
 
     with playwright.sync_playwright() as runtime:
         browser = runtime.chromium.launch(executable_path=str(chrome), headless=True)
-        page = browser.new_page(viewport={'width': width, 'height': height}, color_scheme=metadata['color_scheme'])
+        browser_context = browser.new_context(viewport={'width': width, 'height': height}, color_scheme=metadata['color_scheme'])
+        page = browser_context.new_page()
         page.set_default_timeout(20_000)
         blocked, errors = [], []
 
@@ -184,11 +185,11 @@ def test_exact_quarter_company_discover_and_offline_snapshot_journey(exact_quart
             for ticker in TICKERS:
                 page.goto(exact_quarter_server + f'/?mode=research&page=company-workbench&ticker={ticker}&online=1')
                 research = page.get_by_role('button', name='Research company', exact=True)
-                playwright.expect(research).to_be_visible()
+                playwright.expect(research).to_be_visible(timeout=30_000)
                 settle()
                 before = calls()
                 research.click()
-                playwright.expect(page.locator('[data-online-filing-status="1"]')).to_be_visible()
+                playwright.expect(page.locator('[data-online-filing-status="1"]')).to_be_visible(timeout=20_000)
                 settle()
                 surface(ticker.lower() + '-overview')
                 section('Financial Trends')
@@ -271,18 +272,21 @@ def test_exact_quarter_company_discover_and_offline_snapshot_journey(exact_quart
                     assert snapshot['context']['commercial_eligible'] is False
                     surface('duk-saved')
                     saved.get_by_role('button', name='Open historical research snapshot', exact=True).click()
-                    playwright.expect(saved).to_contain_text('Historical replay · ')
+                    snapshot_marker = page.get_by_text(
+                        f"Snapshot {snapshot['snapshot_id'][:12]} · SEC CIK {CIKS[ticker]}", exact=True)
+                    playwright.expect(snapshot_marker).to_be_visible(timeout=20_000)
                     settle()
                     assert calls() == source_calls
                     surface('duk-historical')
-                    saved.get_by_role('button', name='Open Monitor', exact=True).click()
+                    snapshot_marker.locator('xpath=ancestor::details[1]').get_by_role(
+                        'button', name='Open Monitor', exact=True).click()
                     playwright.expect(page.get_by_role('heading', name='Saved online research updates', exact=True)).to_be_visible()
                     settle()
                     reopen = page.get_by_role('button', name='Reopen exact saved research', exact=True)
                     playwright.expect(reopen).to_be_visible()
                     surface('duk-monitor')
                     reopen.click()
-                    playwright.expect(page.get_by_text('Historical replay · ', exact=False)).to_be_visible()
+                    playwright.expect(snapshot_marker).to_be_visible(timeout=20_000)
                     settle()
                     query = parse_qs(urlsplit(page.url).query)
                     assert {key: query.get(key) for key in ('ticker', 'section', 'research_cik', 'research_snapshot')} == dict(
@@ -303,10 +307,10 @@ def test_exact_quarter_company_discover_and_offline_snapshot_journey(exact_quart
             expand('Coverage studies')
             page.get_by_role('tab', name='Self-service', exact=True).click()
             region = page.get_by_role('region', name='Self-service research coverage', exact=True)
-            playwright.expect(region).to_contain_text('Unattempted: 12 / 12.')
+            playwright.expect(region).to_contain_text('Unattempted: 12 / 12.', timeout=20_000)
             for attempted in range(1, 13):
                 page.get_by_role('button', name='Inspect next company', exact=True).click()
-                playwright.expect(region).to_contain_text(f'Unattempted: {12-attempted} / 12.')
+                playwright.expect(region).to_contain_text(f'Unattempted: {12-attempted} / 12.', timeout=20_000)
                 settle()
             study = read('study-view.json')
             assert study['attempted_count'] == study['requested_count'] == 12
@@ -325,7 +329,10 @@ def test_exact_quarter_company_discover_and_offline_snapshot_journey(exact_quart
                 assert by_ticker[ticker]['capabilities']['direct_quarter']['status'] == 'available'
                 detail = expand('Reporting periods and original source receipts')
                 playwright.expect(detail).to_contain_text('2026-11-08')
-                assert source_url(ticker) in detail.get_by_role('link').evaluate_all('nodes => nodes.map(node => node.href)')
+                exact_source = detail.locator('a[href="' + source_url(ticker) + '"]')
+                playwright.expect(exact_source).to_have_count(1, timeout=20_000)
+                detail = expand('Reporting periods and original source receipts')
+                playwright.expect(detail.locator('a[href="' + source_url(ticker) + '"]')).to_be_visible()
                 surface('discover-' + ticker.lower())
             assert calls() == before_details, 'Discover selection and source inspection must remain offline'
             assert len(list((tmp_path / 'outputs/local/online-research-contexts').rglob('*.json'))) == 1
@@ -343,7 +350,6 @@ def test_exact_quarter_company_discover_and_offline_snapshot_journey(exact_quart
             (tmp_path / f'exact-quarter-failure-{width}-aria.txt').write_text(page.locator('body').aria_snapshot(), encoding='utf-8')
             raise
         finally:
-            browser.close()
             (tmp_path / 'browser-proof.json').write_text(json.dumps(metadata, indent=2), encoding='utf-8')
             for path in tmp_path.iterdir():
                 if path.suffix in {'.png', '.json', '.txt', '.log'}:
@@ -355,3 +361,4 @@ def test_exact_quarter_company_discover_and_offline_snapshot_journey(exact_quart
                 entries.append(f"- {result['viewport']['width']} × {result['viewport']['height']} {result['color_scheme']}: {result.get('status', 'failed')}.")
             report.write_text('# Constructed exact-quarter browser proof\n\n' + '\n'.join(entries)
                 + '\n\nEvidence: /tmp/exact-quarter-browser-proof. These checks use constructed SEC bytes through production parsers, coverage, trends and snapshot paths; they do not establish live SEC or human validation.\n', encoding='utf-8')
+            browser_context.close()
