@@ -311,15 +311,55 @@ def _filing_pair(st, pair):
         st.markdown(tsm_cash_reconciliation_html(pair['cash_reconciliation']), unsafe_allow_html=True)
 
 
+def render_saved_online_snapshot(st, historical, *, baseline=None):
+    from src.online_research_context_store import compare_exact_filing_pair
+
+    if baseline is not None:
+        _filing_pair(st, compare_exact_filing_pair(baseline, historical))
+    trend = historical['context'].get('business_trend') or {}
+    if trend.get('ase_net_ppe_payments'):
+        st.markdown(ase_net_ppe_html(trend['ase_net_ppe_payments']), unsafe_allow_html=True)
+    if trend.get('nee_quarter_cash'):
+        st.markdown(nee_quarter_cash_html(trend['nee_quarter_cash']), unsafe_allow_html=True)
+    if baseline is None and trend.get('cash_reconciliation'):
+        from src.sec_online_quarter_view import tsm_cash_reconciliation_html
+
+        st.markdown(tsm_cash_reconciliation_html(trend['cash_reconciliation']), unsafe_allow_html=True)
+    if trend.get('capital_purchase_evidence'):
+        from src.sec_online_quarter_view import capital_purchase_html
+        st.markdown(capital_purchase_html(trend['capital_purchase_evidence']), unsafe_allow_html=True)
+    if trend.get('bank_annual'):
+        from src.sec_exact_filing_view import bank_annual_html, bank_interim_html, bank_quarter_comparison_html
+        interim = trend.get('bank_interim')
+        if interim:
+            pair = trend.get('bank_interim_comparison')
+            if pair:
+                st.markdown(bank_quarter_comparison_html(interim, pair), unsafe_allow_html=True)
+            st.markdown(bank_interim_html(interim), unsafe_allow_html=True)
+        st.markdown(bank_annual_html(trend['bank_annual'], show_interim_gap=not interim), unsafe_allow_html=True)
+    comparisons = trend.get('comparative_periods') or []
+    if comparisons:
+        from src.sec_online_quarter_view import native_quarter_comparisons_html
+        current_quarter = next(row for row in trend['periods']
+            if row.get('current') is True and row.get('period_basis') == 'direct_quarter')
+        st.markdown(native_quarter_comparisons_html(current_quarter, comparisons,
+                    trend.get('comparative_gaps')), unsafe_allow_html=True)
+    from src.online_peer_valuation_ui import saved_tsm_security_html
+
+    security = saved_tsm_security_html(historical['context'])
+    if security:
+        st.markdown(security, unsafe_allow_html=True)
+    _evidence(st, historical['context'])
+
+
 def _snapshots(st, context, bundle):
     if _mode_reason('research'):
         st.info('Personal online research replay is unavailable in this workspace.')
         return
     from src.online_research_context_store import (
-        compare_exact_filing_pair, compare_research_contexts, find_saved_filing_pair,
-        list_research_contexts, load_research_context, save_research_context,
+        compare_research_contexts, find_saved_filing_pair, list_research_contexts, save_research_context,
     )
-    with st.expander('Saved online research · replay and compare', expanded=bool(st.query_params.get('research_snapshot'))):
+    with st.expander('Saved online research · replay and compare', expanded=False):
         st.caption('Private normalized observations, assumptions and notes. Replay is dated history; refresh explicitly for current online research. Source permissions remain unchanged.')
         cik = context.get('sec_cik')
         if not cik:
@@ -334,60 +374,12 @@ def _snapshots(st, context, bundle):
                 saved = save_research_context(context, **scope, project_root=PROJECT_ROOT)
                 st.success('Research snapshot saved: ' + saved['snapshot_id'][:12])
             snapshots = list_research_contexts(**scope, project_root=PROJECT_ROOT)
-            requested = st.query_params.get('research_snapshot')
-            baseline_id = st.query_params.get('research_baseline')
-            if requested:
-                historical = load_research_context(requested, **scope, project_root=PROJECT_ROOT)
-                st.info('Historical replay · ' + historical['observed_at'])
-                if baseline_id:
-                    baseline = load_research_context(baseline_id, **scope, project_root=PROJECT_ROOT)
-                    _filing_pair(st, compare_exact_filing_pair(baseline, historical))
-                trend = historical['context'].get('business_trend') or {}
-                if trend.get('ase_net_ppe_payments'):
-                    st.markdown(ase_net_ppe_html(trend['ase_net_ppe_payments']), unsafe_allow_html=True)
-                if trend.get('nee_quarter_cash'):
-                    st.markdown(nee_quarter_cash_html(trend['nee_quarter_cash']), unsafe_allow_html=True)
-                if not baseline_id and trend.get('cash_reconciliation'):
-                    from src.sec_online_quarter_view import tsm_cash_reconciliation_html
-
-                    st.markdown(tsm_cash_reconciliation_html(trend['cash_reconciliation']), unsafe_allow_html=True)
-                if trend.get('capital_purchase_evidence'):
-                    from src.sec_online_quarter_view import capital_purchase_html
-                    st.markdown(capital_purchase_html(trend['capital_purchase_evidence']), unsafe_allow_html=True)
-                if trend.get('bank_annual'):
-                    from src.sec_exact_filing_view import bank_annual_html, bank_interim_html, bank_quarter_comparison_html
-                    interim = trend.get('bank_interim')
-                    if interim:
-                        pair = trend.get('bank_interim_comparison')
-                        if pair:
-                            st.markdown(bank_quarter_comparison_html(interim, pair), unsafe_allow_html=True)
-                        st.markdown(bank_interim_html(interim), unsafe_allow_html=True)
-                    st.markdown(bank_annual_html(trend['bank_annual'], show_interim_gap=not interim), unsafe_allow_html=True)
-                comparisons = trend.get('comparative_periods') or []
-                if comparisons:
-                    from src.sec_online_quarter_view import native_quarter_comparisons_html
-                    current_quarter = next(row for row in trend['periods']
-                        if row.get('current') is True and row.get('period_basis') == 'direct_quarter')
-                    st.markdown(native_quarter_comparisons_html(current_quarter, comparisons,
-                                trend.get('comparative_gaps')), unsafe_allow_html=True)
-                from src.online_peer_valuation_ui import saved_tsm_security_html
-
-                security = saved_tsm_security_html(historical['context'])
-                if security:
-                    st.markdown(security, unsafe_allow_html=True)
-                _evidence(st, historical['context'])
-            elif not baseline_id:
-                live_match = find_saved_filing_pair(snapshots, context)
-                if live_match:
-                    _filing_pair(st, live_match[1])
-                net = (context.get('business_trend') or {}).get('ase_net_ppe_payments')
-                if net:
-                    st.markdown(ase_net_ppe_html(net), unsafe_allow_html=True)
-            if baseline_id:
-                from src.research_workspace import open_research_monitor
-                st.button('Return to this filing pair in Monitor', key='online-research-back-to-filing-pair',
-                    on_click=open_research_monitor, args=(st, scope['ticker'], scope['profile_key']))
-                return
+            live_match = find_saved_filing_pair(snapshots, context)
+            if live_match:
+                _filing_pair(st, live_match[1])
+            net = (context.get('business_trend') or {}).get('ase_net_ppe_payments')
+            if net:
+                st.markdown(ase_net_ppe_html(net), unsafe_allow_html=True)
             if not snapshots:
                 st.caption('No saved online research in this exact company scope.')
                 return
@@ -435,7 +427,7 @@ def render_online_tools(st, section, bundle):
             st.json({key: context.get(key) for key in ('filing_inventory', 'filing_coverage', 'source_receipts', 'gaps')}, expanded=False)
 
 
-def render_online_research_monitor(st, *, profile_key):
+def render_online_research_monitor(st, *, profile_key, monitor_origin=None):
     if _mode_reason('research'):
         st.info('Personal online research snapshots are unavailable in this workspace.')
         return
@@ -454,27 +446,31 @@ def render_online_research_monitor(st, *, profile_key):
             st.caption('No online research snapshots saved in this profile.')
             return
         labels = {f"{r['ticker']} · CIK {r['sec_cik']}": r for r in scopes}
-        returning = next((label for label, record in labels.items() if record['ticker'] == st.query_params.get('return_ticker')
-                          and record['sec_cik'] == st.query_params.get('return_research_cik')), None)
-        pinned_baseline = st.query_params.get('return_research_baseline') if returning else None
+        pinned = monitor_origin if monitor_origin and monitor_origin.research_snapshot else None
+        returning = f'{pinned.ticker} · CIK {pinned.research_cik}' if pinned else None
+        if pinned and returning not in labels:
+            raise ValueError('Pinned research scope no longer available')
         picker_key = 'online-research-monitor:' + profile_key
-        if pinned_baseline:
-            picker_key += f":{pinned_baseline}:{st.query_params.get('return_research_snapshot')}"
+        if pinned:
+            picker_key += f':{pinned.research_snapshot}:{pinned.research_baseline}:{pinned.section}'
         choice = st.selectbox('Saved online research company', tuple(labels),
             index=tuple(labels).index(returning) if returning else 0, key=picker_key)
         scope = labels[choice]
-        snapshots = list_research_contexts(profile_key=profile_key, ticker=scope['ticker'],
-            sec_cik=scope['sec_cik'], project_root=PROJECT_ROOT)
-        latest = snapshots[0]
-        baseline_id = pinned_baseline if choice == returning else None
-        if baseline_id:
-            exact_scope = dict(profile_key=profile_key, ticker=scope['ticker'], sec_cik=scope['sec_cik'], project_root=PROJECT_ROOT)
-            latest = load_research_context(st.query_params.get('return_research_snapshot'), **exact_scope)
-            baseline = load_research_context(baseline_id, **exact_scope)
-            filing_match = (baseline, compare_exact_filing_pair(baseline, latest))
+        exact_scope = dict(profile_key=profile_key, ticker=scope['ticker'], sec_cik=scope['sec_cik'],
+                           project_root=PROJECT_ROOT)
+        exact = pinned if choice == returning else None
+        snapshots = []
+        if exact:
+            latest = load_research_context(exact.research_snapshot, **exact_scope)
+            baseline = load_research_context(exact.research_baseline, **exact_scope) if exact.research_baseline else None
+            filing_match = (baseline, compare_exact_filing_pair(baseline, latest)) if baseline else None
         else:
+            snapshots = list_research_contexts(**exact_scope)
+            latest = snapshots[0]
             filing_match = find_saved_filing_pair(snapshots[1:], latest) if len(snapshots) >= 2 else None
-        st.caption(('Selected observation: ' if baseline_id else 'Latest observation: ') + latest['observed_at'])
+        st.caption(('Selected observation: ' if exact else 'Latest observation: ') + latest['observed_at'])
+        if exact:
+            st.caption('Snapshot ' + latest['snapshot_id'][:12])
         trend = latest['context'].get('business_trend') or {}
         pair = trend.get('bank_interim_comparison')
         if len(snapshots) >= 2 and not filing_match:
@@ -500,11 +496,17 @@ def render_online_research_monitor(st, *, profile_key):
             st.markdown(security, unsafe_allow_html=True)
         for gap in latest['context'].get('gaps') or []:
             st.write(_label(gap))
-        query = dict(mode='research', page='company-workbench', ticker=scope['ticker'],
-            section='notes', research_cik=scope['sec_cik'], research_snapshot=latest['snapshot_id'])
-        if filing_match:
-            query['research_baseline'] = filing_match[0]['snapshot_id']
-        st.button('Reopen exact filing pair' if pair or filing_match else 'Reopen exact saved research', key='online-research-monitor-open:' + profile_key,
-            on_click=st.query_params.from_dict, args=(query,))
+        label = 'Reopen exact filing pair' if pair or filing_match else 'Reopen exact saved research'
+        if exact:
+            from src.research_workspace import return_to_research_workbench
+
+            callback, args = return_to_research_workbench, (st, exact)
+        else:
+            query = dict(mode='research', page='company-workbench', ticker=scope['ticker'],
+                         section='notes', research_cik=scope['sec_cik'], research_snapshot=latest['snapshot_id'])
+            if filing_match:
+                query['research_baseline'] = filing_match[0]['snapshot_id']
+            callback, args = st.query_params.from_dict, (query,)
+        st.button(label, key='online-research-monitor-open:' + profile_key, on_click=callback, args=args)
     except (OSError, ValueError, TypeError, UnicodeError, IndexError):
         st.warning('Online research snapshots could not be verified. Existing SEC review and company notes remain separate.')

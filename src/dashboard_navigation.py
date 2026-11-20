@@ -85,7 +85,7 @@ WORKSPACE_ROUTE_QUERY_KEYS = {
     (RESEARCH_MODE, "Company Workbench"): ("ticker", "open", "cash_preview", "online", "section", "sec_pair",
         "notes_cik", "research_cik", "research_snapshot", "research_baseline"),
     (RESEARCH_MODE, "Monitor"): ("return_ticker", "return_online", "sec_pair", "sec_ticker", "return_notes_cik",
-        "return_research_cik", "return_research_snapshot", "return_research_baseline"),
+        "return_research_cik", "return_research_snapshot", "return_research_baseline", "return_section"),
     (RESEARCH_MODE, "Data Health"): DATA_HEALTH_QUERY_KEYS,
     (RESEARCH_MODE, PROOF_HISTORY_PATH_TITLE): ("ticker",),
 }

@@ -1834,6 +1834,61 @@ def test_monitor_round_trip_keeps_saved_company_route_without_online_identity():
     assert "online" not in query
 
 
+@pytest.mark.parametrize("section", ["valuation", "financials", "notes"])
+@pytest.mark.parametrize("baseline_id", [None, "older"])
+def test_saved_research_monitor_return_survives_lost_session(monkeypatch, section, baseline_id):
+    from src import online_research_context_store
+
+    class Query(dict):
+        def from_dict(self, values):
+            self.clear()
+            self.update(values)
+
+    def load(snapshot_id, *, profile_key, ticker, sec_cik):
+        if (profile_key, ticker, sec_cik) != ("private", "FICT", "0000001234"):
+            raise ValueError("snapshot scope mismatch")
+        assert snapshot_id in {"selected", baseline_id}
+        return {"snapshot_id": snapshot_id, "sec_cik": sec_cik}
+
+    monkeypatch.setattr(online_research_context_store, "load_research_context", load)
+    query = Query(mode="research", page="company-workbench", ticker="FICT", section=section,
+                  online="1", research_cik="0000001234", research_snapshot="selected")
+    if baseline_id:
+        query["research_baseline"] = baseline_id
+    st = SimpleNamespace(query_params=query, session_state={})
+    from urllib.parse import parse_qsl, urlsplit
+
+    monitor_href = research_workspace.research_monitor_handoff_href("FICT", online=True, replay_query=query)
+
+    research_workspace.open_research_monitor(st, "FICT", "private")
+    monitor_query = dict(query)
+    assert dict(parse_qsl(urlsplit(monitor_href).query)) == monitor_query
+    assert query["return_section"] == section
+    assert query["return_research_snapshot"] == "selected"
+    assert "return_online" not in query
+    assert research_workspace.resolve_saved_monitor_origin(query, "other", "FICT") is None
+    assert research_workspace.resolve_saved_monitor_origin(query, "private", "OTHER") is None
+
+    st.session_state = {}
+    origin = research_workspace.resolve_saved_monitor_origin(query, "private", "FICT")
+    assert origin is not None
+    st.session_state[research_workspace._MONITOR_ORIGIN_KEY] = origin
+    query["return_section"] = "overview"
+    research_workspace.return_to_research_workbench(st, origin)
+    assert query["page"] == "monitor"
+    query.from_dict(monitor_query)
+    research_workspace.return_to_research_workbench(st, origin)
+    assert query == {
+        "mode": "research", "page": "company-workbench", "ticker": "FICT",
+        "open": "1", "section": section, "research_cik": "0000001234", "research_snapshot": "selected",
+        **({"research_baseline": baseline_id} if baseline_id else {}),
+    }
+
+    legacy_query = {k: v for k, v in monitor_query.items() if k != "return_section"}
+    assert research_workspace.resolve_saved_monitor_origin(legacy_query, "private", "FICT").section == "notes"
+    assert research_workspace.resolve_saved_monitor_origin({**monitor_query, "return_section": "other"}, "private", "FICT") is None
+
+
 @pytest.mark.parametrize("scope", ["saved", "receipts", "online:0000001234"])
 def test_monitor_return_restores_only_origin_section_widget(scope):
     """A retained default cannot replace the section captured for this detour."""

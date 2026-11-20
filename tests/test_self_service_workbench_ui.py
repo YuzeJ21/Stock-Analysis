@@ -52,6 +52,46 @@ def test_canonical_navigation_retains_exact_research_snapshot_scope(section):
     assert canonical_workspace_query('research','Company Workbench',query) == query
 
 
+def test_monitor_reopens_selected_single_snapshot_when_a_newer_one_exists(monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    from src import online_research_context_store as store
+    from src.dashboard_navigation import canonical_workspace_query
+    from src.online_research_tools_ui import render_online_research_monitor
+    from src.research_workspace import MonitorOrigin, return_to_research_workbench
+
+    scope = dict(profile_key='private', ticker='FICT', sec_cik='0000001234')
+    older_id, newer_id = 'a' * 64, 'b' * 64
+    query = dict(mode='research', page='monitor', return_ticker=scope['ticker'],
+                 return_research_cik=scope['sec_cik'], return_research_snapshot=older_id,
+                 return_section='valuation')
+    assert canonical_workspace_query('research', 'Monitor', query) == query
+    saved = dict(snapshot_id=older_id, observed_at='2026-11-19T23:42:00Z', context={'gaps': ['held reason']})
+    load = Mock(return_value=saved)
+    list_latest = Mock(return_value=[{'snapshot_id': newer_id}, saved])
+    monkeypatch.delenv('COMMERCIAL_RESEARCH_MODE', raising=False)
+    monkeypatch.setattr(store, 'load_research_context', load)
+    monkeypatch.setattr(store, 'list_research_contexts', list_latest)
+    monkeypatch.setattr(store, 'list_research_context_scopes', lambda *a, **k: {'scopes': [scope]})
+    st = SimpleNamespace(markdown=Mock(), caption=Mock(), write=Mock(), button=Mock(), warning=Mock(),
+                         selectbox=Mock(return_value='FICT · CIK 0000001234'), query_params=query)
+    origin = MonitorOrigin(scope['profile_key'], scope['ticker'], 'valuation', None,
+                           research_cik=scope['sec_cik'], research_snapshot=older_id)
+
+    render_online_research_monitor(st, profile_key=scope['profile_key'], monitor_origin=origin)
+
+    assert load.call_args.args == (older_id,)
+    assert {key: load.call_args.kwargs[key] for key in scope} == scope
+    list_latest.assert_not_called()
+    st.caption.assert_any_call('Selected observation: ' + saved['observed_at'])
+    st.write.assert_called_once_with('held reason')
+    assert st.button.call_args.args == ('Reopen exact saved research',)
+    assert st.button.call_args.kwargs['on_click'] is return_to_research_workbench
+    assert st.button.call_args.kwargs['args'] == (st, origin)
+    st.warning.assert_not_called()
+
+
 def test_new_filing_pending_never_labels_older_revenue_as_current():
     from src.online_research_tools_ui import qualify_current_answers
     answers = ({'key':'financial','value':'Revenue USD 150','context':'2025-12-31',

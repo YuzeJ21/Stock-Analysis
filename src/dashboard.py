@@ -464,6 +464,7 @@ from src.research_workspace import (
     research_accessibility_media_preferences_css,
     research_evidence_return_link,
     research_monitor_origin,
+    resolve_saved_monitor_origin,
     research_monitor_requires_online,
     research_monitor_return_link,
     research_monitor_frame,
@@ -7647,6 +7648,7 @@ def render_research_workflow_navigation(
             active_page=selected_page, ticker=ticker,
             monitor_handoff=monitor_handoff, online_workbench=online_workbench,
             monitor_origin=monitor_origin,
+            replay_query=st.query_params if monitor_handoff else None,
             **({"notes_cik":st.query_params.get("notes_cik")} if st.query_params.get("notes_cik") else {}),
         ),
         unsafe_allow_html=True,
@@ -38017,7 +38019,7 @@ def render_research_monitor(
     render_company_notes_monitor(st,profile_key=context.profile_key,monitor_origin=monitor_origin,
         legacy_paths=_legacy_company_note_paths(context))
     from src.online_research_tools_ui import render_online_research_monitor
-    render_online_research_monitor(st,profile_key=context.profile_key)
+    render_online_research_monitor(st, profile_key=context.profile_key, monitor_origin=monitor_origin)
     if queue.has_saved_follow_up:
         st.markdown("<h2 class='research-task-section-title'>Follow-up Queue</h2>", unsafe_allow_html=True)
     discipline_frame = pd.DataFrame(research_discipline_rows(discipline))
@@ -38385,7 +38387,7 @@ def render_company_workbench(
         and legacy_notes_available(ticker,note_profile,legacy_note_paths))
     requested_notes_cik=st.query_params.get("notes_cik")
     requested_research_cik=st.query_params.get('research_cik')
-    research_replay=None
+    research_replay = research_baseline = None
     invalid_research_replay=False
     if st.query_params.get('research_snapshot'):
         from src.online_research_context_store import load_research_context
@@ -38393,16 +38395,25 @@ def render_company_workbench(
             research_replay=load_research_context(st.query_params['research_snapshot'],
                 profile_key=note_profile,ticker=ticker,sec_cik=requested_research_cik)
             if st.query_params.get('research_baseline'):
-                load_research_context(st.query_params['research_baseline'], profile_key=note_profile,
+                research_baseline = load_research_context(st.query_params['research_baseline'], profile_key=note_profile,
                     ticker=ticker, sec_cik=research_replay['sec_cik'])
         except (OSError,ValueError,TypeError,UnicodeError):
             invalid_research_replay=True
     elif st.query_params.get('research_baseline'):
         invalid_research_replay=True
+    if research_replay is not None and not invalid_research_replay:
+        # Exact historical replay is scoped by its saved issuer and needs no live lookup.
+        if requested_notes_cik and requested_notes_cik != research_replay['sec_cik']:
+            invalid_research_replay = True
+        else:
+            from src.company_workbench_ui import render_saved_company_replay
+
+            st.query_params.pop('online', None)
+            st.query_params.pop('notes_cik', None)
+            render_saved_company_replay(st, research_replay, baseline=research_baseline)
+            return
     offline_notes=(saved_company_notes_scope(ticker,note_profile,sec_cik=requested_notes_cik)
                    if not online_requested and (requested_notes_cik or not (has_registered_company or has_legacy_notes)) else None)
-    if research_replay is not None and not online_requested:
-        offline_notes=CompanyNotesScope(note_profile,ticker,research_replay['sec_cik'])
     invalid_saved_notes=bool(requested_notes_cik and (online_requested or offline_notes is None))
     if offline_notes is not None and not requested_notes_cik and research_replay is None:
         st.query_params['notes_cik']=offline_notes.sec_cik
@@ -38418,7 +38429,7 @@ def render_company_workbench(
         if online_requested
         else None
     )
-    if online_requested and online_candidate is None:
+    if online_requested and online_candidate is None and not invalid_research_replay:
         cached_search = session_state.get(ONLINE_COMPANY_SESSION_KEY)
         attempted_this_ticker = (
             isinstance(cached_search, Mapping)
@@ -38717,26 +38728,20 @@ def main() -> None:
     if research_mode and initial_page == "Monitor":
         requested_return = str(st.query_params.get("return_ticker") or "").strip().upper()
         session_state = getattr(st, "session_state", {})
-        monitor_origin = research_monitor_origin(session_state, profile_key, requested_return)
+        saved_return = any(key in st.query_params for key in (
+            'return_research_snapshot', 'return_research_cik', 'return_research_baseline', 'return_section',
+        ))
+        if not saved_return:
+            monitor_origin = research_monitor_origin(session_state, profile_key, requested_return)
         saved_return_cik=st.query_params.get('return_notes_cik')
-        if st.query_params.get('return_research_snapshot'):
-            from src.online_research_context_store import load_research_context
-            try:
-                replay=load_research_context(st.query_params['return_research_snapshot'],profile_key=profile_key,
-                    ticker=requested_return,sec_cik=st.query_params.get('return_research_cik'))
-                baseline_id=st.query_params.get('return_research_baseline')
-                if baseline_id:
-                    load_research_context(baseline_id,profile_key=profile_key,
-                        ticker=requested_return,sec_cik=replay['sec_cik'])
-                monitor_return_ticker=requested_return
-                if monitor_origin is None or (
-                    monitor_origin.research_cik, monitor_origin.research_snapshot, monitor_origin.research_baseline
-                ) != (replay['sec_cik'], replay['snapshot_id'], baseline_id):
-                    monitor_origin=MonitorOrigin(profile_key,requested_return,'notes',None,
-                        research_cik=replay['sec_cik'],research_snapshot=replay['snapshot_id'],
-                        research_baseline=baseline_id)
-                    session_state['research_monitor_origin']=monitor_origin
-            except (OSError,ValueError,TypeError,UnicodeError):monitor_origin=None
+        if saved_return:
+            monitor_origin = resolve_saved_monitor_origin(st.query_params, profile_key, requested_return,
+                previous=session_state.get('research_monitor_origin'))
+            if monitor_origin is not None:
+                monitor_return_ticker = requested_return
+                session_state['research_monitor_origin'] = monitor_origin
+                st.query_params.pop('return_online', None)
+                st.query_params.pop('return_notes_cik', None)
         elif saved_return_cik:
             from src.company_research_notes import saved_company_notes_scope
             checked_notes=saved_company_notes_scope(requested_return,profile_key,sec_cik=saved_return_cik)
@@ -38769,7 +38774,7 @@ def main() -> None:
                     monitor_origin = None
         if not monitor_return_ticker:
             for return_key in ("return_ticker", "return_online", "return_notes_cik",'return_research_cik',
-                               'return_research_snapshot','return_research_baseline'):
+                               'return_research_snapshot','return_research_baseline','return_section'):
                 if return_key in st.query_params:
                     del st.query_params[return_key]
     bootstrap_placeholder = (

@@ -69,6 +69,79 @@ def _separate_saved_link(ticker):
     return '<p><a href="'+escape(url,quote=True)+'" target="_self">Open the saved research workspace</a></p>'
 
 
+def render_saved_company_replay(st, snapshot, *, baseline=None):
+    """Render a validated historical context without consulting current observations."""
+    from src.online_research_tools_ui import (
+        _business_trend, _forward_decision, _scenario, _scenario_key, _scenario_result,
+        filing_status_html, render_saved_online_snapshot,
+    )
+    from src.research_workspace import open_research_monitor
+
+    if _mode_reason('research'):
+        st.info('Personal online research replay is unavailable in this workspace.')
+        return
+    context = snapshot['context']
+    ticker, profile, cik = (snapshot[key] for key in ('ticker', 'profile_key', 'sec_cik'))
+    selected = section_key(st.query_params.get('section', 'notes'))
+    nav_key = f'company-section:{profile}:{ticker}:notes:{cik}'
+    retain_saved_tool_inputs(st.session_state, profile, ticker, identity_scope=cik)
+
+    def select_section():
+        st.query_params['section'] = st.session_state[nav_key]
+
+    st.html(WORKBENCH_STYLE)
+    with st.container(key='company-workbench-layout'):
+        rail, content = st.columns([1, 4], gap='large')
+        with rail, st.container(key='company-workbench-rail'):
+            st.markdown('<p class="company-rail-title">Company research</p>', unsafe_allow_html=True)
+            st.session_state[nav_key] = selected
+            with st.container(key='company-section-navigation'):
+                st.radio('Company research sections', tuple(dict(SECTIONS)), format_func=dict(SECTIONS).get,
+                         label_visibility='collapsed', key=nav_key, on_change=select_section)
+            current_url = '?' + urlencode(dict(mode='research', page='company-workbench',
+                                                ticker=ticker, online='1', section=selected))
+            st.markdown(f'<p><a href="{escape(current_url, quote=True)}" target="_self">Open current research</a></p>',
+                        unsafe_allow_html=True)
+        with content, st.container(key='company-section-body'):
+            st.markdown(f'<div id="company-research-sections" data-company-section="{selected}"></div>',
+                        unsafe_allow_html=True)
+            st.markdown(f'# {escape(ticker)}')
+            st.markdown('## ' + dict(SECTIONS)[selected])
+            with st.expander('Saved online research · replay and compare', expanded=True):
+                st.info('Historical replay · ' + snapshot['observed_at'])
+                st.caption('Snapshot ' + snapshot['snapshot_id'][:12] + ' · SEC CIK ' + cik)
+                peer_view = context.get('peer_read_through') or {}
+                if selected in {'overview', 'valuation'}:
+                    if peer_view.get('status') in {None, 'not_requested'}:
+                        st.caption('Peer valuation was not captured in this snapshot.')
+                    else:
+                        st.markdown(online_peer_valuation_html(peer_view, compact=True), unsafe_allow_html=True)
+                if selected in {'overview', 'financials'}:
+                    st.markdown(filing_status_html(context), unsafe_allow_html=True)
+                    _business_trend(st, context)
+                if selected == 'valuation':
+                    if context.get('scenario'):
+                        with st.expander('Saved Scenario Lab result', expanded=False):
+                            _scenario_result(st, context['scenario'])
+                    st.caption('Scenario Lab drafts use the saved annual revenue basis. Edits are separate from the saved result.')
+                    _scenario(st, context, _scenario_key(profile, ticker, cik))
+                if selected == 'notes':
+                    thesis = (context.get('notes_summary') or {}).get('current_thesis')
+                    if thesis:
+                        st.text(thesis)
+                    _forward_decision(st, context)
+                if selected == 'sources':
+                    st.json(context.get('source_receipts') or [], expanded=False)
+                if selected == 'notes' or baseline is not None:
+                    render_saved_online_snapshot(st, snapshot, baseline=baseline)
+                else:
+                    with st.expander('Exact saved evidence', expanded=False):
+                        st.json(context, expanded=False)
+                st.button('Return to this filing pair in Monitor' if baseline is not None else 'Open Monitor',
+                          key='online-research-replay-monitor', on_click=open_research_monitor,
+                          args=(st, ticker, profile))
+
+
 def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
                               online_candidate=None, render_saved, render_sources,saved_receipt_only=False,
                               render_notes=None,saved_notes_cik=None,enable_online_tools=False):

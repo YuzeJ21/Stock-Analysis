@@ -88,6 +88,11 @@ def _run_app(root):
         patch.setattr(socket.socket, 'connect_ex', local_only(socket.socket.connect_ex))
         if st.query_params.get('page') == 'monitor':
             online_research_tools_ui.render_online_research_monitor(st, profile_key=SCOPE['profile_key'])
+        elif st.query_params.get('research_snapshot'):
+            from src.company_workbench_ui import render_saved_company_replay
+
+            snapshot = online_research_context_store.load_research_context(st.query_params['research_snapshot'], **SCOPE)
+            render_saved_company_replay(st, snapshot)
         else:
             if 'large-snapshot-test-context' not in st.session_state:
                 st.session_state['large-snapshot-test-context'] = _large_context()
@@ -194,7 +199,7 @@ def test_large_foreign_snapshot_saves_and_reopens_exactly_from_monitor(large_sna
 
             page.get_by_role('button', name='Reopen exact saved research', exact=True).click()
             playwright.expect(saved.get_by_text('Historical replay · ', exact=False)).to_be_visible()
-            playwright.expect(unchanged).to_be_visible()
+            playwright.expect(saved.get_by_text(f"Snapshot {snapshot['snapshot_id'][:12]}", exact=False)).to_be_visible()
             verify_surface()
             route = parse_qs(urlsplit(page.url).query)
             assert route == dict(mode=['research'], page=['company-workbench'], ticker=['TSM'], section=['notes'],

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import html
 import pandas as pd
 from urllib.parse import quote, urlencode
@@ -1549,6 +1549,13 @@ class MonitorOrigin:
         return query
 
 
+def _saved_monitor_query(cik, snapshot, baseline, section):
+    query = dict(return_research_cik=cik, return_research_snapshot=snapshot, return_section=section)
+    if baseline:
+        query['return_research_baseline'] = baseline
+    return query
+
+
 def open_research_monitor(st, ticker: str, profile_key: str) -> None:
     """Capture the active Workbench section before its widget is removed."""
     params = st.query_params
@@ -1558,16 +1565,17 @@ def open_research_monitor(st, ticker: str, profile_key: str) -> None:
         or str(params.get("ticker") or "").strip().upper() != ticker
     ):
         return
-    online = params.get("online") == "1"
+    snapshot_id = params.get('research_snapshot')
+    online = params.get("online") == "1" and not snapshot_id
     candidate = online_company_candidate_for_route(ticker, st.session_state) if online else None
     from src.company_research_notes import saved_company_notes_scope
-    notes_cik = params.get("notes_cik") if not online else None
+    notes_cik = params.get("notes_cik") if not (online or snapshot_id) else None
     note_scope = saved_company_notes_scope(ticker, profile_key, sec_cik=notes_cik) if notes_cik else None
     replay = baseline = None
-    if params.get('research_snapshot'):
+    if snapshot_id:
         from src.online_research_context_store import load_research_context
         try:
-            replay=load_research_context(params['research_snapshot'],profile_key=profile_key,
+            replay=load_research_context(snapshot_id,profile_key=profile_key,
                 ticker=ticker,sec_cik=params.get('research_cik'))
             if params.get('research_baseline'):
                 baseline = load_research_context(params['research_baseline'], profile_key=profile_key,
@@ -1606,12 +1614,44 @@ def open_research_monitor(st, ticker: str, profile_key: str) -> None:
         if note_scope:
             query["return_notes_cik"] = note_scope.sec_cik
         if replay:
-            query.update(return_research_cik=replay['sec_cik'],return_research_snapshot=replay['snapshot_id'])
-            if baseline:
-                query['return_research_baseline'] = baseline['snapshot_id']
-    if not online and params.get("section") == "notes":
+            query.update(_saved_monitor_query(replay['sec_cik'], replay['snapshot_id'],
+                                              baseline['snapshot_id'] if baseline else None, section))
+    if not replay and not online and params.get("section") == "notes":
         query.update(_monitor_pair_query(ticker, params.get("sec_pair")))
     params.from_dict(query)
+
+
+def resolve_saved_monitor_origin(params, profile_key: str, ticker: str, *, previous=None) -> MonitorOrigin | None:
+    """Restore a pinned return by reading only the selected profile's saved evidence."""
+    section = params.get('return_section', 'notes')
+    if section_key(section) != section or str(params.get('return_ticker') or '').strip().upper() != ticker:
+        return None
+    origin = MonitorOrigin(
+        profile_key, ticker, section, None,
+        research_cik=params.get('return_research_cik'),
+        research_snapshot=params.get('return_research_snapshot'),
+        research_baseline=params.get('return_research_baseline'),
+    )
+    if not origin.research_snapshot or not _saved_monitor_origin_available(origin):
+        return None
+    if isinstance(previous, MonitorOrigin) and replace(previous, section_widget_key=None) == origin:
+        return previous
+    return origin
+
+
+def _saved_monitor_origin_available(origin: MonitorOrigin) -> bool:
+    from src.online_company_identity import _mode_reason
+    from src.online_research_context_store import load_research_context
+
+    if _mode_reason('research'):
+        return False
+    try:
+        for snapshot_id in filter(None, (origin.research_snapshot, origin.research_baseline)):
+            load_research_context(snapshot_id, profile_key=origin.profile_key,
+                                  ticker=origin.ticker, sec_cik=origin.research_cik)
+    except (OSError, ValueError, TypeError, UnicodeError):
+        return False
+    return True
 
 
 def research_monitor_origin(state, profile_key: str, ticker: str) -> MonitorOrigin | None:
@@ -1627,13 +1667,8 @@ def research_monitor_origin(state, profile_key: str, ticker: str) -> MonitorOrig
         from src.company_research_notes import saved_company_notes_scope
         if saved_company_notes_scope(ticker, profile_key, sec_cik=origin.notes_cik) is None:
             return None
-    if origin.research_snapshot is not None:
-        from src.online_research_context_store import load_research_context
-        try:
-            for snapshot_id in filter(None, (origin.research_snapshot, origin.research_baseline)):
-                load_research_context(snapshot_id,profile_key=profile_key,
-                    ticker=ticker,sec_cik=origin.research_cik)
-        except (OSError,ValueError,TypeError,UnicodeError):return None
+    if origin.research_snapshot is not None and not _saved_monitor_origin_available(origin):
+        return None
     return origin
 
 
@@ -1656,6 +1691,7 @@ def return_to_research_workbench(st, origin: MonitorOrigin) -> None:
         or params.get('return_research_cik') != origin.research_cik
         or params.get('return_research_snapshot') != origin.research_snapshot
         or params.get('return_research_baseline') != origin.research_baseline
+        or (origin.research_snapshot is not None and params.get('return_section', 'notes') != origin.section)
         or research_monitor_origin(st.session_state, origin.profile_key, origin.ticker) != origin
     ):
         return
@@ -1721,8 +1757,14 @@ def _monitor_pair_query(ticker: str, sec_pair: str | None) -> dict[str, str]:
     return {"sec_pair": sec_pair, "sec_ticker": ticker}
 
 
-def research_monitor_handoff_href(ticker: str, *, online: bool = False, sec_pair: str = "", notes_cik: str | None = None) -> str:
+def research_monitor_handoff_href(ticker: str, *, online: bool = False, sec_pair: str = "",
+                                 notes_cik: str | None = None, replay_query=None) -> str:
     query = {"mode": "research", "page": "monitor"}
+    if ticker and replay_query and replay_query.get('research_snapshot') and replay_query.get('research_cik'):
+        query['return_ticker'] = str(ticker).strip().upper()
+        query.update(_saved_monitor_query(replay_query['research_cik'], replay_query['research_snapshot'],
+                     replay_query.get('research_baseline'), section_key(replay_query.get('section', 'notes'))))
+        return '?' + urlencode(query)
     if ticker and not online:
         query["return_ticker"] = str(ticker).strip().upper()
     if not online:
@@ -1736,7 +1778,7 @@ def research_monitor_handoff_href(ticker: str, *, online: bool = False, sec_pair
 def research_workflow_navigation_html(
     *, active_page: str, ticker: str = "", monitor_handoff: bool = False, online_workbench: bool = False,
     monitor_origin: MonitorOrigin | None = None,
-    notes_cik: str | None = None,
+    notes_cik: str | None = None, replay_query=None,
 ) -> str:
     """Render the deterministic Personal Research route sequence."""
 
@@ -1750,7 +1792,8 @@ def research_workflow_navigation_html(
     if monitor_origin is not None and monitor_origin.online_cik is not None:
         workbench_href = "?mode=research&page=company-workbench"
     routes.append(("Company Workbench", "company-workbench", workbench_href))
-    monitor_href = research_monitor_handoff_href(ticker, online=online_workbench, notes_cik=notes_cik)
+    monitor_href = research_monitor_handoff_href(ticker, online=online_workbench, notes_cik=notes_cik,
+                                                replay_query=replay_query)
     routes.append(("Monitor", "monitor", monitor_href))
     links: list[str] = []
     for label, slug, href in routes:
