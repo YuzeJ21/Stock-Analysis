@@ -18,7 +18,7 @@ from src.online_peer_valuation import (
 from src.online_sec_receipt import fetch_sec_json_receipt
 from src.security_classification import fetch_classification, validated_classification, _selected
 from src.annual_amendment_evidence import fetch_amendment_evidence, amendment_candidate
-from src.sec_selected_security import (fetch_selected_security_evidence, known_security_scope, known_explicit_depositary_scope,
+from src.sec_selected_security import (fetch_selected_security_evidence, known_security_scope, explicit_depositary_directory_title,
     FINANCIAL_FORMS, IDENTITY_FORMS, is_investment_company_form, valid_profile_metadata_shape)
 from src.online_peer_sec_history import fetch_vendor_history_match
 from src.online_listing_session import acquire_classification
@@ -206,7 +206,7 @@ def get_online_peer_valuation(ticker,state,*,refresh_requested,expected_cik=None
             cik, _ = _selected(classification, ticker, expected_cik)
         except ValueError:
             return _read(_cache(state,ticker,None,'selected_listing_or_cik_unverified',as_of,listing_context),ticker,expected_cik,as_of)
-        if known_explicit_depositary_scope(ticker, cik):
+        if explicit_depositary_directory_title(ticker, cik):
             try:
                 selected_depositary_listing(classification, ticker, cik)
             except ValueError:

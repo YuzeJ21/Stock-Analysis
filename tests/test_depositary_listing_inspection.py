@@ -22,7 +22,7 @@ def dependencies(monkeypatch, *, title='Synthetic SAP SE ADS', exchange='NYSE', 
                 primaryDocument='annual.htm', isInlineXBRL=1, isXBRL=1)
     policy = dict(policy_id='synthetic-sap-ads', ticker='SAP', sec_cik=CIK, issuer_symbols=['SAP', 'SAPGF'],
                   kind='inspection_only', reason='depositary_security_requires_separate_method',
-                  inspect_explicit_depositary=True, documents={'annual': dict(metadata=meta,
+                  depositary_directory_title='Synthetic SAP SE ADS', documents={'annual': dict(metadata=meta,
                       sha256=sha256(BODY).hexdigest(), inspection_observations=[dict(kind='element_note',
                           label='NYSE ADS listing and one ordinary share per ADS', path='/html[1]/body[1]/p[1]',
                           text_sha256=sha256(NOTE.encode()).hexdigest())])})
@@ -82,10 +82,11 @@ def test_exact_ads_listing_has_evidence_and_no_valuation(monkeypatch):
     assert len(calls) == 2
 
 
-@pytest.mark.parametrize('change', ['common', 'preferred', 'wrong_cik', 'wrong_exchange'])
+@pytest.mark.parametrize('change', ['common', 'preferred', 'different_ads', 'wrong_cik', 'wrong_exchange'])
 def test_wrong_security_or_issuer_cannot_reuse_ads_proof(monkeypatch, change):
     options = {'common': dict(title='Synthetic SAP Ordinary Shares'),
                'preferred': dict(title='Synthetic SAP Preferred Stock'),
+               'different_ads': dict(title='Synthetic SAP Preferred Shares ADS'),
                'wrong_cik': dict(conflict=True), 'wrong_exchange': dict(exchange='Nasdaq')}
     deps, calls = dependencies(monkeypatch, **options[change])
     result = get({}, refresh=True, dependencies=deps, ticker='SAP', expected_cik=CIK)

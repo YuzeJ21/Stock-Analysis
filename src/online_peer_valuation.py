@@ -17,7 +17,7 @@ from src.online_company_identity import _mode_reason, _VENUES
 from src.online_peer_earnings import annual_eps_context
 from src.annual_amendment_evidence import validate_amendment_evidence
 from src.sec_selected_security import (validate_selected_security_evidence, is_investment_company_form,
-    valid_profile_metadata_shape, known_explicit_depositary_scope)
+    valid_profile_metadata_shape, explicit_depositary_directory_title)
 from src.online_peer_sec_history import validated_so_joint_match, validated_vendor_history_match
 from src.online_research_history_view import validated_online_price_history
 from src.security_classification import validated_classification, _selected
@@ -324,11 +324,13 @@ def selected_depositary_listing(classification, ticker, expected_cik):
     cik, rows = _selected(classification, ticker, expected_cik)
     explicit = [row for row in rows if row['source'] != 'sec']
     reason = 'selected_depositary_listing_unverified'
-    _need(known_explicit_depositary_scope(ticker, cik) and len(explicit) == 1, reason)
+    expected_title = explicit_depositary_directory_title(ticker, cik)
+    _need(expected_title and len(explicit) == 1, reason)
     listing = explicit[0]
     _need((listing['symbol'], listing['sec_ticker'], listing['source'], listing['venue'], listing['security_type'],
            listing['association_reason'], listing['etf']) ==
           (ticker, ticker, 'other', 'NYSE', 'depositary_receipt', 'source_symbol_cik_matched', False), reason)
+    _need(' '.join(listing['description'].split()).casefold() == expected_title.casefold(), reason)
     url = 'https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt'
     receipt = next((row for row in classification['inventory']['source_receipts'] if row['source_url'] == url), None)
     _need(receipt is not None, reason)

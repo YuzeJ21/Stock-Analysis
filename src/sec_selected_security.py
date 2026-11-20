@@ -61,10 +61,11 @@ def known_security_scope(ticker,cik):
     return any(p['ticker']==ticker and p['sec_cik']==cik for p in POLICIES)
 
 
-def known_explicit_depositary_scope(ticker, cik):
-    return any((policy['ticker'], policy['sec_cik'], policy['kind'], policy['reason']) ==
-               (ticker, cik, 'inspection_only', 'depositary_security_requires_separate_method')
-               and policy.get('inspect_explicit_depositary') is True for policy in POLICIES)
+def explicit_depositary_directory_title(ticker, cik):
+    return next((policy['depositary_directory_title'] for policy in POLICIES
+        if (policy['ticker'], policy['sec_cik'], policy['kind'], policy['reason']) ==
+        (ticker, cik, 'inspection_only', 'depositary_security_requires_separate_method')
+        and policy.get('depositary_directory_title')), None)
 
 
 def _metadata(profile):
@@ -85,7 +86,7 @@ def _policy(ticker,cik,profile,now):
     if p.get('requires_absent_annual'):_require(not any(r['form'] in ANNUAL for r in rows))
     _require(isinstance(body.get('tickers'),list) and len(set(body['tickers']))==len(body['tickers']) and sorted(body['tickers'])==p['issuer_symbols'])
     _require(isinstance(body.get('exchanges'),list) and len(body['exchanges'])==len(body['tickers']))
-    if p.get('inspect_explicit_depositary') is True:
+    if p.get('depositary_directory_title'):
         _require(body['exchanges'][body['tickers'].index(ticker)] == 'NYSE')
     for role,doc in p['documents'].items():
         forms=ANNUAL if role=='annual' else IDENTITY_FORMS if role=='cover' else {'8-K12B','8-K12B/A'} if role=='successor' else {'10-Q','10-Q/A'}
