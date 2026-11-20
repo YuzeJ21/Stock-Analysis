@@ -392,6 +392,11 @@ def _receipts(context):
     if subject_context.get('profile_source_ref'):
         add(dict(source_url=subject_context['profile_source_ref'],observed_at=subject_context.get('profile_observed_at'),
             payload_sha256=subject_context.get('profile_sha256')), 'industry_reference_subject_profile')
+    listing = subject_context.get('selected_depositary_listing')
+    if listing:
+        add(listing, 'selected_depositary_exchange_listing')
+        for document in subject_context['selected_security_scope']['documents']:
+            add(document, 'selected_depositary_sec_filing')
     for row in [peer.get('subject') or {}, *peer.get('peers', [])]:
         if not row:
             continue

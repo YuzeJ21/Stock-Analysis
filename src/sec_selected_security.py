@@ -61,6 +61,12 @@ def known_security_scope(ticker,cik):
     return any(p['ticker']==ticker and p['sec_cik']==cik for p in POLICIES)
 
 
+def known_explicit_depositary_scope(ticker, cik):
+    return any((policy['ticker'], policy['sec_cik'], policy['kind'], policy['reason']) ==
+               (ticker, cik, 'inspection_only', 'depositary_security_requires_separate_method')
+               and policy.get('inspect_explicit_depositary') is True for policy in POLICIES)
+
+
 def _metadata(profile):
     recent=profile['payload']['filings']['recent']
     _require(all(isinstance(recent.get(k),list) for k in KEYS) and valid_profile_metadata_shape(recent,max_rows=2000))
@@ -79,6 +85,8 @@ def _policy(ticker,cik,profile,now):
     if p.get('requires_absent_annual'):_require(not any(r['form'] in ANNUAL for r in rows))
     _require(isinstance(body.get('tickers'),list) and len(set(body['tickers']))==len(body['tickers']) and sorted(body['tickers'])==p['issuer_symbols'])
     _require(isinstance(body.get('exchanges'),list) and len(body['exchanges'])==len(body['tickers']))
+    if p.get('inspect_explicit_depositary') is True:
+        _require(body['exchanges'][body['tickers'].index(ticker)] == 'NYSE')
     for role,doc in p['documents'].items():
         forms=ANNUAL if role=='annual' else IDENTITY_FORMS if role=='cover' else {'8-K12B','8-K12B/A'} if role=='successor' else {'10-Q','10-Q/A'}
         chosen=[r for r in rows if r['form'] in forms];_require(chosen)

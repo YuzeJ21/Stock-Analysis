@@ -16,7 +16,8 @@ from src.company_sec_online_preview import _iso_date, _utc_timestamp
 from src.online_company_identity import _mode_reason, _VENUES
 from src.online_peer_earnings import annual_eps_context
 from src.annual_amendment_evidence import validate_amendment_evidence
-from src.sec_selected_security import validate_selected_security_evidence,is_investment_company_form,valid_profile_metadata_shape
+from src.sec_selected_security import (validate_selected_security_evidence, is_investment_company_form,
+    valid_profile_metadata_shape, known_explicit_depositary_scope)
 from src.online_peer_sec_history import validated_so_joint_match, validated_vendor_history_match
 from src.online_research_history_view import validated_online_price_history
 from src.security_classification import validated_classification, _selected
@@ -318,6 +319,24 @@ def _empty(ticker, reason):
                 fiscal_window_days=FISCAL_WINDOW_DAYS,minimum_peers=MIN_PEERS,candidate_count=0)
 
 
+def selected_depositary_listing(classification, ticker, expected_cik):
+    """Read one exact NYSE depositary listing independently of the valuation provider."""
+    cik, rows = _selected(classification, ticker, expected_cik)
+    explicit = [row for row in rows if row['source'] != 'sec']
+    reason = 'selected_depositary_listing_unverified'
+    _need(known_explicit_depositary_scope(ticker, cik) and len(explicit) == 1, reason)
+    listing = explicit[0]
+    _need((listing['symbol'], listing['sec_ticker'], listing['source'], listing['venue'], listing['security_type'],
+           listing['association_reason'], listing['etf']) ==
+          (ticker, ticker, 'other', 'NYSE', 'depositary_receipt', 'source_symbol_cik_matched', False), reason)
+    url = 'https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt'
+    receipt = next((row for row in classification['inventory']['source_receipts'] if row['source_url'] == url), None)
+    _need(receipt is not None, reason)
+    return dict(ticker=ticker, sec_cik=cik, venue=listing['venue'], description=listing['description'],
+                security_type=listing['security_type'], **{key: receipt[key] for key in
+                    ('source_url', 'source_created_at', 'observed_at', 'payload_sha256')})
+
+
 def _dated_price_observation(row, ticker, as_of):
     prices = validated_online_price_history(row.get('prices'), ticker=ticker)
     _need(prices is not None, 'price_source_unverified')
@@ -429,6 +448,21 @@ def build_online_peer_valuation(collection, *, ticker, expected_cik=None, as_of=
         _need(classification is not None, 'listing_classification_unverified')
         for receipt in classification['inventory']['source_receipts']:
             _observed(receipt.get('observed_at'),now)
+        if collection.get('inspection_basis') == 'selected_depositary':
+            listing = selected_depositary_listing(classification, ticker, expected_cik)
+            rows = collection.get('issuers')
+            _need(isinstance(rows, list) and len(rows) == 1 and isinstance(rows[0], Mapping)
+                  and rows[0].get('ticker') == ticker, 'issuer_collection_invalid')
+            row = rows[0]
+            context = _subject_source_context(row, classification, ticker, listing['sec_cik'], now)
+            scope = context.get('selected_security_scope', {})
+            evidence = row.get('selected_security_evidence') or {}
+            reason = scope.get('reason') if scope.get('status') == 'inspection_only' else None
+            _need(reason == 'depositary_security_requires_separate_method',
+                  'selected_security_source_unavailable' if evidence.get('reason') == 'selected_security_source_unavailable'
+                  else 'selected_security_scope_unverified')
+            context['selected_depositary_listing'] = listing
+            return {**result, 'reason': reason, 'subject_source_context': context}
         industry=collection.get('industry',{}).get('payload',{})
         key,sector=industry.get('key'),industry.get('sector')
         _need(isinstance(key,str) and _KEY.fullmatch(key) and isinstance(sector,str) and _KEY.fullmatch(sector), 'industry_source_unavailable')

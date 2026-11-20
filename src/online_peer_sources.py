@@ -13,12 +13,13 @@ from src.online_company_identity import _mode_reason
 from src.online_company_prices import fetch_online_company_prices
 from src.online_peer_valuation import (
     SCHEMA, MAX_CANDIDATES, normalized_digest, build_online_peer_valuation,
-    _empty, _symbol, _KEY,
+    selected_depositary_listing, _empty, _symbol, _KEY,
 )
 from src.online_sec_receipt import fetch_sec_json_receipt
 from src.security_classification import fetch_classification, validated_classification, _selected
 from src.annual_amendment_evidence import fetch_amendment_evidence, amendment_candidate
-from src.sec_selected_security import fetch_selected_security_evidence,known_security_scope,FINANCIAL_FORMS,IDENTITY_FORMS,is_investment_company_form,valid_profile_metadata_shape
+from src.sec_selected_security import (fetch_selected_security_evidence, known_security_scope, known_explicit_depositary_scope,
+    FINANCIAL_FORMS, IDENTITY_FORMS, is_investment_company_form, valid_profile_metadata_shape)
 from src.online_peer_sec_history import fetch_vendor_history_match
 from src.online_listing_session import acquire_classification
 
@@ -201,6 +202,23 @@ def get_online_peer_valuation(ticker,state,*,refresh_requested,expected_cik=None
             lambda:deps['classification'](user_agent=user_agent or os.getenv('SEC_USER_AGENT'),observed_at=as_of),as_of=as_of,clock=_now)
         if classification is None:
             return _read(_cache(state,ticker,None,'listing_classification_unavailable',as_of,listing_context),ticker,expected_cik,as_of)
+        try:
+            cik, _ = _selected(classification, ticker, expected_cik)
+        except ValueError:
+            return _read(_cache(state,ticker,None,'selected_listing_or_cik_unverified',as_of,listing_context),ticker,expected_cik,as_of)
+        if known_explicit_depositary_scope(ticker, cik):
+            try:
+                selected_depositary_listing(classification, ticker, cik)
+            except ValueError:
+                return _read(_cache(state,ticker,None,'selected_depositary_listing_unverified',as_of,listing_context),ticker,expected_cik,as_of)
+            agent = user_agent or os.getenv('SEC_USER_AGENT')
+            profile = _reduce_sec(_attempt_source(deps['sec'], f'https://data.sec.gov/submissions/CIK{cik}.json',
+                user_agent=agent, observed_at=as_of), 'profile')
+            security = _attempt_source(deps['security'], ticker, cik, profile, user_agent=agent, observed_at=as_of)
+            collection = dict(schema_version=SCHEMA, ticker=ticker, classification=classification,
+                inspection_basis='selected_depositary', observed_at=_stamp(as_of),
+                issuers=[dict(ticker=ticker, profile=profile, selected_security_evidence=security)])
+            return _read(_cache(state,ticker,collection,None,as_of,listing_context),ticker,expected_cik,as_of)
         try:
             cik=_ordinary_identity(classification,ticker,expected_cik)
         except (ValueError,KeyError,TypeError):

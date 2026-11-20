@@ -50,6 +50,7 @@ REASONS = {
     'unsupported_quote_or_financial_currency':'Price and financial currencies do not meet the supported USD basis.',
     'peer_listing_or_share_basis_unverified':'Independent common-share listing identity remains unverified.',
     'selected_listing_or_cik_unverified':'The selected listing, CIK, or common-share type remains unverified.',
+    'selected_depositary_listing_unverified':'The exchange record did not verify the selected NYSE depositary security.',
     'multiple_issuer_share_classes_unresolved':'The issuer has related symbols, and EPS basis for the selected security remains unverified.',
     'selected_common_other_security_basis_unresolved':'The selected common share has document evidence. EPS basis for other related securities remains unverified.',
     'depositary_security_requires_separate_method':'The NYSE-traded security is an ADS. EPS per ADS, currency, and conversion basis require a separate method.',
@@ -209,7 +210,7 @@ def _observations_html(scope,*,compact=False):
     observations=scope.get('evidence_observations',[])
     if not isinstance(observations,list) or not observations:return ''
     html='<h4>Verified security and earnings observations</h4><p>These observations are excluded from P/E, the reference median, and saved models.</p>'
-    if scope.get('reason')=='depositary_security_requires_separate_method':
+    if any(isinstance(o, Mapping) and o.get('currency_basis') == 'convenience' for o in observations):
         html+='<p>ADS and common shares are shown separately. A convenience USD translation is not earnings converted at the trading-date exchange rate. EPS per ADS is not calculated from rounded common-share EPS.</p>'
     has_numbers=any(isinstance(o,Mapping) and o.get('kind')=='numeric' for o in observations)
     for o in observations:
@@ -256,7 +257,7 @@ def _selected_security_html(scope):
     if scope['status']=='supported_common':html+='<p>The selected common share and reported annual EPS basis were checked against exact documents. Full valuation eligibility and reference comparability require separate checks. This is bounded technical evidence.</p>'
     else:html+='<p>'+_text(_reason(scope.get('reason')))+'</p>'
     if scope.get('reason')=='successor_annual_basis_unverified':html+='<p>Security and reporting continuity evidence links the prior and current issuers, but the current issuer annual EPS denominator remains missing. EPS from the old CIK is not joined to the current denominator, and provider identity conflicts remain open.</p>'
-    if scope.get('reason')=='depositary_security_requires_separate_method':html+='<p>The cover-page common-share title carries a non-trading restriction and does not itself identify the NYSE-traded ADS.</p>'
+    if scope.get('ticker')=='TSM' and scope.get('reason')=='depositary_security_requires_separate_method':html+='<p>The cover-page common-share title carries a non-trading restriction and does not itself identify the NYSE-traded ADS.</p>'
     symbols=scope.get('issuer_symbols',[])
     html+='<p>Related issuer symbols: '+_text(', '.join(str(s) for s in symbols))+'. These symbols are not individually mapped to securities. Literal cover-page symbols remain separate observations below.</p>'
     if scope.get('unassigned_issuer_symbols'):html+='<p>Related issuer symbols not individually mapped: '+_text(', '.join(scope['unassigned_issuer_symbols']))+'. Only the selected security was checked. Related symbols receive no inherited price or valuation eligibility.</p>'
@@ -363,6 +364,9 @@ def _disclosure(v,rows,*,include_excluded=True):
         for filing in context.get('annual_versions',[]):
             html+='<li>'+_text(filing.get('form'))+' · '+_text(filing.get('accession'))+' · period end '+_text(filing.get('period_end'))+' · filed '+_text(filing.get('filed'))+' · accepted '+_text(filing.get('accepted_at'))+' · '+_link(filing.get('source_ref'),'Exact filing')+'</li>'
         html+='</ul>'
+        listing=context.get('selected_depositary_listing')
+        if isinstance(listing,Mapping):
+            html+='<p><strong>Verified NYSE listing</strong> · '+_text(listing.get('ticker'))+' · American depositary shares · '+_link(listing.get('source_url'),'Exchange directory')+' · directory dated '+_text(listing.get('source_created_at'))+' · observed '+_text(listing.get('observed_at'))+' · SHA-256 <code>'+_text(listing.get('payload_sha256'))+'</code></p>'
         html+=_selected_security_html(context.get('selected_security_scope'))
         if not rows:html+=_history_html(context.get('vendor_identity_observation'))
     if rows:html+=_source_table(rows)+_earnings_table(rows)
