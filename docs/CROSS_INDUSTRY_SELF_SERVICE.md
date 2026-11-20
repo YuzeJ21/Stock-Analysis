@@ -193,6 +193,16 @@ NVDA, JPM, BAC, C, DUK, SO, and NEE retained their earlier qualifications. QCOM 
 
 Discover and Workbench passed browser checks at 1440 × 1000 and 390 × 844. Discover reproduced the retained cohort and displayed the AMD annual-financial hold, QCOM peer minimum, and TSM ADS hold. Workbench displayed both SEC sources, the original EPS, and the six references and six exclusions. The checks made zero provider requests and preserved all 89 protected files and the original source inputs.
 
+### November 20 SAP listing rerun
+
+The same twelve companies were observed from 14:20:33 to 14:26:44 ET during regular trading on November 20. All twelve had a verified November 19 chart close. **0/12** qualified for same-basis peer P/E in this intraday run. Nine issuer quotes and completed bars failed the same-day check. SAP and TSM retained separate ADS-method holds. IBN's provider company context was unavailable. Each comparison still requires compatible annual diluted EPS, the same completed closing date, a 35-day fiscal window, and at least three qualifying references.
+
+SAP's NYSE depositary-share listing now matches SAP SE, CIK `0001000184`, with an exact SEC 20-F and a dated official exchange-directory receipt. Workbench keeps the ADS valuation and separate price-to-filing issuer-exchange hold visible. Current annual facts and direct-quarter facts each remained **10/12**, and exact research replay remained **11/12**. The run made 61 raw source callbacks and 110 adapter operations with no SEC access pause. [SAP identity review](ONLINE_PEER_VALUATION.md#sap-nyse-depositary-share-identity)
+
+The separately dated November 19 post-close benchmark replays at **8/12** qualified comparisons. The new SAP evidence fits its per-company storage limit. An offline estimate using the larger November 19 packets put the combined evidence above the existing 64 MiB session limit. The November 20 intraday capture fit within the limit and completed all twelve rows.
+
+Discover and Workbench passed browser checks at 1440 × 1000 and 390 × 844. SAP showed the verified ADS with both sources and its valuation hold. The separate November 19 AMD control retained its six qualified references in both viewports. Browser checks made zero provider requests and preserved the original source inputs and all 89 protected files.
+
 ## November 8 controlled repair
 
 Reprocessing the same twelve captured source observations before and after the shared catalog repair improved usable filing catalogs from **5/12 to 12/12**. This is a controlled comparison using the same source inputs, not a fresh market-coverage pass.
