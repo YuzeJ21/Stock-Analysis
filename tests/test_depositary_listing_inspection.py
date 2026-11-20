@@ -38,8 +38,11 @@ def dependencies(monkeypatch, *, title='Synthetic SAP SE ADS', exchange='NYSE', 
             data=[[1111 if conflict else int(CIK), 'Synthetic SAP SE', 'SAP', 'NYSE'],
                   [int(CIK), 'Synthetic SAP SE', 'SAPGF', 'OTC']])).encode(),
     }
+    historical = dict(form='20-F', reportDate='1999-12-31', filingDate='2000-06-30',
+        acceptanceDateTime='2000-06-30T12:00:00Z', accessionNumber='0000950123-00-003403',
+        primaryDocument='', isInlineXBRL=0, isXBRL=0)
     profile = sec_receipt(CIK, 'profile', dict(cik=int(CIK), tickers=['SAP', 'SAPGF'], exchanges=[exchange, 'OTC'],
-        entityType='operating', sic='7372', filings={'recent': {k: [v] for k, v in meta.items()}}))
+        entityType='operating', sic='7372', filings={'recent': {k: [v, historical[k]] for k, v in meta.items()}}))
     calls = []
 
     def classify(**kwargs):

@@ -339,6 +339,31 @@ def selected_depositary_listing(classification, ticker, expected_cik):
                     ('source_url', 'source_created_at', 'observed_at', 'payload_sha256')})
 
 
+def _depositary_source_context(row, classification, listing, as_of):
+    ticker, cik = listing['ticker'], listing['sec_cik']
+    url = f'https://data.sec.gov/submissions/CIK{cik}.json'
+    profile_receipt = row.get('profile')
+    profile = _receipt(profile_receipt, url, as_of)
+    _need(_cik(profile.get('cik')) == cik, 'issuer_identity_mismatch')
+    issuer_symbols = {entry['ticker'].replace('.', '-') for entry in classification['inventory']['map_receipt']['payload'].values()
+                      if _cik(entry['cik_str']) == cik}
+    evidence = row.get('selected_security_evidence') or {}
+    scope = validate_selected_security_evidence(evidence, ticker=ticker, cik=cik, profile=profile_receipt,
+                                                issuer_symbols=issuer_symbols, as_of=as_of)
+    _need((scope['status'], scope['reason']) == ('inspection_only', 'depositary_security_requires_separate_method'),
+          'selected_security_source_unavailable' if evidence.get('reason') == 'selected_security_source_unavailable'
+          else 'selected_security_scope_unverified')
+    # Only the policy-bound annual filing is relevant to the current listing.
+    # Older archival entries can lack a primary document and remain unavailable.
+    versions = [dict(form=doc['form'], period_end=doc['reportDate'], filed=doc['filingDate'],
+                     accepted_at=doc['acceptanceDateTime'], accession=doc['accessionNumber'], source_ref=doc['source_ref'])
+                for doc in scope['documents'] if doc['role'] == 'annual']
+    return dict(sec_cik=cik, profile_source_ref=url, profile_observed_at=profile_receipt['observed_at'],
+                profile_sha256=profile_receipt['payload_sha256'], annual_versions=versions,
+                facts_query_ref=f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json',
+                selected_depositary_listing=listing, selected_security_scope=scope)
+
+
 def _dated_price_observation(row, ticker, as_of):
     prices = validated_online_price_history(row.get('prices'), ticker=ticker)
     _need(prices is not None, 'price_source_unverified')
@@ -455,16 +480,8 @@ def build_online_peer_valuation(collection, *, ticker, expected_cik=None, as_of=
             rows = collection.get('issuers')
             _need(isinstance(rows, list) and len(rows) == 1 and isinstance(rows[0], Mapping)
                   and rows[0].get('ticker') == ticker, 'issuer_collection_invalid')
-            row = rows[0]
-            context = _subject_source_context(row, classification, ticker, listing['sec_cik'], now)
-            scope = context.get('selected_security_scope', {})
-            evidence = row.get('selected_security_evidence') or {}
-            reason = scope.get('reason') if scope.get('status') == 'inspection_only' else None
-            _need(reason == 'depositary_security_requires_separate_method',
-                  'selected_security_source_unavailable' if evidence.get('reason') == 'selected_security_source_unavailable'
-                  else 'selected_security_scope_unverified')
-            context['selected_depositary_listing'] = listing
-            return {**result, 'reason': reason, 'subject_source_context': context}
+            context = _depositary_source_context(rows[0], classification, listing, now)
+            return {**result, 'reason': 'depositary_security_requires_separate_method', 'subject_source_context': context}
         industry=collection.get('industry',{}).get('payload',{})
         key,sector=industry.get('key'),industry.get('sector')
         _need(isinstance(key,str) and _KEY.fullmatch(key) and isinstance(sector,str) and _KEY.fullmatch(sector), 'industry_source_unavailable')
