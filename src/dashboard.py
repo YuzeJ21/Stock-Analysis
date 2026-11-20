@@ -37929,6 +37929,9 @@ def load_dashboard_bounded_field_study(context: ProfileContext) -> BoundedFieldS
 
 def _legacy_company_note_paths(context):
     """Legacy journals are optional; never substitute a directory for an absent scope."""
+    from src.workspace_authorization import protected_workspace_mode
+    if protected_workspace_mode():
+        return None
     data_dir = getattr(context, "data_dir", None)
     if data_dir is None:
         return None
@@ -38368,6 +38371,10 @@ def render_company_workbench(
     coverage: FocusedCohortCoverage,
     observation_recency: ObservationRecencySet | None = None,
 ) -> None:
+    from src.workspace_authorization import require_workspace_access, protected_workspace_mode
+    require_workspace_access(context.profile_key)
+    if protected_workspace_mode():
+        provider = None
     ticker = str(st.query_params.get("ticker") or "").strip().upper()
     registered_tickers = {
         str(value or "").strip().upper()
@@ -38555,6 +38562,8 @@ def render_company_workbench(
         render_company_security_check(ticker,expected_cik=expected_cik)
         with st.expander("Price evidence and usage scope",expanded=False):
             st.markdown(online_price_history_html(bundle["prices"]),unsafe_allow_html=True)
+        if protected_workspace_mode():
+            return
         field_study=load_dashboard_bounded_field_study(context)
         st.markdown(study_company_html(field_study,ticker),unsafe_allow_html=True)
         with st.expander("Saved research sources and review status",expanded=False):
@@ -38702,6 +38711,11 @@ def main() -> None:
     operator_mode = mode == OPERATOR_DEMO_MODE
     apply_dashboard_theme()
     render_semantic_main_bridge()
+    from src.workspace_authorization import protected_workspace_mode
+    if protected_workspace_mode():
+        from src.workspace_authorization_ui import render_workspace_route
+        render_workspace_route(st, page=initial_page, mode=initial_mode)
+        return
     if not operator_mode:
         render_public_workflow_skip_link(
             initial_page,

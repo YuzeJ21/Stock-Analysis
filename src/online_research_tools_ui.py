@@ -367,10 +367,15 @@ def _snapshots(st, context, bundle):
             st.button('Save research snapshot', key='online-research-save', disabled=True)
             return
         scope = _scope(context)
+        from src.hosted_access_control import WorkspaceAction
+        from src.workspace_authorization import can_workspace_access
+        can_save = can_workspace_access(scope['profile_key'], WorkspaceAction.APPEND)
+        if not can_save:
+            st.caption('Read-only workspace. An editor membership is required to save research snapshots.')
         matched = bundle['financial'].get('companyfacts_identity', {}).get('status') == 'source_matched'
         matched = matched or bool(context.get('business_trend', {}).get('bank_annual'))
         try:
-            if st.button('Save research snapshot', key='online-research-save', disabled=not matched):
+            if st.button('Save research snapshot', key='online-research-save', disabled=not matched or not can_save):
                 saved = save_research_context(context, **scope, project_root=PROJECT_ROOT)
                 st.success('Research snapshot saved: ' + saved['snapshot_id'][:12])
             snapshots = list_research_contexts(**scope, project_root=PROJECT_ROOT)

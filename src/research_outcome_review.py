@@ -15,6 +15,8 @@ from src.commercial_source_rights import (
 )
 from src.earnings_nowcast_contract import parse_utc_timestamp
 from src.research_ledger_lock import ledger_write_lock
+from src.hosted_access_control import WorkspaceAction
+from src.workspace_authorization import require_record_destination, require_record_read_path
 
 
 SCHEMA_VERSION = "research-outcome-review-v1"
@@ -109,6 +111,7 @@ def preview_outcome(row: ResearchOutcome, *, existing: Iterable[ResearchOutcome]
 
 def load_outcomes(path: Path | str) -> tuple[ResearchOutcome, ...]:
     source = Path(path)
+    require_record_read_path(source)
     if not source.is_file():
         return ()
     with source.open(newline="", encoding="utf-8") as handle:
@@ -129,11 +132,13 @@ def append_reviewed_outcome(path: Path | str, row: ResearchOutcome, *, confirm_r
     if not confirm_reviewed:
         raise ValueError("confirm_reviewed is required before recording an outcome")
     destination = Path(path)
+    require_record_destination(destination, row.profile_key, row.ticker, WorkspaceAction.APPEND)
     with ledger_write_lock(destination):
         existing = load_outcomes(destination)
         reason = _validation_error(row, existing)
         if reason:
             raise ValueError(reason)
+        require_record_destination(destination, row.profile_key, row.ticker, WorkspaceAction.APPEND)
         destination.parent.mkdir(parents=True, exist_ok=True)
         exists = destination.exists() and destination.stat().st_size > 0
         with destination.open("a", newline="", encoding="utf-8") as handle:

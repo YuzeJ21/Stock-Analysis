@@ -15,8 +15,10 @@ import unicodedata
 from uuid import uuid4
 
 from src.company_sec_online_preview import _utc_timestamp
+from src.hosted_access_control import WorkspaceAction, WorkspaceResource
 from src.sec_association_receipt import _json_object
 from src.sec_research_review import CIK, COMPANY_SCHEMA, _hex, _validate, list_reviews
+from src.workspace_authorization import require_workspace_access, workspace_storage_root
 
 
 DISPOSITION_STATUSES = ("reviewed", "still_open")
@@ -88,6 +90,9 @@ def _scope(root: Path, profile_key: str, before_id: str, after_id: str, *, ticke
 @contextmanager
 def _directory(root: Path, profile_key: str, *, ticker: str = "NEM", create: bool = False):
     # Walk through pinned directory descriptors so none of the components can redirect via symlink.
+    require_workspace_access(profile_key, WorkspaceAction.UPDATE if create else WorkspaceAction.READ,
+                             WorkspaceResource.SAVED_WORKSPACE_STATE)
+    root = Path(workspace_storage_root(root)).resolve()
     if ticker not in SUPPORTED_DISPOSITION_COMPANIES:
         raise ValueError("unsupported_disposition_company")
     flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
@@ -155,7 +160,8 @@ def load_disposition(
     root: Path | str, profile_key: str, before_id: str, after_id: str, *, ticker: str = "NEM",
 ) -> dict | None:
     """Load a decision only while both exact receipts remain valid in the profile."""
-    root = Path(root).resolve()
+    require_workspace_access(profile_key, WorkspaceAction.READ, WorkspaceResource.SAVED_WORKSPACE_STATE)
+    root = Path(workspace_storage_root(root)).resolve()
     scope = _scope(root, profile_key, before_id, after_id, ticker=ticker)
     with _directory(root, profile_key, ticker=ticker) as directory:
         return _read(directory, scope) if directory is not None else None
@@ -167,7 +173,8 @@ def save_disposition(
 ) -> dict:
     """Replace the latest decision for the exact pair, or return an identical saved decision."""
     reason = _validate_reason(status, reason)
-    root = Path(root).resolve()
+    require_workspace_access(profile_key, WorkspaceAction.UPDATE, WorkspaceResource.SAVED_WORKSPACE_STATE)
+    root = Path(workspace_storage_root(root)).resolve()
     scope = _scope(root, profile_key, before_id, after_id, ticker=ticker)
     with _directory(root, profile_key, ticker=ticker, create=True) as directory:
         # Serializes retries and updates for this profile across local processes.
@@ -180,6 +187,7 @@ def save_disposition(
         raw = _encode(dict(record, content_sha256=hashlib.sha256(_encode(record)).hexdigest())) + b"\n"
         temporary = f".decision-{uuid4().hex}.tmp"
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+        require_workspace_access(profile_key, WorkspaceAction.UPDATE, WorkspaceResource.SAVED_WORKSPACE_STATE)
         descriptor = os.open(temporary, flags, 0o600, dir_fd=directory)
         try:
             with os.fdopen(descriptor, "wb") as stream:

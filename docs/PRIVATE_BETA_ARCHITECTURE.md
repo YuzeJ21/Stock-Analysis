@@ -4,7 +4,7 @@
 
 The [November 18 Workbench and Monitor audit](PILOT_READINESS_AUDIT.md#workbench-and-monitor-private-pilot) records the private pilot hold, the tested local controls, and the evidence needed for hosted operation.
 
-The repository contains a deterministic readiness contract for a future private beta. It does not implement runtime authentication, private workspaces, hosted persistence, user accounts, entitlements, audit storage, monitoring, health checks, incident response, rollback, owner capacity, or hosting. Real user evidence remains `awaiting_external_review`.
+The repository contains a deterministic readiness contract and an opt-in runtime authorization adapter for Workbench and Monitor. Protected processes use Streamlit's authenticated identity and a server-owned workspace registry. Authentication-provider setup, hosted persistence, durable audit storage, monitoring, health checks and operated recovery still need verification in the intended environment. Real user evidence remains `awaiting_external_review`. [Runtime configuration and scope](WORKSPACE_AUTHORIZATION.md)
 
 The contract is available through `src.private_beta_readiness.build_private_beta_readiness()`. It accepts only declared review facts; it does not inspect environment variables, scan files, open accounts, contact a host, or read secret material.
 
@@ -20,7 +20,7 @@ The contract is available through `src.private_beta_readiness.build_private_beta
 
 Private-beta data, when it exists, must be partitioned by authenticated user and workspace. Per-user watchlists, thesis journals, saved scenarios, audit events, and entitlement data belong in the external private-beta service, not in tracked repository files, public demo data, screenshots, generated reports, or logs.
 
-The future service must enforce workspace authorization server-side for every read and write. Client-side visibility, UI routing, or a workspace identifier alone does not establish isolation. Research evidence and readiness remain source-bound and research-only; private access does not turn incomplete data into a trusted input or an investment recommendation.
+The runtime adapter enforces the selected workspace and live membership before private snapshot, note, SEC receipt and disposition reads and writes. It also guards the low-level record paths and rechecks previously rendered confirmations. The deployment must bind a real authenticated identity to those requests and verify the controls there. Research evidence and readiness retain their independent source and eligibility gates.
 
 Credentials, tokens, account identifiers, license documents, and secret values remain outside Git. The repository may carry only blank templates and variable names. Usage and error telemetry must exclude credentials and research-workspace contents unless a separately reviewed retention policy authorizes a minimal, documented record.
 
@@ -50,6 +50,8 @@ catalyst, and outcome research records remain append-only, and every allow or
 deny result carries a privacy-safe audit obligation that a future approved
 adapter must record.
 
+`src.workspace_authorization` connects this evaluator to the protected research routes and stores. A server process selects one workspace, and each operation reloads membership and revalidates the trusted user's issuer, audience, subject and token expiry. `src.workspace_authorization_ui` enters before the personal model and event loaders. Protected-mode legacy and operator routes are unavailable. The existing single-user personal mode remains available when no workspace settings are present. Durable authorization-event storage is still an external gate.
+
 The evaluator performs no authentication, persistence, audit storage,
 retention, monitoring, network, provider, dashboard, ledger, readiness, or
 generated-artifact operation. This local contract does not prove hosted
@@ -71,6 +73,6 @@ assert readiness.classification == "local_ready"
 
 Passing `external_setup_declared=True` produces `manual_verification_required`, not a hosted or authenticated claim. Passing `unsafe_secret_detected=True` produces `unsafe_secret_blocked`; pass only the declared condition, never a credential or secret value.
 
-## Non-Claims
+## Deployment evidence still required
 
-No current repository state proves that a private-beta host exists, authentication is live, user data is separated, retention works, entitlements are enforced, audit logs are stored, monitoring receives events, health checks run, incident response is staffed, rollback succeeds, or owner capacity is available. Do not present this contract as commercial launch readiness, hosting evidence, or user validation.
+Local automated tests use synthetic authenticated claims and server-side memberships. They verify the guarded app routes and storage actions. A private-beta host, real identity-provider sessions, managed storage isolation, retention, durable audit, monitoring, incident staffing and recovery still need evidence in the intended environment. Source permissions and independent researcher completion remain open.

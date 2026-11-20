@@ -12,6 +12,8 @@ from src.company_sec_online_preview import _utc_timestamp
 from src.sec_review_disposition import (
     MAX_REASON_LENGTH, SUPPORTED_DISPOSITION_COMPANIES, load_disposition, resolve_pair, save_disposition,
 )
+from src.hosted_access_control import WorkspaceAction, WorkspaceResource
+from src.workspace_authorization import can_workspace_access, protected_workspace_mode
 
 PROJECT_ROOT=Path(__file__).resolve().parent.parent
 
@@ -137,6 +139,7 @@ def render_company_review(st,ticker,view,*,profile_key,expected_cik=None):
 
 
 def _render_company_review(st,ticker,view,*,profile_key,expected_cik=None):
+    can_save = can_workspace_access(profile_key, WorkspaceAction.APPEND, WorkspaceResource.RESEARCH_RECORD)
     st.markdown('### Saved SEC evidence review')
     st.caption(f'{ticker} · Supports direct US-GAAP / USD annual 10-K and 10-K/A fields. Save explicitly for offline replay. Canonical financials, source permissions and research journal updates require separate actions.')
     if expected_cik is not None:
@@ -160,14 +163,16 @@ def _render_company_review(st,ticker,view,*,profile_key,expected_cik=None):
             candidate=None
     except (ValueError,TypeError,OSError):candidate=None
     if ticker=='NEM':candidate=_check_candidate(st,candidate,scope)
-    if st.button('Save current SEC evidence',key='sec-review-save:'+scope,disabled=candidate is None):
+    if not can_save:
+        st.caption('Read-only workspace. An editor membership is required to save SEC evidence.')
+    if st.button('Save current SEC evidence',key='sec-review-save:'+scope,disabled=candidate is None or not can_save):
         try:save_review(candidate,PROJECT_ROOT);st.success('Observation saved.')
         except (ValueError,OSError):st.error('Evidence was not saved. Check the source basis or storage folder. Limits are 100 receipts per company and 100 companies per research profile.')
     if candidate is None:st.caption(f'Use Refresh financials above to obtain an eligible {ticker} SEC observation. Unsupported filing forms, currencies or a missing direct revenue anchor retain their gaps. Saved evidence remains available for replay.')
     with st.expander('Import evidence package',expanded=False):
         st.caption(f'Accepts {ticker} evidence JSON for this research profile, up to 64 KB. A checksum verifies content consistency. Imported evidence is user supplied and requires independent source authentication.')
         upload=st.file_uploader('Choose an exported evidence package',type=['json'],max_upload_size=1,key='sec-review-upload:'+scope)
-        if st.button('Import and save evidence package',key='sec-review-import:'+scope,disabled=upload is None):
+        if st.button('Import and save evidence package',key='sec-review-import:'+scope,disabled=upload is None or not can_save):
             try:
                 upload.seek(0);packet=load_review(upload.read(MAX_BYTES+1))
                 if packet['profile_key']!=profile_key or packet['ticker']!=ticker:raise ValueError('selected_scope_mismatch')
@@ -204,8 +209,11 @@ def _render_company_review(st,ticker,view,*,profile_key,expected_cik=None):
     _render_comparison(st,result)
     _render_exact_check(st,current,show_reason=False)
     st.caption('Replaying saved evidence offline. Save time and SEC observation time are recorded separately. A later save time alone carries no financial revision.')
-    st.download_button('Download current evidence package',data=encode_review(current),file_name=ticker+'-SEC-'+current['receipt_id'][:12]+'.json',
-        mime='application/json',key='sec-review-download:'+scope)
+    if not protected_workspace_mode():
+        st.download_button('Download current evidence package',data=encode_review(current),file_name=ticker+'-SEC-'+current['receipt_id'][:12]+'.json',
+            mime='application/json',key='sec-review-download:'+scope)
+    else:
+        st.caption('Evidence export requires an authorized delivery path for this workspace.')
     _render_monitor_link(st, ticker)
     _render_receipt_sources(st, current, 'Evidence sources and field definitions')
 
@@ -292,6 +300,12 @@ def _render_pair_disposition(st, profile_key, ticker, before, after):
         st.warning('The review status for this pair cannot be read. Check the local review record.')
         return
     st.caption('The review status applies only to this pair. Reviewed records that you examined the evidence. Reported gaps remain visible.')
+    if not can_workspace_access(profile_key, WorkspaceAction.UPDATE):
+        st.caption('Read-only workspace. An editor membership is required to change review status.')
+        if decision:
+            st.markdown('**'+DISPOSITIONS[decision['status']]+'**')
+            st.text(decision['reason'])
+        return
     form_key = 'sec-review-disposition:'+profile_key+':'+ticker+':'+token
     with st.form(form_key):
         status = st.radio('Review status', tuple(DISPOSITIONS), format_func=DISPOSITIONS.get,

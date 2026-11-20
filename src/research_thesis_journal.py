@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Iterable
 
 from src.research_ledger_lock import ledger_write_lock
+from src.hosted_access_control import WorkspaceAction
+from src.workspace_authorization import require_record_destination, require_record_read_path
 
 
 JOURNAL_SCHEMA_VERSION = "research-thesis-journal-v1"
@@ -198,6 +200,7 @@ def validate_journal_entry(entry: JournalEntry, *, existing_entries: Iterable[Jo
 
 def load_journal_entries(path: Path | str) -> tuple[JournalEntry, ...]:
     source = Path(path)
+    require_record_read_path(source)
     if not source.exists():
         return ()
     try:
@@ -222,9 +225,11 @@ def append_journal_entry(path: Path | str, entry: JournalEntry) -> Path:
     """Append one reviewed entry without modifying source or readiness data."""
 
     destination = Path(path)
+    require_record_destination(destination, entry.profile_key, entry.ticker, WorkspaceAction.APPEND)
     with ledger_write_lock(destination):
         existing = load_journal_entries(destination)
         validate_journal_entry(entry, existing_entries=existing)
+        require_record_destination(destination, entry.profile_key, entry.ticker, WorkspaceAction.APPEND)
         destination.parent.mkdir(parents=True, exist_ok=True)
         exists = destination.exists() and destination.stat().st_size > 0
         with destination.open("a", newline="", encoding="utf-8") as handle:

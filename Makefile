@@ -1370,6 +1370,19 @@ private-beta-readiness:
 private-pilot-rehearsal:
 	$(NO_WRITE_GUARD) python3 -m pytest -q -p no:cacheprovider tests/test_private_pilot_rehearsal.py tests/test_private_pilot_rehearsal_browser.py tests/test_private_pilot_recovery_browser.py tests/test_online_research_context_store.py tests/test_company_research_notes.py tests/test_hosted_access_control.py tests/test_private_beta_readiness.py tests/test_online_peer_sources.py
 
+.PHONY: workspace-authorization-check
+workspace-authorization-check:
+	$(NO_WRITE_GUARD) python3 -m pytest -q -p no:cacheprovider \
+		tests/test_workspace_authorization.py tests/test_workspace_authorized_storage.py \
+		tests/test_sec_workspace_authorized_storage.py tests/test_workspace_record_ledger_guards.py \
+		tests/test_workspace_authorization_browser.py tests/test_hosted_access_control.py \
+		tests/test_sec_research_review.py tests/test_sec_research_review_ui.py tests/test_sec_review_disposition.py \
+		tests/test_online_research_context_store.py tests/test_company_research_notes.py \
+		tests/test_research_record_authoring.py tests/test_research_thesis_journal.py \
+		tests/test_catalyst_evidence_timeline.py tests/test_research_outcome_review.py \
+		tests/test_research_workspace.py tests/test_dashboard_navigation.py \
+		tests/test_self_service_workbench_ui.py tests/test_private_beta_readiness.py
+
 commercial-beta-check:
 	@echo "Commercial Research Beta Check"
 	@echo "Read-only: checks source rights, refresh-operation safety, and private-beta readiness without fetching or applying data."

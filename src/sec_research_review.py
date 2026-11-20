@@ -17,6 +17,10 @@ from src.company_sec_online_preview import (
 from src.online_company_identity import financial_identity_valid
 from src.research_change_snapshot import ResearchChangeSnapshot, TickerResearchState, SCHEMA_VERSION as SNAPSHOT_SCHEMA
 from src.research_change_monitor import compare_research_snapshots
+from src.hosted_access_control import WorkspaceAction, WorkspaceResource
+from src.workspace_authorization import (
+    WorkspaceAccessDenied, require_workspace_access, workspace_storage_root,
+)
 
 SCHEMA = 'sec-research-review-v1'
 CHECK_SCHEMA = 'sec-research-review-v2'
@@ -298,6 +302,8 @@ def _directory(root,profile_key,ticker='NEM'):
 
 
 def list_reviews(root,profile_key,ticker='NEM'):
+    require_workspace_access(profile_key, WorkspaceAction.READ, WorkspaceResource.RESEARCH_RECORD)
+    root=workspace_storage_root(root)
     directory=_directory(root,profile_key,ticker)
     try:paths=sorted(p for p in directory.iterdir() if p.suffix=='.json')
     except FileNotFoundError:return []
@@ -313,6 +319,8 @@ def list_reviews(root,profile_key,ticker='NEM'):
 
 def save_review(packet,root):
     raw=encode_review(packet)
+    require_workspace_access(packet['profile_key'], WorkspaceAction.APPEND, WorkspaceResource.RESEARCH_RECORD)
+    root=workspace_storage_root(root)
     directory=_directory(root,packet['profile_key'],packet['ticker'])
     existing=list_reviews(root,packet['profile_key'],packet['ticker'])
     companies=_company_names(root,packet['profile_key'])
@@ -322,12 +330,15 @@ def save_review(packet,root):
         if target.is_symlink() or target.read_bytes()!=raw:raise ValueError('immutable_receipt_conflict')
         return target
     if len(existing)>=MAX_RECEIPTS:raise ValueError('receipt_history_limit')
+    require_workspace_access(packet['profile_key'], WorkspaceAction.APPEND, WorkspaceResource.RESEARCH_RECORD)
     directory.mkdir(parents=True,exist_ok=True)
     with target.open('xb') as handle:handle.write(raw)
     return target
 
 
 def _company_names(root,profile_key):
+    require_workspace_access(profile_key, WorkspaceAction.READ, WorkspaceResource.RESEARCH_RECORD)
+    root=workspace_storage_root(root)
     directory=_profile_directory(root,profile_key)
     try:names=sorted(p.name for p in directory.iterdir() if p.name!='.DS_Store')
     except FileNotFoundError:return []
@@ -337,6 +348,8 @@ def _company_names(root,profile_key):
 
 def review_queue(root,profile_key,*,registry_path=DEFAULT_REGISTRY_PATH):
     """Inspect only saved companies; a damaged company does not hide other rows."""
+    require_workspace_access(profile_key, WorkspaceAction.READ, WorkspaceResource.RESEARCH_RECORD)
+    root=workspace_storage_root(root)
     items=[];store_errors=[]
     for ticker in _company_names(root,profile_key):
         if not _ticker(ticker):
@@ -348,6 +361,8 @@ def review_queue(root,profile_key,*,registry_path=DEFAULT_REGISTRY_PATH):
             before=packets[-2] if len(packets)>1 else None
             result=compare_reviews(before,packets[-1],registry_path=registry_path)
             items.append(dict(ticker=ticker,latest=packets[-1],previous=before,comparison=result,error=None))
+        except WorkspaceAccessDenied:
+            raise
         except (ValueError,OSError):
             items.append(dict(ticker=ticker,latest=None,previous=None,comparison=None,error='saved_receipts_unreadable'))
     return dict(items=items,store_errors=store_errors,companies=len(items),

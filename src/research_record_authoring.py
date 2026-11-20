@@ -32,6 +32,8 @@ from src.research_thesis_journal import (
     validate_journal_entry,
 )
 from src.research_ledger_lock import ledger_write_lock, resolve_ledger_path
+from src.hosted_access_control import WorkspaceAction
+from src.workspace_authorization import require_record_destination
 
 
 RECORD_KINDS = ("thesis", "evidence", "catalyst", "outcome")
@@ -240,6 +242,7 @@ def preview_authoring_record(
     draft_digest = authoring_draft_digest(draft)
     ledger_fingerprint = ""
     try:
+        require_record_destination(destination, draft.profile_key, draft.ticker, WorkspaceAction.READ)
         _check_write_limit(destination, paths.max_bytes)
         ledger_fingerprint = _ledger_fingerprint(destination)
         record = _build_record(draft, previewed_at=previewed_at, generated_id=generated_id, paths=paths)
@@ -330,6 +333,7 @@ def confirm_authoring_preview(
     if not hmac.compare_digest(_stable_digest(asdict(current_draft)), preview.draft_digest):
         return rejected("preview_stale", "Draft changed after preview; preview again.")
     destination = _destination(current_draft, paths)
+    require_record_destination(destination, preview.profile_key, preview.ticker, WorkspaceAction.APPEND)
     result: AuthoringSaveResult | None = None
     append_completed = False
     persisted_record: JournalEntry | CatalystEvent | ResearchOutcome | None = None

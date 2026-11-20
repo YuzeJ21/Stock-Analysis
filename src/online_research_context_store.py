@@ -22,6 +22,8 @@ from src.sec_cover_observations import COVER_FIELDS, validate_cover_scope
 from src.sec_native_quarter_comparisons import BASES as NATIVE_COMPARISON_BASES, FIELDS as NATIVE_COMPARISON_FIELDS
 from src.sec_native_quarter_comparisons import reviewed_filing_revenue_definition
 from src.sec_reported_numeric import SCHEMA as ARCHIVE_NUMBER_SCHEMA, valid_reported_numeric
+from src.hosted_access_control import WorkspaceAction, WorkspaceResource
+from src.workspace_authorization import require_workspace_access, workspace_storage_root
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -379,7 +381,7 @@ def _validate_snapshot(snapshot, *, scope=None, snapshot_id=None):
 
 
 def _root(project_root):
-    return Path(PROJECT_ROOT if project_root is None else project_root).resolve()
+    return workspace_storage_root(PROJECT_ROOT if project_root is None else project_root)
 
 
 def _safe(path, root):
@@ -499,6 +501,7 @@ def _limit(value, maximum):
 
 def load_research_context(snapshot_id, *, profile_key, ticker, sec_cik, project_root=None):
     """Read one exact selected-profile/company snapshot; never fetch or mark live."""
+    require_workspace_access(profile_key, WorkspaceAction.READ, WorkspaceResource.SAVED_WORKSPACE_STATE)
     scope = _scope(profile_key, ticker, sec_cik)
     if not _hex(snapshot_id):
         raise ValueError('Invalid research snapshot identifier')
@@ -508,6 +511,7 @@ def load_research_context(snapshot_id, *, profile_key, ticker, sec_cik, project_
 
 def list_research_contexts(*, profile_key, ticker, sec_cik, project_root=None, limit=20):
     """Return newest first; invalid matching saved content fails this exact scope."""
+    require_workspace_access(profile_key, WorkspaceAction.READ, WorkspaceResource.SAVED_WORKSPACE_STATE)
     scope = _scope(profile_key, ticker, sec_cik)
     _limit(limit, MAX_SNAPSHOTS_PER_SCOPE)
     directory, root = _directory(scope, project_root)
@@ -538,6 +542,7 @@ def _publish_snapshot(raw, pending, target, directory_fd):
 
 def save_research_context(context, *, profile_key, ticker, sec_cik, project_root=None):
     """Save an immutable normalized copy; exact repeated inputs are idempotent."""
+    require_workspace_access(profile_key, WorkspaceAction.APPEND, WorkspaceResource.SAVED_WORKSPACE_STATE)
     try:
         import fcntl
     except ImportError as exc:
@@ -552,10 +557,7 @@ def save_research_context(context, *, profile_key, ticker, sec_cik, project_root
     directory_fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     try:
         fcntl.flock(directory_fd, fcntl.LOCK_EX)
-        # A stopped writer can leave one pending file per scope. Keep it out of
-        # saved history for both current and previous readers.
         pending = _safe(store / '.pending' / directory.relative_to(store) / 'snapshot.tmp', root)
-        pending.unlink(missing_ok=True)
         existing = list_research_contexts(**scope, project_root=project_root, limit=MAX_SNAPSHOTS_PER_SCOPE)
         for saved in existing:
             if saved['snapshot_id'] == snapshot['snapshot_id']:
@@ -564,6 +566,10 @@ def save_research_context(context, *, profile_key, ticker, sec_cik, project_root
         if len(existing) >= MAX_SNAPSHOTS_PER_SCOPE:
             raise ValueError('Saved research history limit exceeded')
         target = _safe(directory / (snapshot['snapshot_id'] + '.json'), root)
+        require_workspace_access(profile_key, WorkspaceAction.APPEND, WorkspaceResource.SAVED_WORKSPACE_STATE)
+        # A stopped writer can leave a pending file; clear it only while still
+        # authorized to publish. Pending files are never included in history.
+        pending.unlink(missing_ok=True)
         try:
             _publish_snapshot(raw, pending, target, directory_fd)
         except FileExistsError:
@@ -823,6 +829,7 @@ def compare_research_contexts(before, after):
 
 def list_research_context_scopes(profile_key, *, project_root=None, limit=MAX_RESEARCH_SCOPES):
     """Bounded Monitor index; a damaged company does not hide verified scopes."""
+    require_workspace_access(profile_key, WorkspaceAction.READ, WorkspaceResource.SAVED_WORKSPACE_STATE)
     _limit(limit, MAX_RESEARCH_SCOPES)
     profile, root = _profile_path(profile_key, project_root)
     result = dict(scopes=[], errors=[])

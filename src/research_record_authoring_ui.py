@@ -381,6 +381,11 @@ def render_research_record_authoring(
     identity_scope: str | None = None,
 ) -> None:
     """Render a locked-scope, preview-first authoring composer without direct writes."""
+    from src.hosted_access_control import WorkspaceAction, WorkspaceResource
+    from src.workspace_authorization import can_workspace_access
+    if not can_workspace_access(profile_key, WorkspaceAction.APPEND, WorkspaceResource.RESEARCH_RECORD):
+        st_api.caption('Read-only workspace. An editor membership is required to save research records.')
+        return
 
     symbol = ticker.upper()
     scope = _authoring_scope(profile_key, symbol, identity_scope=identity_scope)

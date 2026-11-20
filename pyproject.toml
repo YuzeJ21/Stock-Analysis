@@ -18,6 +18,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+workspace = [
+  "Authlib>=1.3.2",
+]
 research = [
   "yfinance>=0.2",
   "ib-insync>=0.9",

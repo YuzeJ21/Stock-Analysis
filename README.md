@@ -147,7 +147,9 @@ The supported workflow is research-only. Investment advice, broker account actio
 | **Available today** | A local research beta with online filing checks, financial trends, peer valuation, scenarios, notes, and saved evidence replay. Discover includes five dated venue reviews and a separate twelve-company capability study. |
 | **Verified examples** | GitHub Pages serves the static public demo and the dated AMD filing case. The local Workbench and Monitor support saved SEC evidence reviews for NEM, AMD, and DUK. |
 | **Next** | Review remaining listing and security-identity gaps, qualify more filing comparisons for Monitor, and rerun the industry study to measure research coverage. |
-| **Later gates** | Hosted full-workspace operation, authentication and private workspaces, operated data rights, provider reliability, independent user evidence, and commercial validation. The operated pilot remains on hold. [Private pilot audit](docs/PILOT_READINESS_AUDIT.md#workbench-and-monitor-private-pilot) |
+| **Later gates** | Hosted full-workspace operation, verification of authentication and private workspaces in the intended host, operated data rights, durable audit and retention, provider reliability, independent user evidence, and commercial validation. The operated pilot remains on hold. [Private pilot audit](docs/PILOT_READINESS_AUDIT.md#workbench-and-monitor-private-pilot) |
+
+An opt-in protected mode connects workspace authorization to Workbench, Monitor and their private stores. Server-configured memberships govern reads, editor writes and revoked actions. Local automated checks use synthetic identities. A real identity provider and hosting still require configuration and verification. [Workspace authorization](docs/WORKSPACE_AUTHORIZATION.md)
 
 The [Roadmap](ROADMAP.md) is the active priority list. [Completed Milestones](docs/COMPLETED_MILESTONES.md) records shipped work and the evidence required to revisit parked features. Use `make next-stage` for the product direction and separate saved-readiness checks.
 

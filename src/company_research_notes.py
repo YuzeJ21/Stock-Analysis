@@ -11,6 +11,11 @@ from src.research_outcome_review import load_outcomes
 from src.research_record_authoring import AuthoringPaths
 from src.research_thesis_journal import load_journal_entries
 from src.sec_research_review import _ticker
+from src.hosted_access_control import WorkspaceAction, WorkspaceResource
+from src.workspace_authorization import (
+    WorkspaceAccessDenied, protected_workspace_mode, require_workspace_access,
+    workspace_storage_root,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MAX_NOTE_BYTES = 2 * 1024 * 1024
@@ -58,7 +63,8 @@ def _profile(value):
 
 
 def _base(project_root=None):
-    return Path(PROJECT_ROOT if project_root is None else project_root).resolve() / 'outputs/local/company-research-notes'
+    root = workspace_storage_root(PROJECT_ROOT if project_root is None else project_root)
+    return root / 'outputs/local/company-research-notes'
 
 
 def _safe_path(path, base):
@@ -76,6 +82,7 @@ def _safe_path(path, base):
 def notes_paths(scope, *, project_root=None):
     if not isinstance(scope, CompanyNotesScope):
         raise ValueError('Invalid saved note scope')
+    require_workspace_access(scope.profile_key, WorkspaceAction.READ, WorkspaceResource.RESEARCH_RECORD)
     base = _base(project_root)
     directory = base / _profile(scope.profile_key) / scope.sec_cik / scope.ticker
     paths = AuthoringPaths(*(directory / name for name in (
@@ -87,6 +94,9 @@ def notes_paths(scope, *, project_root=None):
 
 
 def load_company_notes(scope, *, project_root=None):
+    if not isinstance(scope, CompanyNotesScope):
+        raise ValueError('Invalid saved note scope')
+    require_workspace_access(scope.profile_key, WorkspaceAction.READ, WorkspaceResource.RESEARCH_RECORD)
     paths = notes_paths(scope, project_root=project_root)
     for path in paths.all():
         if path.exists() and (not path.is_file() or path.stat().st_size > MAX_NOTE_BYTES):
@@ -104,6 +114,7 @@ def load_company_notes(scope, *, project_root=None):
 
 
 def notes_index(profile_key, *, project_root=None):
+    require_workspace_access(profile_key, WorkspaceAction.READ, WorkspaceResource.RESEARCH_RECORD)
     base = _base(project_root)
     directory = _safe_path(base / _profile(profile_key), base)
     if not directory.exists():
@@ -175,6 +186,8 @@ def saved_company_notes_scope(ticker,profile_key,*,sec_cik=None,project_root=Non
 
 def legacy_note_tickers(paths, profile_key):
     """Find existing user records without assigning their ticker-only scope a CIK."""
+    if protected_workspace_mode():
+        raise WorkspaceAccessDenied('legacy_records_unavailable')
     _profile(profile_key)
     if not isinstance(paths,AuthoringPaths):
         raise ValueError('Invalid legacy research paths')
