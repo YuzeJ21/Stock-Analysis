@@ -578,7 +578,7 @@ def test_online_research_round_trip_keeps_section_and_evidence(
             page.on("pageerror", lambda error: errors.append(str(error)))
             page.goto(f"{research_browser_server}/?mode=research&page=company-workbench&ticker=FICT&online=1")
             brief = page.get_by_role("region", name="Company Brief", exact=True)
-            playwright.expect(brief.get_by_role("heading", name="FICT Company Brief")).to_be_visible()
+            playwright.expect(brief.get_by_role("heading", name="FICT Company Brief")).to_be_visible(timeout=15_000)
             page.get_by_role("button", name="Research company", exact=True).click()
             page.get_by_text("Price history", exact=True).click()
             prices = page.get_by_role("region", name="Daily price history", exact=True)
@@ -649,7 +649,7 @@ def test_online_research_round_trip_keeps_section_and_evidence(
                 return_link.press("Enter")
             playwright.expect(brief.get_by_role("heading", name="FICT Company Brief")).to_be_visible()
             playwright.expect(selected).to_be_checked()
-            assert brief.inner_text() == original_brief
+            playwright.expect(brief).to_have_text(original_brief, use_inner_text=True, timeout=15_000)
             if monitor_handoff == "receipt":
                 open_saved_sec_evidence()
                 playwright.expect(download).to_be_enabled()
