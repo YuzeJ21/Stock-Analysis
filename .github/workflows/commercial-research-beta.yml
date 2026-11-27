@@ -8,6 +8,32 @@ permissions:
   contents: read
 
 jobs:
+  research-journey:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Check out pull request revision
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install declared development and workspace dependencies
+        run: python3 -m pip install -e '.[dev,workspace]'
+
+      - name: Install Playwright Chromium
+        run: python3 -m playwright install --with-deps chromium
+
+      - name: Verify complete desktop and phone research journeys
+        run: make research-journey-check
+
   local-engineering-gate:
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -28,7 +54,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: python3 -m pip install -e '.[dev]'
+        run: python3 -m pip install -e '.[dev,workspace]'
 
       - name: Install Playwright Chromium
         run: python3 -m playwright install --with-deps chromium
