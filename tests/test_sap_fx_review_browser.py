@@ -28,7 +28,8 @@ def test_fx_action_download_and_profile_scope(tmp_path, width, height):
                 settle()
                 group = page.get_by_role('radiogroup', name=label, exact=True)
                 radio = group.get_by_role('radio', name=value, exact=True)
-                group.locator('label').filter(has=radio).click()
+                group.locator('label').filter(
+                    has=page.get_by_role('radio', name=value, exact=True)).click()
                 expect(radio).to_be_checked()
                 settle()
             page.on('pageerror', lambda error:errors.append(str(error)))
