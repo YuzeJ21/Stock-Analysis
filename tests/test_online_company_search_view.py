@@ -85,7 +85,16 @@ def test_online_only_workbench_opens_sec_check_without_saved_analysis(monkeypatc
     assert reports==[]
 
 
-def test_online_search_runs_only_on_explicit_submit_and_survives_zero_saved_rows(monkeypatch):
+@pytest.mark.parametrize("configured_agent", [False, True])
+def test_online_search_runs_only_on_explicit_submit_and_survives_zero_saved_rows(
+    monkeypatch, configured_agent,
+):
+    identification = "Synthetic research contact@example.invalid"
+    if configured_agent:
+        monkeypatch.setenv("SEC_USER_AGENT", identification)
+    else:
+        monkeypatch.delenv("SEC_USER_AGENT", raising=False)
+
     class Form:
         def __enter__(self):
             return self
@@ -93,18 +102,21 @@ def test_online_search_runs_only_on_explicit_submit_and_survives_zero_saved_rows
         def __exit__(self, *_args):
             return False
 
-    calls: list[str] = []
+    calls: list[tuple[str, str]] = []
     rendered: list[str] = []
     session: dict[str, object] = {}
-    submitted = [False, True]
+    submitted = [False, True, False]
     monkeypatch.setattr(
         dashboard,
         "st",
         SimpleNamespace(
             session_state=session,
             container=lambda *_args, **_kwargs: Form(),
+            expander=lambda *_args, **_kwargs: Form(),
             form=lambda *_args, **_kwargs: Form(),
-            text_input=lambda *_args, **_kwargs: "FICT",
+            text_input=lambda _label, **kwargs: (
+                "FICT" if kwargs["key"] == "online-company-query" else identification
+            ),
             form_submit_button=lambda *_args, **_kwargs: submitted.pop(0),
             markdown=lambda value, **kwargs: rendered.append(str(value)),
         ),
@@ -112,15 +124,17 @@ def test_online_search_runs_only_on_explicit_submit_and_survives_zero_saved_rows
     monkeypatch.setattr(
         dashboard,
         "search_sec_company_candidates",
-        lambda query, *, user_agent: calls.append(query) or _result(),
+        lambda query, *, user_agent: calls.append((query, user_agent)) or _result(),
     )
 
     dashboard.render_online_company_search(saved_tickers=())
     assert calls == []
     dashboard.render_online_company_search(saved_tickers=())
-    assert calls == ["FICT"]
+    assert calls == [("FICT", identification)]
     assert session[ONLINE_COMPANY_SESSION_KEY]["status"] == "ready"
     assert any("page=company-workbench&amp;ticker=FICT&amp;online=1" in value for value in rendered)
+    dashboard.render_online_company_search(saved_tickers=())
+    assert calls == [("FICT", identification)]
 
 
 def test_online_workbench_route_retains_explicit_online_flag():
@@ -136,6 +150,7 @@ def test_online_workbench_route_retains_explicit_online_flag():
 
 @pytest.mark.parametrize("registered", [(), ("FICT",)])
 def test_unavailable_online_route_does_not_repeat_sec_fetch_on_rerender(monkeypatch, registered):
+    monkeypatch.delenv("SEC_USER_AGENT", raising=False)
     session: dict[str, object] = {}
     calls: list[str] = []
     rendered: list[str] = []
@@ -151,6 +166,11 @@ def test_unavailable_online_route_does_not_repeat_sec_fetch_on_rerender(monkeypa
     monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
     monkeypatch.setattr(
         dashboard,
+        "render_single_stock_report",
+        lambda *args, **kwargs: pytest.fail("unavailable online identity must not use saved analysis"),
+    )
+    monkeypatch.setattr(
+        dashboard,
         "search_sec_company_candidates",
         lambda query, *, user_agent: calls.append(query) or {
             "status": "unavailable", "query": query, "reason": "sec_fetch_unavailable",
@@ -161,7 +181,7 @@ def test_unavailable_online_route_does_not_repeat_sec_fetch_on_rerender(monkeypa
     for _ in range(2):
         dashboard.render_company_workbench(
             SimpleNamespace(list_local_tickers=lambda: list(registered)),
-            SimpleNamespace(), {}, object(),
+            SimpleNamespace(profile_key="online-route-test", data_dir=None), {}, object(),
         )
 
     assert calls == ["FICT"]

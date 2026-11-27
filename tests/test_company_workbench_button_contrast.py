@@ -1,5 +1,6 @@
 """Real framework-wrapper and dark-appearance regression for readable research actions."""
 from pathlib import Path
+import json
 import re
 
 
@@ -59,7 +60,7 @@ def test_actual_company_refresh_popover_has_readable_unclipped_labels_at_phone_w
  with _local_demo_server(tmp_path,timeout_seconds=30) as base:
   with sync_playwright() as p:
    browser=p.chromium.launch(headless=True)
-   for width in (1280,390,320):
+   for width in (1280,900,768,390,320):
     for scheme in ('light','dark'):
      page=browser.new_page(color_scheme=scheme,viewport={'width':width,'height':844})
      page.goto(base,wait_until='domcontentloaded')
@@ -67,9 +68,9 @@ def test_actual_company_refresh_popover_has_readable_unclipped_labels_at_phone_w
      control.wait_for(timeout=15000)
      for hovered in (False,True):
       if hovered:control.hover()
-      row=control.evaluate('''b=>{const p=b.querySelector('p');return {background:getComputedStyle(b).backgroundColor,foreground:getComputedStyle(p||b).color,height:b.getBoundingClientRect().height,labelWidth:p.clientWidth,labelScroll:p.scrollWidth}}''')
+      row=control.evaluate('''b=>{const p=b.querySelector('p'),r=b.getBoundingClientRect(),rail=b.closest('.st-key-company-workbench-rail').getBoundingClientRect();return {background:getComputedStyle(b).backgroundColor,foreground:getComputedStyle(p||b).color,height:r.height,labelWidth:p.clientWidth,labelScroll:p.scrollWidth,left:r.left,right:r.right,railLeft:rail.left,railRight:rail.right}}''')
       ratio=_contrast(row['foreground'],row['background'])
-      if ratio<4.5 or row['height']<44 or row['labelScroll']>row['labelWidth']+1:
+      if ratio<4.5 or row['height']<44 or row['labelScroll']>row['labelWidth']+1 or row['left']<row['railLeft']-1 or row['right']>row['railRight']+1:
        failures.append({'width':width,'appearance':scheme,'hovered':hovered,'contrast':ratio,**row})
      assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1')
      control.click()
@@ -77,4 +78,4 @@ def test_actual_company_refresh_popover_has_readable_unclipped_labels_at_phone_w
      assert page.get_by_role('button',name='Prices only',exact=True).is_visible()
      page.close()
    browser.close()
- assert not failures,failures
+ assert not failures,json.dumps(failures,sort_keys=True)

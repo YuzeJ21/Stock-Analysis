@@ -1,0 +1,95 @@
+name: ECB Reference Capture
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches: [main]
+    paths:
+      - src/ecb_fx_reference.py
+      - .github/workflows/ecb-reference-capture.yml
+
+permissions:
+  contents: read
+
+jobs:
+  capture-public-reference:
+    if: github.event.action == 'opened' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Check out exact reviewed source revision
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install existing source-rights parser dependency
+        run: python3 -m pip install 'PyYAML>=6.0'
+      - name: Verify minimal capture CLI imports
+        run: python3 -B -m src.ecb_fx_reference --help
+      - name: Capture one exact public ECB reference
+        run: >-
+          python3 -B -m src.ecb_fx_reference capture
+          --reference-date 2026-11-23
+          --output-dir "$RUNNER_TEMP/ecb-reference"
+      - name: Preserve only public source evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ecb-usd-eur-reference
+          path: |
+            ${{ runner.temp }}/ecb-reference/fx.xml
+            ${{ runner.temp }}/ecb-reference/receipt.json
+            ${{ runner.temp }}/ecb-reference/SOURCE.txt
+          if-no-files-found: error
+          retention-days: 30
+  inspect-retained-reference:
+    # Reuse the immutable successful PR126 capture. Never fetch ECB again on fixes.
+    if: github.event.action == 'synchronize' && github.event.pull_request.number == 126 && github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python3 -m pip install 'PyYAML>=6.0'
+      - name: Download only the already captured public source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh run download 46076941699 --repo "$GITHUB_REPOSITORY"
+          --name ecb-usd-eur-reference --dir "$RUNNER_TEMP/ecb-retained"
+      - name: Revalidate original bytes without source requests
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          python3 -B - <<'PY'
+          import base64, gzip, hashlib, json, os
+          from datetime import datetime
+          from pathlib import Path
+          from src.ecb_fx_reference import parse_ecb_usd
+          root = Path(os.environ['RUNNER_TEMP']) / 'ecb-retained'
+          assert {p.name for p in root.iterdir()} == {'fx.xml', 'receipt.json', 'SOURCE.txt'}
+          raw = (root / 'fx.xml').read_bytes()
+          assert hashlib.sha256(raw).hexdigest() == 'bcca89ff638aebb161b8da6158e7095891436c1ac74e74070529d4810b29c0d6'
+          capture = json.loads((root / 'receipt.json').read_text())
+          transport = capture['transport']
+          verified = parse_ecb_usd(raw, reference_date='2026-11-23',
+              observed_at=datetime.fromisoformat(transport['observed_at'].replace('Z', '+00:00')),
+              last_modified=transport['last_modified'])
+          assert capture['status'] == 'captured' and verified == capture['receipt']
+          encoded = base64.b64encode(gzip.compress(raw, mtime=0)).decode('ascii')
+          assert len(encoded) < 32768, 'Retained public source exceeds bounded inspection output'
+          print('ECB_RETAINED_RECEIPT=' + json.dumps(capture, sort_keys=True))
+          print('ECB_RETAINED_XML_GZIP_BASE64=' + encoded)
+          PY

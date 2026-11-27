@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import json
 from pathlib import Path
 import subprocess
 
@@ -1632,7 +1633,30 @@ def test_actual_company_workbench_one_pager_collector_rejects_hidden_summary_wit
                         mutation_css,
                     )
                     page.evaluate(
-                        "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+                        """async () => {
+                            // The complete DOM snapshot also measures text in closed
+                            // Streamlit JSON disclosures. Their code font can remain
+                            // unused until the first geometry read, even when
+                            // document.fonts.status is already 'loaded'.
+                            const textFonts = new Set(
+                                [...document.querySelectorAll('*')]
+                                    .filter(node => !node.matches('script, style, noscript') &&
+                                        [...node.childNodes].some(child =>
+                                            child.nodeType === Node.TEXT_NODE &&
+                                            child.textContent.trim()
+                                        )
+                                    )
+                                    .map(node => getComputedStyle(node).font)
+                                    .filter(Boolean)
+                            );
+                            await Promise.all([...textFonts].map(font =>
+                                document.fonts.load(font)
+                            ));
+                            await document.fonts.ready;
+                            await new Promise(resolve => requestAnimationFrame(() =>
+                                requestAnimationFrame(resolve)
+                            ));
+                        }"""
                     )
                     scroll_state_script = """() => ({
                         window: [window.scrollX, window.scrollY],
@@ -1650,6 +1674,15 @@ def test_actual_company_workbench_one_pager_collector_rejects_hidden_summary_wit
                                 left || top || width > clientWidth || height > clientHeight
                             ),
                     })"""
+                    font_state_before = page.evaluate(
+                        """() => ({
+                            status: document.fonts.status,
+                            faces: [...document.fonts].map(face => ({
+                                family: face.family,
+                                status: face.status,
+                            })),
+                        })"""
+                    )
                     scroll_state_before = page.evaluate(scroll_state_script)
                     probe_state_script = """() => ({
                         active: [
@@ -1699,13 +1732,39 @@ def test_actual_company_workbench_one_pager_collector_rejects_hidden_summary_wit
                         page
                     )
                     scroll_state_after = page.evaluate(scroll_state_script)
+                    before_nodes = {row[0]: row for row in scroll_state_before["nodes"]}
+                    after_nodes = {row[0]: row for row in scroll_state_after["nodes"]}
+                    changed_scroll_indexes = {
+                        index
+                        for index in before_nodes.keys() | after_nodes.keys()
+                        if before_nodes.get(index) != after_nodes.get(index)
+                    }
+                    changed_scroll_nodes = page.evaluate(
+                        """indexes => [...document.querySelectorAll('*')]
+                            .flatMap((node, index) => indexes.includes(index) ? [{
+                                index,
+                                tag: node.tagName,
+                                html: node.outerHTML.slice(0, 800),
+                                font: getComputedStyle(node).font,
+                                rect: node.getBoundingClientRect().toJSON(),
+                                fonts_status: document.fonts.status,
+                                font_faces: [...document.fonts].map(face => ({
+                                    family: face.family,
+                                    status: face.status,
+                                })),
+                            }] : [])""",
+                        sorted(changed_scroll_indexes),
+                    )
                     probe_state_after = page.evaluate(probe_state_script)
                 finally:
                     context.close()
 
     assert external_requests == []
     assert outside_visible == 1
-    assert scroll_state_after == scroll_state_before
+    assert scroll_state_after == scroll_state_before, json.dumps({
+        "font_state_before": font_state_before,
+        "changed_nodes": changed_scroll_nodes,
+    }, sort_keys=True)
     assert probe_state_after == probe_state_before, {
         "style_differences": [
             (before, after)

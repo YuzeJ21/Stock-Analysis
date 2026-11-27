@@ -8,10 +8,30 @@ from pathlib import Path
 import pytest
 
 
+_MARKDOWN_CODE = re.compile(
+    r"^```[^\n]*\n(?P<block>.*?)^```[ \t]*$|`(?P<inline>[^`]+)`",
+    flags=re.MULTILINE | re.DOTALL,
+)
+
+
 def _makefile_targets(makefile: str | None = None) -> set[str]:
     if makefile is None:
         makefile = Path("Makefile").read_text(encoding="utf-8")
     return set(re.findall(r"^([A-Za-z0-9_.-]+):(?:\s|$)", makefile, flags=re.MULTILINE))
+
+
+def _documented_make_targets(text: str) -> list[str]:
+    # Consume every code span, including spans without commands, so a closing
+    # backtick cannot become an opening delimiter across surrounding prose.
+    command_surfaces = [
+        match.group("block") if match.group("block") is not None else match.group("inline")
+        for match in _MARKDOWN_CODE.finditer(text)
+    ]
+    return [
+        match.group(1).rstrip(".,;:)")
+        for surface in command_surfaces
+        for match in re.finditer(r"\bmake\s+([A-Za-z0-9_.-]+)", surface)
+    ]
 
 
 def _tree_manifest(root: Path) -> dict[str, tuple[str, bytes | None]]:
@@ -1273,7 +1293,7 @@ def test_linkedin_share_check_prints_read_only_final_checklist():
     output = result.stdout
     assert "LinkedIn Share Check" in output
     assert "Read-only: this target prints the final LinkedIn visual checklist only." in output
-    assert "Stock Research Command Center | Company Research, Valuation & Monitoring" in output
+    assert "Stock Research Command Center | Evidence-First Equity Research" in output
     assert "Research Desk -> Discover -> Company Workbench -> Monitor" in output
     assert "https://yuzej21.github.io/Stock-Analysis/" in output
     assert "Review saved evidence and record Reviewed or Still open." in output
@@ -1701,7 +1721,8 @@ def test_readme_landing_page_prioritizes_demo_image_and_local_quickstart():
     assert "SEC_USER_AGENT" in primary_commands
     assert primary_commands.index("pip install") < primary_commands.index("SEC_USER_AGENT") < primary_commands.index("make dashboard")
     assert "http://localhost:8501/" in local
-    assert "python -m pip install -e '.[dev]'" in local
+    assert "python -m pip install -e '.[dev,workspace]'" in local
+    assert "python -m playwright install --with-deps chromium" in local
     assert "pip install -e .[dev]" not in local
     assert "make pipeline" not in primary_commands
     assert "make imports-apply" not in primary_commands
@@ -1819,6 +1840,27 @@ def test_public_markdown_links_resolve_to_tracked_local_files():
     assert missing == []
 
 
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    (
+        ("The `baseline` does not make a reference qualify. The `source` is retained.", []),
+        (
+            "```bash\nprintf 'example'\n```\n"
+            "Identical labels do not make different tasks comparable.\n"
+            "```bash\nmake test\n```\n",
+            ["test"],
+        ),
+        (
+            "Run `make missing-inline`.\n\n```bash\nmake missing-fenced\n```\n",
+            ["missing-inline", "missing-fenced"],
+        ),
+    ),
+    ids=("inline-boundaries", "fence-boundaries", "unknown-targets-remain-visible"),
+)
+def test_documented_make_targets_respect_markdown_code_boundaries(text, expected):
+    assert _documented_make_targets(text) == expected
+
+
 def test_public_docs_only_reference_existing_make_targets():
     targets = _makefile_targets()
     docs = [Path("README.md"), Path("ROADMAP.md"), Path("PRODUCT_SPEC.md"), *Path("docs").glob("*.md")]
@@ -1826,13 +1868,9 @@ def test_public_docs_only_reference_existing_make_targets():
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        command_surfaces = re.findall(r"`([^`]*\bmake\s+[^`]*)`", text)
-        command_surfaces.extend(match.group(1) for match in re.finditer(r"```(?:bash|text)?\n(.*?)```", text, flags=re.DOTALL))
-        for surface in command_surfaces:
-            for match in re.finditer(r"\bmake\s+([A-Za-z0-9_.-]+)", surface):
-                target = match.group(1).rstrip(".,;:)")
-                if target not in targets:
-                    missing.append((str(path), target))
+        for target in _documented_make_targets(text):
+            if target not in targets:
+                missing.append((str(path), target))
 
     assert missing == []
 
@@ -1843,7 +1881,7 @@ def test_public_docs_prose_does_not_accidentally_look_like_make_commands():
 
     for path in docs:
         text = path.read_text(encoding="utf-8")
-        code_ranges = [(match.start(), match.end()) for match in re.finditer(r"`[^`]*`|```.*?```", text, flags=re.DOTALL)]
+        code_ranges = [(match.start(), match.end()) for match in _MARKDOWN_CODE.finditer(text)]
         for match in re.finditer(r"\bmake\s+([a-z][a-z-]+)", text):
             if any(start <= match.start() < end for start, end in code_ranges):
                 continue
@@ -2062,8 +2100,7 @@ def test_roadmap_keeps_active_plan_separate_from_completed_product_history():
         "## Later",
         "## Completed with evidence",
         "### P0: Performance Release Candidate",
-        "### P1 local prerequisite: Hosted operating contracts",
-        "### P1 local prerequisite: Independent beta protocol",
+        "### P1 local prerequisites: Hosted operating contracts and independent beta protocol",
         "`hosted_account_and_controls_required`",
         "`independent_reviewers_required`",
     ):
@@ -2071,6 +2108,9 @@ def test_roadmap_keeps_active_plan_separate_from_completed_product_history():
 
     completed = roadmap.index("## Completed with evidence")
     assert completed < roadmap.index("### P0: Performance Release Candidate")
+    assert completed < roadmap.index("### P1 local prerequisites:")
+    assert "actual hosted verification remains externally blocked under Priority 6" in roadmap
+    assert "actual sessions remain externally blocked under Priority 8" in roadmap
     assert roadmap.index("## Externally blocked") < completed
 
 
@@ -2454,7 +2494,7 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
     brief = Path("docs/LINKEDIN_PROJECT_BRIEF.md").read_text(encoding="utf-8")
 
     for phrase in (
-        "Stock Research Command Center | Company Research, Valuation & Monitoring",
+        "Stock Research Command Center | Evidence-First Equity Research",
         "local Python and Streamlit portfolio beta",
         "Research Desk -> Discover -> Company Workbench -> Monitor",
         "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History",
