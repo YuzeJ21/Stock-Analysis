@@ -34,6 +34,8 @@ def test_native_sap_basis_survives_save_monitor_reload_and_exact_return(tmp_path
 
             page.route('**/*', route)
             page.goto(base, wait_until='domcontentloaded')
+            expect(page.get_by_role('heading', name='Selected NYSE ADS price context matched', exact=True)).to_be_visible()
+            expect(page.get_by_text('FX observation remains unverified.', exact=False)).to_be_visible()
             expect(page.get_by_text('Reported annual diluted EPS (native currency)', exact=True).filter(visible=True)).to_have_count(1)
             expect(page.locator('p').filter(has_text='6.10 EUR/common share').filter(visible=True)).to_have_count(1)
             expect(page.locator('p').filter(has_text='2025-01-01 → 2025-12-31').filter(visible=True)).to_have_count(1)
@@ -48,6 +50,8 @@ def test_native_sap_basis_survives_save_monitor_reload_and_exact_return(tmp_path
             page.get_by_role('button', name='Open historical research snapshot', exact=True).click()
             page.wait_for_url('**research_snapshot=**')
             expect(page.get_by_role('heading', name='Valuation & Peers', exact=True)).to_be_visible()
+            expect(page.get_by_role('heading', name='Selected NYSE ADS price context matched', exact=True)).to_be_visible()
+            expect(page.get_by_text('FX observation remains unverified.', exact=False)).to_be_visible()
             page.get_by_text('Data Sources', exact=True).click()
             expect(page.get_by_role('heading', name='Data Sources', exact=True)).to_be_visible()
             page.wait_for_function("""() => document.querySelector('[data-testid="stApp"]')
@@ -70,6 +74,7 @@ def test_native_sap_basis_survives_save_monitor_reload_and_exact_return(tmp_path
                     ?.getAttribute('data-test-script-state') === 'notRunning'""")
                 saved = page.get_by_role('region', name='Saved SAP filing evidence', exact=True)
                 expect(saved).to_be_visible()
+                expect(saved.get_by_role('heading', name='Selected NYSE ADS price context matched', exact=True)).to_be_visible()
                 expect(page.get_by_text('Snapshot ' + first[:12], exact=True)).to_be_visible()
                 assert parse_qs(urlsplit(page.url).query)['return_research_snapshot'] == [first]
                 summary = saved.locator('summary', has_text='Selected security and related issuer symbols')
@@ -85,6 +90,7 @@ def test_native_sap_basis_survives_save_monitor_reload_and_exact_return(tmp_path
                 ?.getAttribute('data-test-script-state') === 'notRunning'""")
             saved = page.get_by_role('region', name='Saved SAP filing evidence', exact=True)
             expect(saved).to_be_visible()
+            expect(saved.get_by_role('heading', name='Selected NYSE ADS price context matched', exact=True)).to_be_visible()
             summary = saved.locator('summary', has_text='Selected security and related issuer symbols')
             if summary.locator('..').get_attribute('open') is None:
                 summary.click()

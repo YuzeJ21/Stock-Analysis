@@ -261,6 +261,29 @@ def saved_tsm_security_html(context):
             + _selected_security_html(scope) + '</section>')
 
 
+def sap_price_basis_html(context):
+    """One informational projection for current research and historical replay."""
+    if context.get('ticker') != 'SAP':
+        return ''
+    from src.sap_price_basis import assess_sap_price_basis
+
+    basis = assess_sap_price_basis(context)
+    matched = basis['status'] == 'matched_listing_context'
+    headline = 'Selected NYSE ADS price context matched' if matched else 'Price listing context remains unverified'
+    evidence = ('<p>Yahoo SAP / NYQ agrees with the separately verified SAP NYSE ADS listing. '
+        'Daily price dated ' + _text(basis['price_date']) + ' · observed ' + _text(basis['observed_at'])
+        + ' · ' + _link(basis['source_url'], 'Price source') + '</p>') if matched else (
+        '<p>Required listing, price identity, receipt or chronology evidence is missing or contradictory. '
+        'Older saved research does not acquire newly required source metadata.</p>')
+    return (STYLE + '<section class="online-peer-valuation" aria-label="SAP valuation basis review">'
+        '<h3>' + headline + '</h3>' + evidence
+        + '<p>FX observation remains unverified. USD/ADS EPS and P/E remain withheld. '
+        'Vendor issuer identity, historical continuity, price adjustment basis and accounting comparability '
+        'remain unverified. This listing context does not replace the separate issuer association '
+        'or qualify SAP for the existing US-GAAP/USD peer method.</p>'
+        '<p>Personal research only; source permissions and commercial eligibility remain unchanged.</p></section>')
+
+
 def saved_depositary_security_html(context):
     from src.sec_sap_snapshot_evidence import saved_sap_numeric_observation_indices
 
@@ -269,13 +292,13 @@ def saved_depositary_security_html(context):
     owner = (context.get('peer_read_through') or {}).get('subject_source_context') or {}
     scope = owner.get('selected_security_scope') or {}
     if not saved_sap_numeric_observation_indices(scope, context=context):
-        return ''
+        return sap_price_basis_html(context)
     listing = owner['selected_depositary_listing']
     return (STYLE + '<section class="online-peer-valuation" aria-label="Saved SAP filing evidence">'
             '<h3>Saved SAP filing evidence</h3><p>ADS valuation remains withheld.</p>'
             '<p>' + _link(listing['source_url'], 'Verified NYSE listing') + ' · directory dated '
             + _text(listing['source_created_at']) + ' · observed ' + _text(listing['observed_at']) + '</p>'
-            + _selected_security_html(scope) + '</section>')
+            + sap_price_basis_html(context) + _selected_security_html(scope) + '</section>')
 
 
 def _selected_security_html(scope):

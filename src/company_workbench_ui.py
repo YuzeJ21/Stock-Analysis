@@ -132,6 +132,11 @@ def render_saved_company_replay(st, snapshot, *, baseline=None):
                     st.markdown(filing_status_html(context), unsafe_allow_html=True)
                     _business_trend(st, context)
                 if selected == 'valuation':
+                    from src.online_peer_valuation_ui import sap_price_basis_html
+
+                    basis = sap_price_basis_html(context)
+                    if basis:
+                        st.markdown(basis, unsafe_allow_html=True)
                     if context.get('scenario'):
                         with st.expander('Saved Scenario Lab result', expanded=False):
                             _scenario_result(st, context['scenario'])

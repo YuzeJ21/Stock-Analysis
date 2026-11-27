@@ -76,6 +76,7 @@ jobs:
           python3 -m pytest -q -x -p no:cacheprovider --tb=short
           tests/test_sap_depositary_evidence.py
           tests/test_sap_depositary_snapshot.py
+          tests/test_sap_price_basis.py
           tests/test_sap_depositary_browser.py
       - name: Verify release regression cases
         run: >-

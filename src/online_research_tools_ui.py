@@ -418,6 +418,12 @@ def render_online_tools(st, section, bundle):
         st.info('Personal online research tools are unavailable in this workspace.')
         return
     context = bundle['research_context']
+    if section in {'valuation', 'sources'}:
+        from src.online_peer_valuation_ui import sap_price_basis_html
+
+        basis = sap_price_basis_html(context)
+        if basis:
+            st.markdown(basis, unsafe_allow_html=True)
     if section == 'financials':
         trend = context['business_trend']
         if not trend.get('bank_annual') or trend['metrics']:

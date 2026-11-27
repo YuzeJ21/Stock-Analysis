@@ -131,6 +131,23 @@ def research_context():
                    business_trend=dict(status='withheld', metrics=[], periods=[], gaps=[]))
 
 
+def priced_research_context():
+    """Constructed USD price receipt; does not supply FX or valuation eligibility."""
+    from src.online_company_prices import price_source_url
+    value = research_context()
+    price = dict(status='inspection_only', ticker='SAP', provider_symbol='SAP', currency='USD',
+        source_id='yahoo_chart', source_url=price_source_url('SAP'), observed_at=value['observed_at'],
+        payload_sha256='a' * 64, last_price_date='2026-11-06', close=17.25,
+        instrument_type='EQUITY', exchange_code='NYQ', full_exchange_name='NYSE',
+        exchange_timezone='America/New_York', adjustment_basis='provider_close_adjustment_basis_unverified',
+        rights_status='exact_source_unregistered_personal_inspection_only', commercial_eligible=False)
+    value['price_context'] = price
+    value['source_receipts'] = [dict(value['source_receipts']['financial'], source='companyfacts_identity'),
+        dict({k: price[k] for k in ('status','source_url','observed_at','payload_sha256')},
+            source='daily_prices', price_identity=dict(price))]
+    return value
+
+
 def write_replay_app(root):
     """Harness around production save, Monitor and historical-render functions."""
     from pathlib import Path
@@ -141,12 +158,12 @@ def write_replay_app(root):
 from pathlib import Path
 sys.path[:0] = [{str(project)!r}, {str(project / 'tests')!r}]
 import streamlit as st
-from sap_depositary_fixtures import research_context, install_provider_guard
+from sap_depositary_fixtures import priced_research_context as research_context, install_provider_guard
 from src import online_research_tools_ui as ui
 from src import online_research_context_store as store
 from src.company_workbench_ui import render_saved_company_replay
 from src.research_workspace import research_monitor_origin, resolve_saved_monitor_origin
-from src.online_peer_valuation_ui import online_peer_valuation_html
+from src.online_peer_valuation_ui import online_peer_valuation_html, sap_price_basis_html
 from src.online_research_context_store import load_research_context
 ui.PROJECT_ROOT = Path({str(root)!r})
 store.PROJECT_ROOT = ui.PROJECT_ROOT
@@ -168,6 +185,7 @@ elif st.query_params.get("research_snapshot"):
     st.caption(saved["replay_notice"])
     render_saved_company_replay(st, saved)
 else:
+    st.markdown(sap_price_basis_html(value), unsafe_allow_html=True)
     st.markdown(online_peer_valuation_html(value["peer_read_through"]), unsafe_allow_html=True)
     ui._snapshots(st, value, dict(financial=dict(companyfacts_identity=dict(status="source_matched"))))
 ''')
