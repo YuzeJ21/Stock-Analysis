@@ -624,6 +624,26 @@ pilot-feedback-closeout:
 	@echo "   make diff-hygiene-summary"
 	@echo "   git diff --check"
 
+.PHONY: pilot-feedback-summary
+ifneq ($(filter pilot-feedback-summary,$(MAKECMDGOALS)),)
+# Preserve command-line values as literal environment data, including dollar
+# signs and quotes; do not expand them into shell source or Make functions.
+unexport INPUT AS_OF JSON
+export STOCK_PILOT_FEEDBACK_INPUT := $(value INPUT)
+export STOCK_PILOT_FEEDBACK_CUTOFF := $(value AS_OF)
+export STOCK_PILOT_FEEDBACK_JSON := $(value JSON)
+endif
+pilot-feedback-summary:
+ifndef INPUT
+	$(error INPUT is required: an anonymous pilot feedback CSV outside Git)
+endif
+ifndef AS_OF
+	$(error AS_OF is required: an explicit YYYY-MM-DD cutoff)
+endif
+	@set -- --input "$$STOCK_PILOT_FEEDBACK_INPUT" --as-of "$$STOCK_PILOT_FEEDBACK_CUTOFF"; \
+	case "$$STOCK_PILOT_FEEDBACK_JSON" in 1|true|TRUE) set -- "$$@" --json ;; esac; \
+	exec python3 -B -m src.pilot_feedback "$$@"
+
 linkedin-share-check:
 	@echo "LinkedIn Share Check"
 	@echo "Read-only: this target prints the final LinkedIn visual checklist only. It does not open LinkedIn, upload files, edit your profile, refresh data, stage files, commit, or push."
@@ -1365,6 +1385,10 @@ hosted-demo-readiness:
 
 private-beta-readiness:
 	@python3 -m src.private_beta_readiness
+
+.PHONY: research-journey-check
+research-journey-check:
+	$(NO_WRITE_GUARD) python3 -B -m src.research_journey_gate
 
 .PHONY: private-pilot-rehearsal
 private-pilot-rehearsal:

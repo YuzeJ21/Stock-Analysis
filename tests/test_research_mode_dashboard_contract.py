@@ -1841,6 +1841,35 @@ def test_monitor_freshness_only_attention_is_nonnumeric_and_routes_to_data_healt
     assert idle < rendered.index(notes[0]) < advanced
 
 
+@pytest.mark.parametrize("query", [{}, {"ticker": "NOTREAL"}, {"ticker": "FICT", "online": "1"}])
+def test_company_workbench_checks_workspace_access_before_sources_or_saved_routes(monkeypatch, query):
+    from src import workspace_authorization as access
+
+    checked_profiles = []
+    def denied(profile_key):
+        checked_profiles.append(profile_key)
+        raise access.WorkspaceAccessDenied("workspace_mismatch")
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("unauthorized Workbench must not inspect sources or saved data")
+
+    monkeypatch.setattr(access, "require_workspace_access", denied)
+    monkeypatch.setattr(dashboard, "st", SimpleNamespace(query_params=query, session_state={}))
+    monkeypatch.setattr(dashboard, "search_sec_company_candidates", forbidden)
+    monkeypatch.setattr(dashboard, "render_single_stock_report", forbidden)
+
+    with pytest.raises(access.WorkspaceAccessDenied) as error:
+        dashboard.render_company_workbench(
+            SimpleNamespace(list_local_tickers=forbidden),
+            SimpleNamespace(profile_key="denied-route-profile", data_dir=None),
+            {},
+            object(),
+        )
+
+    assert checked_profiles == ["denied-route-profile"]
+    assert error.value.reason == "workspace_mismatch"
+
+
 def test_direct_tickerless_company_workbench_fails_closed_without_report_or_default_ticker(
     monkeypatch,
 ):
@@ -1867,7 +1896,7 @@ def test_direct_tickerless_company_workbench_fails_closed_without_report_or_defa
 
     dashboard.render_company_workbench(
         object(),
-        SimpleNamespace(),
+        SimpleNamespace(profile_key="tickerless-route-test", data_dir=None),
         {},
         object(),
     )
@@ -1901,7 +1930,7 @@ def test_direct_unregistered_company_workbench_fails_closed_without_saved_ticker
 
     dashboard.render_company_workbench(
         SimpleNamespace(list_local_tickers=lambda: ["AVGO"]),
-        SimpleNamespace(),
+        SimpleNamespace(profile_key="unregistered-route-test", data_dir=None),
         {},
         object(),
     )

@@ -344,9 +344,9 @@ def render_saved_online_snapshot(st, historical, *, baseline=None):
             if row.get('current') is True and row.get('period_basis') == 'direct_quarter')
         st.markdown(native_quarter_comparisons_html(current_quarter, comparisons,
                     trend.get('comparative_gaps')), unsafe_allow_html=True)
-    from src.online_peer_valuation_ui import saved_tsm_security_html
+    from src.online_peer_valuation_ui import saved_depositary_security_html
 
-    security = saved_tsm_security_html(historical['context'])
+    security = saved_depositary_security_html(historical['context'])
     if security:
         st.markdown(security, unsafe_allow_html=True)
     _evidence(st, historical['context'])
@@ -418,6 +418,12 @@ def render_online_tools(st, section, bundle):
         st.info('Personal online research tools are unavailable in this workspace.')
         return
     context = bundle['research_context']
+    if section in {'valuation', 'sources'}:
+        from src.online_peer_valuation_ui import sap_price_basis_html
+
+        basis = sap_price_basis_html(context)
+        if basis:
+            st.markdown(basis, unsafe_allow_html=True)
     if section == 'financials':
         trend = context['business_trend']
         if not trend.get('bank_annual') or trend['metrics']:
@@ -494,9 +500,9 @@ def render_online_research_monitor(st, *, profile_key, monitor_origin=None):
             from src.sec_online_quarter_view import nee_gross_ppe_review_html
 
             st.markdown(nee_gross_ppe_review_html(trend['capital_purchase_evidence']), unsafe_allow_html=True)
-        from src.online_peer_valuation_ui import saved_tsm_security_html
+        from src.online_peer_valuation_ui import saved_depositary_security_html
 
-        security = saved_tsm_security_html(latest['context'])
+        security = saved_depositary_security_html(latest['context'])
         if security:
             st.markdown(security, unsafe_allow_html=True)
         for gap in latest['context'].get('gaps') or []:

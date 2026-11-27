@@ -273,6 +273,13 @@ def _receipt_rows(financial, prices, inventory, peers):
         row = {k: source[k] for k in ('status', 'reason', 'source_url', 'source_ref', 'observed_at',
             'observed_at_utc', 'retrieved_at_utc', 'payload_sha256', 'source_last_modified', 'normalized_sha256') if k in source}
         row['source'] = name
+        if name == 'daily_prices' and source.get('ticker') == 'SAP':
+            validated = validated_online_price_history(source, ticker='SAP')
+            if validated:
+                from src.sap_price_basis import PRICE_BASIS_FIELDS
+
+                row['price_identity'] = {key: validated.get(key) for key in PRICE_BASIS_FIELDS}
+                row['price_identity']['close'] = validated['bars'][-1]['close']
         if row not in rows:
             rows.append(row)
     add(financial, 'annual_financials'); add(financial.get('companyfacts_identity'), 'companyfacts_identity')
@@ -583,6 +590,10 @@ def build_online_research_context(financial, prices, peers=None, association=Non
         price = {k: price_history.get(k) for k in ('ticker', 'provider_symbol', 'source_url', 'observed_at',
             'payload_sha256', 'currency', 'last_price_date')}
         price.update(status='inspection_only', close=price_history['bars'][-1]['close'])
+        if ticker == 'SAP':
+            from src.sap_price_basis import PRICE_IDENTITY_FIELDS
+
+            price.update({key: price_history.get(key) for key in PRICE_IDENTITY_FIELDS})
     peer = _peer_context(peers, ticker=ticker, cik=cik, now=now, coverage=coverage, inventory=inventory, prices=price)
     notes_value, notes_summary, decision = _notes_context(notes, ticker=ticker, cik=cik, profile_key=profile_key, now=now)
     earnings = _validated_earnings_components(financial.get('earnings_components'), ticker=ticker,

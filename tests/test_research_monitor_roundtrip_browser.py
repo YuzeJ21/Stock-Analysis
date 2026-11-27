@@ -352,6 +352,10 @@ def test_workbench_sections_and_source_failures_remain_english_without_refetch(
                 else:
                     playwright.expect(cards).to_have_count(0)
                     playwright.expect(page.get_by_label("Loaded company observations", exact=True)).to_be_visible()
+                # A new section heading can be visible before the rest of the
+                # Streamlit frame finishes replacing its disclosure elements.
+                page.wait_for_function("""() => document.querySelector('[data-testid="stApp"]')
+                    ?.getAttribute('data-test-script-state') === 'notRunning'""")
                 for summary in page.locator(
                     ".st-key-company-section-body details > summary, .company-integrated-header details > summary"
                 ).all():

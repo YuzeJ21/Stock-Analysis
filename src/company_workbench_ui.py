@@ -82,6 +82,17 @@ def render_saved_company_replay(st, snapshot, *, baseline=None):
         return
     context = snapshot['context']
     ticker, profile, cik = (snapshot[key] for key in ('ticker', 'profile_key', 'sec_cik'))
+    peer_view = context.get('peer_read_through') or {}
+    scope = (peer_view.get('subject_source_context') or {}).get('selected_security_scope')
+    invalid_sap_peer = False
+    if ticker == 'SAP' and isinstance(scope, dict):
+        from src.sec_sap_snapshot_evidence import saved_sap_numeric_observation_indices
+
+        invalid_sap_peer = saved_sap_numeric_observation_indices(scope, context=context) is None
+        if invalid_sap_peer:
+            from src.online_peer_valuation import _empty
+
+            peer_view = _empty(ticker, 'selected_security_scope_unverified')
     selected = section_key(st.query_params.get('section', 'notes'))
     nav_key = f'company-section:{profile}:{ticker}:notes:{cik}'
     retain_saved_tool_inputs(st.session_state, profile, ticker, identity_scope=cik)
@@ -110,7 +121,8 @@ def render_saved_company_replay(st, snapshot, *, baseline=None):
             with st.expander('Saved online research · replay and compare', expanded=True):
                 st.info('Historical replay · ' + snapshot['observed_at'])
                 st.caption('Snapshot ' + snapshot['snapshot_id'][:12] + ' · SEC CIK ' + cik)
-                peer_view = context.get('peer_read_through') or {}
+                if invalid_sap_peer:
+                    st.warning('Saved SAP peer evidence could not be verified. Other filing fields keep their own evidence checks.')
                 if selected in {'overview', 'valuation'}:
                     if peer_view.get('status') in {None, 'not_requested'}:
                         st.caption('Peer valuation was not captured in this snapshot.')
@@ -120,6 +132,11 @@ def render_saved_company_replay(st, snapshot, *, baseline=None):
                     st.markdown(filing_status_html(context), unsafe_allow_html=True)
                     _business_trend(st, context)
                 if selected == 'valuation':
+                    from src.online_peer_valuation_ui import sap_price_basis_html
+
+                    basis = sap_price_basis_html(context)
+                    if basis:
+                        st.markdown(basis, unsafe_allow_html=True)
                     if context.get('scenario'):
                         with st.expander('Saved Scenario Lab result', expanded=False):
                             _scenario_result(st, context['scenario'])
@@ -138,6 +155,12 @@ def render_saved_company_replay(st, snapshot, *, baseline=None):
                                     unsafe_allow_html=True)
                     _forward_decision(st, context)
                 if selected == 'sources':
+                    if ticker == 'SAP':
+                        from src.online_peer_valuation_ui import saved_depositary_security_html
+
+                        security = saved_depositary_security_html(context)
+                        if security:
+                            st.markdown(security, unsafe_allow_html=True)
                     st.json(context.get('source_receipts') or [], expanded=False)
                 if selected == 'notes' or baseline is not None:
                     render_saved_online_snapshot(st, snapshot, baseline=baseline)
