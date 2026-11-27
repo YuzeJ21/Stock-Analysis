@@ -181,7 +181,7 @@ Run 10-20 independent workflow sessions with the target researcher persona throu
 
 Measure task completion, time to first useful answer, readiness comprehension, evidence tracing, authoring friction, trust, misuse risk, perceived performance, repeat-use intent, and the most important missing workflow. Use voluntary minimal-data capture, withdrawal handling, a deletion date, anonymized evidence, reproducible findings, severity decisions, and material-defect retests.
 
-The local invitation, scorecard, log schema, runbook, and closeout checklist are ready. This does not prove demand, retention, product-market fit, or financial validity.
+The local invitation, scorecard, log schema, runbook, and closeout checklist are ready. Use the [read-only feedback summary](docs/PILOT_FEEDBACK_SUMMARY.md) to separate operator-declared independent sessions by delivery mode and revision, preserve failed initial attempts, and distinguish intent from later completed visits. The [next-goal prompt](docs/goals/INDEPENDENT_RESEARCH_PILOT_GOAL.md) defines this local slice. Actual independent sessions remain open; this does not prove demand, retention, product-market fit, or financial validity.
 
 ### Priority 9 — Out-of-sample calibration cohort
 

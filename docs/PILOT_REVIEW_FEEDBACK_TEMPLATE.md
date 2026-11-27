@@ -25,6 +25,35 @@ Ask them to use one example ticker and answer these eight questions in their own
 
 Do not coach the answers. The purpose is to see whether the research workflow is self-explanatory in under three minutes.
 
+## Current Company Research Task
+
+For the self-service company workflow, use one supported company or the clearly
+labelled fictional public example. The public example does not test live source
+acquisition, private persistence or hosted access. Keep its results separate.
+
+1. Find and open the company. In the full local workspace, explicitly choose
+   **Research company**; record a source or environment failure as an attempted
+   task, rather than silently replacing it with a successful company.
+2. Explain one reported financial change and trace it to its dated source.
+3. Explain the peer comparison or the reason it is withheld.
+4. In Research Notes, preview and confirm a short research question. Save the
+   research context where that delivery mode supports persistence.
+5. Open Monitor and return to the exact saved evidence. Explain that the saved
+   observation is historical and how to request current observations explicitly.
+
+Use the existing scorecard below for this complete task. Keep a failed or
+incomplete attempt in the denominator. Leave unanswered scores blank; do not
+fill them from moderator guesses. Do not turn a fictional or unsupported step
+into a claim that the full workflow succeeded. An initial session records the
+first attempt; an actual later visit is a separate `return` session.
+
+Before the session, complete the five provenance columns described in
+[Feedback Summary](PILOT_FEEDBACK_SUMMARY.md). Keep the working log outside Git.
+Operator-declared independence is not independent attestation of a human review.
+Use one dedicated log for this current company task; optional and legacy tasks
+below need separate logs. When migrating an older log, add provenance only from
+recorded facts and retain unknown values as unknown.
+
 ## Optional Task-Based Pilot
 
 After the unassisted three-minute check, use the following tasks when a reviewer can spend another five to eight minutes. Observe first and explain the interface only after the task ends.

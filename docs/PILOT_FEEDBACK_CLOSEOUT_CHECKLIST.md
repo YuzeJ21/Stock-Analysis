@@ -38,6 +38,21 @@ authoring friction, trust, misuse risk, perceived performance, repeat-use
 intent, and the most important missing workflow. Missing fields remain missing;
 do not infer or backfill reviewer answers.
 
+### Run the read-only summary
+
+Complete the provenance columns, remove the template's example row, and run:
+
+```bash
+make pilot-feedback-summary INPUT=/tmp/stock-command-center-pilot-feedback.csv AS_OF=YYYY-MM-DD
+```
+
+Use an actual ISO cutoff date. Results remain separate by delivery mode and full
+Git revision. Invalid or blank scores remain missing within the initial-task
+denominator. Neither positive intent nor another delivery mode establishes
+repeat use. The command prints only aggregate counts, does not publish rows,
+and never changes or deletes the log. Follow the deletion obligations above
+separately. See [summary contract and limits](PILOT_FEEDBACK_SUMMARY.md).
+
 ## 3. Fix Only Reproducible Product Issues
 
 Fix issues in this order:
