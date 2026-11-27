@@ -52,3 +52,10 @@
   58m46s, before startup/render checks. Individual test timeouts are unchanged.
 - Independent final review found no material issue; tablet rail bounds were
   incorporated with stronger browser coverage. Current-head CI remains required.
+- CI at `ceeb765ccf0c73cceda6f36427272a47c9f06dd2` passed the strict journey
+  (109 tests, six mandatory cases) and 114 release regressions. The session-only
+  keyboard case still failed: the framework's Material chevron text was included
+  in the summary's textContent. Read only the summary's Markdown label, scoped
+  to company search; retain the exact focus/order assertions and add diagnostics.
+- Run keyboard cases first and fail the regression job immediately on an error;
+  this changes feedback order, not the full-suite requirements or pass criteria.

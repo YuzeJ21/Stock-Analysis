@@ -73,11 +73,11 @@ jobs:
       - name: Verify release regression cases
         run: >-
           python3 -B -m src.no_write_artifact_guard --project-root . --
-          python3 -m pytest -q -p no:cacheprovider --tb=short
+          python3 -m pytest -q -x -p no:cacheprovider --tb=short
+          tests/test_dashboard_render_smoke.py::test_research_desk_uses_natural_multi_tab_order_in_normal_and_forced_colors
           tests/test_research_accessibility_browser_gate.py
           tests/test_company_workbench_button_contrast.py
           tests/test_dashboard_render_smoke.py::test_company_workbench_opens_secondary_modules_only_after_explicit_action
-          tests/test_dashboard_render_smoke.py::test_research_desk_uses_natural_multi_tab_order_in_normal_and_forced_colors
           tests/test_online_company_workflow_browser.py::test_online_company_authors_notes_saves_real_sec_baseline_and_returns_without_refetch
           tests/test_research_monitor_roundtrip_browser.py::test_workbench_sections_and_source_failures_remain_english_without_refetch
 

@@ -826,6 +826,7 @@ def test_research_desk_uses_natural_multi_tab_order_in_normal_and_forced_colors(
                         page.locator("body").focus()
                         roles = []
                         outlines = []
+                        focused_nodes = []
                         for _ in range(20):
                             page.keyboard.press("Tab")
                             observed = page.evaluate(
@@ -836,13 +837,18 @@ def test_research_desk_uses_natural_multi_tab_order_in_normal_and_forced_colors(
                                   if (element.matches("a.public-skip-link")) role = "skip";
                                   else if (element.closest("nav[aria-label='Personal research workflow']")) role = "navigation";
                                   else if (element.matches("summary") && element.textContent.trim() === "Workspace details") role = "workspace-details";
-                                  else if (element.matches("summary") && element.textContent.trim() === "SEC access") role = "sec-access";
+                                  else if (element.matches("summary") &&
+                                    element.closest(".st-key-research-company-search") &&
+                                    element.querySelector('[data-testid="stMarkdownContainer"]')
+                                      ?.textContent.trim() === "SEC access") role = "sec-access";
                                   else if (element.matches("input[aria-label='Company name or ticker']")) role = "company-query";
                                   else if (element.matches(".st-key-research-company-search [data-testid='stFormSubmitButton'] button")) role = "primary-action";
                                   else if (element.matches("summary")) role = "advanced-detail";
                                   const style = getComputedStyle(element);
                                   return {
                                     role,
+                                    tag: element.tagName,
+                                    text: element.textContent.trim(),
                                     outlineStyle: style.outlineStyle,
                                     outlineWidth: Number.parseFloat(style.outlineWidth) || 0
                                   };
@@ -850,12 +856,14 @@ def test_research_desk_uses_natural_multi_tab_order_in_normal_and_forced_colors(
                                 """
                             )
                             roles.append(observed["role"])
+                            focused_nodes.append(observed)
                             outlines.append(
                                 (observed["outlineStyle"], observed["outlineWidth"])
                             )
                             if observed["role"] == "advanced-detail":
                                 break
 
+                        assert "primary-action" in roles, focused_nodes
                         action_index = roles.index("primary-action")
                         assert roles[0] == "skip"
                         assert action_index > 1
