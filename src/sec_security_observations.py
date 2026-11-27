@@ -98,10 +98,15 @@ def inspect_observations(raw,*,cik,metadata,url,contracts):
                 node=_location(root,c['path']);_need(_sha(_text(node))==c['text_sha256'])
                 o.update(location=c['path'],text_sha256=c['text_sha256'])
                 if c.get('extract') is not None:
-                    _need(c['extract']=='ads_common_ratio')
-                    matches=re.findall(r'each ADS represents [A-Za-z]+ \(([1-9][0-9]{0,3})\) common shares',_text(node),re.I)
-                    _need(len(matches)==1)
-                    o.update(value=int(matches[0]),unit='ordinary_shares/ADS')
+                    if c['extract']=='adr_ordinary_ratio':
+                        matches=re.findall(r'\beach ADR represents one ordinary share\b',_text(node),re.I)
+                        _need(len(matches)==1)
+                        o.update(value=1,unit='ordinary_shares/ADR')
+                    else:
+                        _need(c['extract']=='ads_common_ratio')
+                        matches=re.findall(r'each ADS represents [A-Za-z]+ \(([1-9][0-9]{0,3})\) common shares',_text(node),re.I)
+                        _need(len(matches)==1)
+                        o.update(value=int(matches[0]),unit='ordinary_shares/ADS')
             else:
                 _need(kind in {'numeric','note'} and c['fact_id'] in ids);node=ids[c['fact_id']]
                 _need(_qname(node.get('name'),ns)==(c['namespace_uri'],c['concept']) and node.get('contextRef')==c['context_id'])
@@ -110,6 +115,8 @@ def inspect_observations(raw,*,cik,metadata,url,contracts):
                 if kind=='numeric':
                     _need(node.tag==f'{{{IX}}}nonFraction' and node.get('unitRef')==c['unit_id'])
                     numeric,reason=_number(node,ns);_need(not reason and numeric is not None)
+                    if 'raw_text_sha256' in c:
+                        _need(_sha(numeric['raw_text'])==c['raw_text_sha256'])
                     o.update(numeric,unit=_unit(ids,ns,c),unit_source_ref=url+'#'+c['unit_id'],security_basis=c['security_basis'],currency_basis=c['currency_basis'])
                 else:
                     _need(node.tag==f'{{{IX}}}nonNumeric');chain=[node];seen={c['fact_id']}

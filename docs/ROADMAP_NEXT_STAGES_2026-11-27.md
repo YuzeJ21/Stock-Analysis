@@ -18,6 +18,12 @@ at `ba954c417c9f01ac04fec2219fed1f47cd841deb` reported **53 failures,
 mandatory desktop/phone cases and its supporting checks. A passing journey
 does not make a failing repository release acceptable.
 
+Follow-up verification closed that release reconciliation at `64ec19d0`:
+10,586 full-suite passes, three skips and all subsequent engineering steps,
+plus the strict journey and 115 release regressions. The next bounded slice is
+[SAP depositary source-basis evidence](SAP_DEPOSITARY_BASIS_RELEASE.md). Each
+changed revision needs its own CI; this baseline does not certify later edits.
+
 ## Implemented release repairs
 
 | Area | Finding and change |
