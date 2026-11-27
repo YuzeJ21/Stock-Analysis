@@ -80,7 +80,7 @@ def test_native_sap_basis_survives_save_monitor_reload_and_exact_return(tmp_path
                 expect(saved.get_by_text('ADS valuation remains withheld.', exact=True)).to_be_visible()
                 assert saved.locator('a[href*="otherlisted.txt"]').count() == 1
             page.get_by_role('button', name='Reopen exact saved research', exact=True).click()
-            page.wait_for_url('**research_snapshot=**')
+            page.wait_for_url(lambda url: parse_qs(urlsplit(url).query).get('research_snapshot') == [first])
             page.wait_for_function("""() => document.querySelector('[data-testid="stApp"]')
                 ?.getAttribute('data-test-script-state') === 'notRunning'""")
             saved = page.get_by_role('region', name='Saved SAP filing evidence', exact=True)

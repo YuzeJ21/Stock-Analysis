@@ -94,6 +94,10 @@ The first CI run passed all 56 source/snapshot cases, then exposed an unconditio
 test click that closed a disclosure already preserved open on return. The test
 now opens it only when closed, preserving the visibility, pinned-ID and transport
 assertions; its correction requires a new revision-specific browser result.
+A subsequent run exposed an overbroad URL wait matching Monitor's
+`return_research_snapshot` before navigation completed. The return now waits for
+the exact `research_snapshot` parameter and original ID, then verifies the Sources
+section and visible evidence. No product behavior or acceptance assertion changed.
 
 One minor wording item remains deferred: the singular ADR ratio still uses the
 existing plural unit label. Its integer value and machine unit are unchanged.
