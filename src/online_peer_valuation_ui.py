@@ -261,7 +261,7 @@ def saved_tsm_security_html(context):
             + _selected_security_html(scope) + '</section>')
 
 
-def sap_price_basis_html(context):
+def sap_price_basis_html(context, *, include_style=True):
     """One informational projection for current research and historical replay."""
     if context.get('ticker') != 'SAP':
         return ''
@@ -275,7 +275,7 @@ def sap_price_basis_html(context):
         + ' · ' + _link(basis['source_url'], 'Price source') + '</p>') if matched else (
         '<p>Required listing, price identity, receipt or chronology evidence is missing or contradictory. '
         'Older saved research does not acquire newly required source metadata.</p>')
-    return (STYLE + '<section class="online-peer-valuation" aria-label="SAP valuation basis review">'
+    return ((STYLE if include_style else '') + '<section class="online-peer-valuation" aria-label="SAP valuation basis review">'
         '<h3>' + headline + '</h3>' + evidence
         + '<p>FX observation remains unverified. USD/ADS EPS and P/E remain withheld. '
         'Vendor issuer identity, historical continuity, price adjustment basis and accounting comparability '
@@ -298,7 +298,7 @@ def saved_depositary_security_html(context):
             '<h3>Saved SAP filing evidence</h3><p>ADS valuation remains withheld.</p>'
             '<p>' + _link(listing['source_url'], 'Verified NYSE listing') + ' · directory dated '
             + _text(listing['source_created_at']) + ' · observed ' + _text(listing['observed_at']) + '</p>'
-            + sap_price_basis_html(context) + _selected_security_html(scope) + '</section>')
+            + sap_price_basis_html(context, include_style=False) + _selected_security_html(scope) + '</section>')
 
 
 def _selected_security_html(scope):

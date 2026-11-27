@@ -46,4 +46,4 @@ Interface: consumes Task 1 assessment; produces sap_price_basis_html(context).
   previous revision results. Existing full CI remains necessary for release.
 
 Execution: local assessment/UI complete; independent review material findings fixed
-in one RED/GREEN pass; 403 focused checks passed. Exact-head CI is still required.
+in one RED/GREEN pass; 404 focused checks passed. Exact-head CI is still required.

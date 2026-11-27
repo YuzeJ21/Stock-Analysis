@@ -64,7 +64,7 @@ access probes. USD/ADS EPS and P/E therefore remain withheld.
 ## Verification
 
 The new assessment, normalization and UI checks were observed RED then GREEN.
-Final focused integration: 403 passed, with one existing dateutil warning.
+Final focused integration: 404 passed, with one existing dateutil warning.
 An earlier local run encountered the known localhost PermissionError in
 `test_history_and_price_sections_survive_streamlit_markdown_on_desktop_and_phone`;
 that unchanged browser case needs the declared CI runtime. Desktop/phone browser
@@ -90,3 +90,10 @@ and 115 release-regression checks; its full suite was still running at review.
    returns; existing templates and automated journeys cannot supply these facts.
 
 Full executable prompt: [SAP price-basis goal](goals/SAP_PRICE_BASIS_GOAL.md).
+
+The first new-revision CI passed 95 source/snapshot/basis cases, then failed the
+Monitor heading visibility assertion. The combined disclosure embedded a second
+style block inside its section; standalone views had passed. The saved composition
+now supplies the shared styles once, with a regression for style placement. The
+404-case local integration passes; actual browser confirmation requires the new
+revision-specific run, with its original heading/receipt/transport assertions.

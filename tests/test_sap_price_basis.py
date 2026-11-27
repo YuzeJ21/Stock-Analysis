@@ -158,3 +158,19 @@ def test_missing_source_price_projection_keeps_price_basis_held():
     value = priced_research_context()
     value['source_receipts'][-1].pop('price_identity', None)
     assert assess(value)['status'] == 'withheld'
+
+
+def test_saved_basis_styles_precede_disclosure_markup():
+    from html.parser import HTMLParser
+    from src.online_peer_valuation_ui import saved_depositary_security_html
+    class Composition(HTMLParser):
+        section_depth = 0
+        nested_styles = 0
+        def handle_starttag(self, tag, attrs):
+            if tag == 'section': self.section_depth += 1
+            if tag == 'style' and self.section_depth: self.nested_styles += 1
+        def handle_endtag(self, tag):
+            if tag == 'section': self.section_depth -= 1
+    parser = Composition()
+    parser.feed(saved_depositary_security_html(priced_research_context()))
+    assert parser.nested_styles == 0
