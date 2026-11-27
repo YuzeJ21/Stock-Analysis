@@ -93,8 +93,10 @@ in the same pass. Twenty negative cases and an additional mixed-text source case
 were observed failing before corrections. Actual compositor tests now cover current
 and historical Valuation/Sources and absence of FX controls in Monitor. No second
 review is claimed. First CI passed 172 SAP/FX checks but the phone case exposed
-mobile-selector interaction and download-rerender timing; the harness now uses
-the explicit phone control and existing completed-render/DOM-stability waits.
+mobile-selector interaction and download-rerender timing. A later run also showed
+the synthetic dropdown's option being detached while changing saved sections.
+The harness now routes using radio controls, as the actual company section
+navigation does, plus existing completed-render/DOM-stability waits.
 No thresholds, route checks or no-refetch assertions were removed. Fresh browser
 and full CI are required for this correction; no new full-suite pass is asserted.
 

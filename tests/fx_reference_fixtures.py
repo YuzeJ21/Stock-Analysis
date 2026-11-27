@@ -34,9 +34,9 @@ from src.company_workbench_ui import render_saved_company_replay
 from src.online_research_context_store import save_research_context
 install_provider_guard(Path({str(root)!r}))
 st.set_page_config(layout="wide")
-view = st.selectbox('View', ['valuation', 'sources', 'saved valuation', 'saved sources', 'monitor'])
+view = st.radio('View', ['valuation', 'sources', 'saved valuation', 'saved sources', 'monitor'])
 value = priced_research_context()
-value['profile_key'] = st.selectbox('Profile', ['one', 'two'])
+value['profile_key'] = st.radio('Profile', ['one', 'two'])
 value['notes'] = {{'thesis':'private-thesis-unique'}}
 def fetch(url):
     assert url == URL

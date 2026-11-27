@@ -26,18 +26,10 @@ def test_fx_action_download_and_profile_scope(tmp_path, width, height):
                 _wait_for_dom_stability(page, timeout_seconds=8, stable_checks=2)
             def select(label, value):
                 settle()
-                selector = page.get_by_test_id('stSelectbox').filter(has_text=label)
-                box = selector.get_by_role('combobox', name=label, exact=True)
-                if width < 640:
-                    opener = selector.get_by_role('button', name='Open', exact=True)
-                    opener.scroll_into_view_if_needed()
-                    settle()
-                    opener.press('Space')
-                else:
-                    box.press('ArrowDown')
-                expect(box).to_have_attribute('aria-expanded', 'true')
-                page.get_by_role('option', name=value, exact=True).click()
-                expect(box).to_have_value(value)
+                group = page.get_by_role('radiogroup', name=label, exact=True)
+                radio = group.get_by_role('radio', name=value, exact=True)
+                group.locator('label').filter(has=radio).click()
+                expect(radio).to_be_checked()
                 settle()
             page.on('pageerror', lambda error:errors.append(str(error)))
             def route(request_route):

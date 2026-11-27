@@ -92,11 +92,11 @@ def test_actual_current_and_saved_sections_reuse_review_and_monitor_has_no_fx_ac
     next(button for button in app.button if button.label=='Fetch FX reference').click().run()
     assert not app.exception
     for view in ('sources','saved valuation','saved sources'):
-        next(box for box in app.selectbox if box.label=='View').select(view).run()
+        next(box for box in app.radio if box.label=='View').set_value(view).run()
         assert not app.exception
         assert any('7.625000 USD/ordinary share' in row.value for row in app.markdown)
         assert (tmp_path/'calls.txt').read_text().splitlines()==['fetch']
-    next(box for box in app.selectbox if box.label=='View').select('monitor').run()
+    next(box for box in app.radio if box.label=='View').set_value('monitor').run()
     assert not app.exception
     assert not any(button.label=='Fetch FX reference' for button in app.button)
     assert not any('7.625000 USD/ordinary share' in row.value for row in app.markdown)
