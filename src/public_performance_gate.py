@@ -322,7 +322,19 @@ def demo_snapshot_identity(base_dir: Path | str | None = None) -> dict[str, obje
     }
 
 
-def find_chrome_executable(candidates: Iterable[Path] = DEFAULT_CHROME_CANDIDATES) -> Path | None:
+RESEARCH_BROWSER_EXECUTABLE_ENV = 'STOCK_RESEARCH_BROWSER_EXECUTABLE'
+
+
+def find_chrome_executable(candidates: Iterable[Path] | None = None) -> Path | None:
+    if candidates is None:
+        override = os.environ.get(RESEARCH_BROWSER_EXECUTABLE_ENV)
+        if override:
+            try:
+                path = Path(override)
+                return path if path.is_absolute() and path.is_file() and os.access(path, os.X_OK) else None
+            except (OSError, ValueError):
+                return None
+        candidates = DEFAULT_CHROME_CANDIDATES
     for candidate in candidates:
         path = Path(candidate)
         if path.is_file() and os.access(path, os.X_OK):
