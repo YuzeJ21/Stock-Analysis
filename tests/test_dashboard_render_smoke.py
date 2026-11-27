@@ -499,7 +499,7 @@ def test_company_workbench_opens_secondary_modules_only_after_explicit_action():
     app.run()
     assert not app.exception
     assert [button.label for button in app.button if button.key != "research-nav-monitor"]==[
-        "Research company","Financials only","Prices only",
+        "Research company","Financials only","Refresh exact SEC quarter","Prices only",
     ]
     assert not any(e.label=="HTML Research Brief" for e in app.expander)
     _workbench_section(app,"valuation")
@@ -746,7 +746,8 @@ def test_focused_skip_link_is_a_visible_horizontal_banner_in_public_and_research
                 browser.close()
 
 
-def test_research_desk_uses_natural_multi_tab_order_in_normal_and_forced_colors():
+@pytest.mark.parametrize('configured_sec_access', [False, True], ids=['session-identification', 'configured-identification'])
+def test_research_desk_uses_natural_multi_tab_order_in_normal_and_forced_colors(monkeypatch, configured_sec_access):
     import pytest
 
     from src.public_performance_gate import (
@@ -755,6 +756,11 @@ def test_research_desk_uses_natural_multi_tab_order_in_normal_and_forced_colors(
         _wait_for_visible_text,
         find_chrome_executable,
     )
+
+    if configured_sec_access:
+        monkeypatch.setenv('SEC_USER_AGENT', 'Synthetic keyboard review contact@example.com')
+    else:
+        monkeypatch.delenv('SEC_USER_AGENT', raising=False)
 
     chrome = find_chrome_executable()
     if chrome is None:
@@ -830,6 +836,7 @@ def test_research_desk_uses_natural_multi_tab_order_in_normal_and_forced_colors(
                                   if (element.matches("a.public-skip-link")) role = "skip";
                                   else if (element.closest("nav[aria-label='Personal research workflow']")) role = "navigation";
                                   else if (element.matches("summary") && element.textContent.trim() === "Workspace details") role = "workspace-details";
+                                  else if (element.matches("summary") && element.textContent.trim() === "SEC access") role = "sec-access";
                                   else if (element.matches("input[aria-label='Company name or ticker']")) role = "company-query";
                                   else if (element.matches(".st-key-research-company-search [data-testid='stFormSubmitButton'] button")) role = "primary-action";
                                   else if (element.matches("summary")) role = "advanced-detail";
@@ -852,7 +859,11 @@ def test_research_desk_uses_natural_multi_tab_order_in_normal_and_forced_colors(
                         action_index = roles.index("primary-action")
                         assert roles[0] == "skip"
                         assert action_index > 1
-                        assert set(roles[1:action_index]) == {"navigation", "workspace-details", "company-query"}
+                        expected_before_action = {"navigation", "workspace-details", "company-query"}
+                        if not configured_sec_access:
+                            expected_before_action.add('sec-access')
+                            assert roles.index('sec-access') < roles.index('company-query')
+                        assert set(roles[1:action_index]) == expected_before_action
                         assert roles.index("workspace-details") < roles.index("company-query") < action_index
                         assert roles[-1] == "advanced-detail"
                         assert all(style not in {"", "none"} for style, _ in outlines)

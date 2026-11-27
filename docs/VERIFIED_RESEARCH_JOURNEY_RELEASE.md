@@ -86,6 +86,5 @@ live source results were fabricated. The implementation reused the existing
 isolated checkout under the user's instruction to execute the goal; the original
 checkout remains untouched.
 
-[Executable goal prompt](goals/VERIFIED_RESEARCH_JOURNEY_GOAL.md) ·
 [Self-service method](SELF_SERVICE_COMPANY_RESEARCH.md) ·
 [Private-pilot boundaries](PILOT_READINESS_AUDIT.md)

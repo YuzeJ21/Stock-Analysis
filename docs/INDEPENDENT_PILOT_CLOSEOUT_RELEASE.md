@@ -20,8 +20,8 @@ initial chronology retains one denominator with unknown scores. No participant
 identifiers, free text, input paths or raw records are printed. Inputs and source
 eligibility remain unchanged.
 
-The [next-goal prompt](goals/INDEPENDENT_RESEARCH_PILOT_GOAL.md),
-[operator guide](PILOT_FEEDBACK_SUMMARY.md) and current reviewer task define the
+The [operator guide](PILOT_FEEDBACK_SUMMARY.md) and
+[current reviewer task](PILOT_REVIEW_FEEDBACK_TEMPLATE.md#current-company-research-task) define the
 scope. The guide initializes new logs in fresh private directories and explains
 legacy migration without inventing provenance. Different exercises use separate
 logs, even when revision and delivery labels match.

@@ -1,4 +1,5 @@
 import pytest
+from copy import deepcopy
 
 from test_sec_quarterly_history import _build, _wrapped
 from test_online_company_identity import _inputs
@@ -119,15 +120,54 @@ def test_explicit_sec_action_can_complete_identity_after_prices_were_loaded_firs
     class Box:
         def __enter__(self): return self
         def __exit__(self,*a): return False
-    i,prices,p=_inputs(); state={FINANCIAL_KEY:{'ticker':'FICT','view':{'companyfacts_identity':i}},PRICE_KEY:prices}
+    monkeypatch.setenv('SEC_USER_AGENT','Synthetic research contact@example.invalid')
+    i,prices,_=_inputs(); state={PRICE_KEY:deepcopy(prices)}
     calls=[]; rendered=[]
-    def fetch(url,agent): calls.append(url); return _profile_fetch()(url,agent)
+    def fetch(url,agent): calls.append((url,agent)); return _profile_fetch()(url,agent)
     monkeypatch.setattr(dashboard,'st',SimpleNamespace(session_state=state,container=lambda **kw:Box(),button=lambda *a,**kw:False,markdown=lambda value,**kw:rendered.append(value)))
     monkeypatch.setattr(dashboard,'get_price_filing_association',lambda *a,**kw:get_price_filing_association(*a,**kw,fetcher=fetch,observed_at=OBSERVED))
+    monkeypatch.setattr('src.online_company_prices._raw_fetch',lambda *a:pytest.fail('SEC refresh must reuse the cached prices'))
+    dashboard.render_company_online_prices('FICT')
+    assert calls==[] and 'Listing association matched' not in ''.join(rendered)
+    assert 'aria-label="Daily price history"' in ''.join(rendered)
+    state[FINANCIAL_KEY]={'ticker':'FICT','view':{'companyfacts_identity':i}}
+    dashboard.render_company_online_prices('FICT')
+    assert calls==[] and 'Listing association matched' not in ''.join(rendered)
     dashboard.render_company_online_prices('FICT',sec_refresh_requested=True)
-    assert len(calls)==1 and 'Listing association matched' in ''.join(rendered)
+    assert calls==[('https://data.sec.gov/submissions/CIK0000001234.json','Synthetic research contact@example.invalid')]
+    assert 'Listing association matched' in ''.join(rendered)
     dashboard.render_company_online_prices('FICT',sec_refresh_requested=False)
     assert len(calls)==1
+    assert state[PRICE_KEY]==prices
+
+
+def test_explicit_sec_action_without_identification_preserves_prices_and_withholds_association(monkeypatch):
+    from types import SimpleNamespace
+    from src import dashboard
+    from src.company_sec_online_preview import SESSION_KEY as FINANCIAL_KEY
+    from src.online_company_prices import SESSION_KEY as PRICE_KEY
+    from src.online_company_identity import SESSION_KEY as PROFILE_KEY, get_price_filing_association
+    from test_online_company_prices import OBSERVED
+    class Box:
+        def __enter__(self): return self
+        def __exit__(self,*a): return False
+    monkeypatch.delenv('SEC_USER_AGENT',raising=False)
+    identity,prices,_=_inputs()
+    state={FINANCIAL_KEY:{'ticker':'FICT','view':{'companyfacts_identity':identity}},PRICE_KEY:deepcopy(prices)}
+    rendered=[]
+    def forbidden_fetch(*args):
+        pytest.fail('SEC identification is required before transport')
+    monkeypatch.setattr(dashboard,'st',SimpleNamespace(session_state=state,container=lambda **kw:Box(),button=lambda *a,**kw:False,markdown=lambda value,**kw:rendered.append(value)))
+    monkeypatch.setattr(dashboard,'get_price_filing_association',lambda *a,**kw:get_price_filing_association(*a,**kw,fetcher=forbidden_fetch,observed_at=OBSERVED))
+    monkeypatch.setattr('src.online_company_prices._raw_fetch',forbidden_fetch)
+
+    dashboard.render_company_online_prices('FICT',sec_refresh_requested=True)
+    dashboard.render_company_online_prices('FICT')
+
+    assert 'Listing association matched' not in ''.join(rendered)
+    assert 'aria-label="Daily price history"' in ''.join(rendered)
+    assert state[PROFILE_KEY]['profile']['reason']=='sec_user_agent_required'
+    assert state[PRICE_KEY]==prices
 
 
 @pytest.mark.parametrize('concept,label', [

@@ -16,8 +16,6 @@ An evidence-first equity research workbench built with Python and Streamlit. Rev
 <details>
 <summary>Real company example: AMD SEC filing case</summary>
 
-[Open the real AMD case](https://yuzej21.github.io/Stock-Analysis/amd.html) · [Download the English screenshot](docs/assets/amd-sec-filing-case.jpg)
-
 ![Real AMD SEC filing research example](docs/assets/amd-sec-filing-case.jpg)
 
 *Quarter ended September 26, 2026; filed November 4, 2026. This is a dated filing case, with public peer valuation withheld pending approved same-day price evidence. Its advanced-tool links open the separately labelled fictional workflow.*
@@ -120,8 +118,8 @@ The separate controlled Public workspace follows Home → Stock Selector → Sin
 make demo                  # print the local visitor walkthrough
 make demo-dashboard        # start the bundled demo profile
 # Open http://localhost:8501/?mode=public
-
-python -m pip install -e '.[dev]'
+python -m pip install -e '.[dev,workspace]'
+python -m playwright install --with-deps chromium
 make test                  # run the automated suite
 make dashboard-smoke       # check dashboard startup
 ```
@@ -149,15 +147,13 @@ The supported workflow is research-only. Investment advice, broker account actio
 | **Next** | Review remaining listing and security-identity gaps, qualify more filing comparisons for Monitor, and rerun the industry study to measure research coverage. |
 | **Later gates** | Hosted full-workspace operation, verification of authentication and private workspaces in the intended host, operated data rights, hosted audit continuity and retention, provider reliability, independent user evidence, and commercial validation. The operated pilot remains on hold. [Private pilot audit](docs/PILOT_READINESS_AUDIT.md#workbench-and-monitor-private-pilot) |
 
-Independent workflow evaluation now has a [read-only feedback summary](docs/PILOT_FEEDBACK_SUMMARY.md): `make pilot-feedback-summary INPUT=/tmp/pilot-feedback.csv AS_OF=YYYY-MM-DD`. It separates tested revisions and delivery modes, keeps failed initial attempts in the denominator, and distinguishes stated intent from later completed visits. The command summarizes operator-declared sessions; it does not verify participants or approve a pilot. [Next-goal prompt](docs/goals/INDEPENDENT_RESEARCH_PILOT_GOAL.md).
+The [read-only feedback summary](docs/PILOT_FEEDBACK_SUMMARY.md) separates tested revisions and delivery modes, retains failed initial attempts, and distinguishes stated intent from completed return visits. It summarizes operator-declared sessions; it does not verify participants or approve a pilot.
 
-For a release candidate, run `make research-journey-check` using Python 3.11 or newer (CI uses 3.12), the declared development and workspace dependencies, and installed Playwright Chromium. This runs the existing complete desktop/phone research, exact Monitor return and outage-recovery cases under the protected-artifact guard. All collected cases must pass setup, call and teardown, including the six mandatory browser cases; collection skips, deselection and expected-failure overrides cannot pass. Inherited `PYTEST_ADDOPTS` and optimized Python block the command. It selects the same installed Chromium for preflight and actual test launches. CI reports this journey separately from the full engineering suite. Both results need review before merging; they do not establish actual user, hosted-operation or source-permission evidence. [Goal prompt](docs/goals/VERIFIED_RESEARCH_JOURNEY_GOAL.md).
+For a release candidate, run `make research-journey-check` with Python 3.11 or newer (CI uses 3.12), the declared development/workspace dependencies, and Playwright Chromium. All collected desktop/phone research, exact Monitor return and outage-recovery cases must pass under the protected-artifact guard; skips, deselection and expected failures cannot pass. CI reports this separately from the full engineering suite. Review both results before merging; neither establishes actual user, hosted-operation or source-permission evidence. [Research journey verification](docs/VERIFIED_RESEARCH_JOURNEY_RELEASE.md)
 
 An opt-in protected mode connects workspace authorization to Workbench, Monitor and their private stores. Server-configured memberships govern reads, editor writes and revoked actions. A separate durable local audit log records privacy-minimized access decisions and denials; protected access stops if it cannot record the decision. Local automated checks use synthetic identities. A real identity provider, hosted audit continuity, retention and hosting still require configuration and verification. [Workspace authorization](docs/WORKSPACE_AUTHORIZATION.md)
 
-The [Roadmap](ROADMAP.md) is the active priority list. [Completed Milestones](docs/COMPLETED_MILESTONES.md) records shipped work and the evidence required to revisit parked features. Use `make next-stage` for the product direction and separate saved-readiness checks.
-
-For current selected-profile readiness, use `make readiness-ops-center`. A saved `make status-check TOP_N=5` snapshot can be stale.
+The [Roadmap](ROADMAP.md) lists active priorities; [Completed Milestones](docs/COMPLETED_MILESTONES.md) records shipped work. Use `make next-stage` for product direction and `make readiness-ops-center` for current selected-profile readiness. A saved `make status-check TOP_N=5` snapshot can be stale.
 
 ## Documentation
 
