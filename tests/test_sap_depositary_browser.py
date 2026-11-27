@@ -73,7 +73,8 @@ def test_native_sap_basis_survives_save_monitor_reload_and_exact_return(tmp_path
                 expect(page.get_by_text('Snapshot ' + first[:12], exact=True)).to_be_visible()
                 assert parse_qs(urlsplit(page.url).query)['return_research_snapshot'] == [first]
                 summary = saved.locator('summary', has_text='Selected security and related issuer symbols')
-                summary.click()
+                if summary.locator('..').get_attribute('open') is None:
+                    summary.click()
                 expect(saved.locator('p').filter(has_text='6.10 EUR/common share')).to_be_visible()
                 expect(saved.locator('p').filter(has_text='1 ordinary shares/ADR')).to_be_visible()
                 expect(saved.get_by_text('ADS valuation remains withheld.', exact=True)).to_be_visible()
@@ -84,7 +85,9 @@ def test_native_sap_basis_survives_save_monitor_reload_and_exact_return(tmp_path
                 ?.getAttribute('data-test-script-state') === 'notRunning'""")
             saved = page.get_by_role('region', name='Saved SAP filing evidence', exact=True)
             expect(saved).to_be_visible()
-            saved.locator('summary', has_text='Selected security and related issuer symbols').click()
+            summary = saved.locator('summary', has_text='Selected security and related issuer symbols')
+            if summary.locator('..').get_attribute('open') is None:
+                summary.click()
             expect(saved.locator('p').filter(has_text='6.10 EUR/common share')).to_be_visible()
             assert parse_qs(urlsplit(page.url).query)['research_snapshot'] == [first]
             assert parse_qs(urlsplit(page.url).query)['section'] == ['sources']

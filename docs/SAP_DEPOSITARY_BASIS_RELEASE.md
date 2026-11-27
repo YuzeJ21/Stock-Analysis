@@ -90,6 +90,10 @@ The browser regression exercises desktop and phone: show native basis, save,
 open Monitor, reload, return to the exact saved context, and retain the hold.
 Missing Chromium fails the check. The declared-runtime CI runs this slice before
 the broader regression matrix and retains the complete engineering workflow.
+The first CI run passed all 56 source/snapshot cases, then exposed an unconditional
+test click that closed a disclosure already preserved open on return. The test
+now opens it only when closed, preserving the visibility, pinned-ID and transport
+assertions; its correction requires a new revision-specific browser result.
 
 One minor wording item remains deferred: the singular ADR ratio still uses the
 existing plural unit label. Its integer value and machine unit are unchanged.
