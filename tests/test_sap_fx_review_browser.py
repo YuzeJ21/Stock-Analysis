@@ -20,6 +20,18 @@ def test_fx_action_download_and_profile_scope(tmp_path, width, height):
         with sync_playwright() as runtime:
             browser = runtime.chromium.launch(executable_path=str(browser_path), headless=True)
             page = browser.new_page(viewport={'width':width,'height':height}, accept_downloads=True)
+            def select(label, value):
+                selector = page.get_by_test_id('stSelectbox').filter(has_text=label)
+                box = selector.get_by_role('combobox', name=label, exact=True)
+                if width < 640:
+                    opener = selector.get_by_role('button', name='Open', exact=True)
+                    opener.scroll_into_view_if_needed()
+                    opener.press('Space')
+                else:
+                    box.press('ArrowDown')
+                expect(box).to_have_attribute('aria-expanded', 'true')
+                page.get_by_role('option', name=value, exact=True).click()
+                expect(box).to_have_value(value)
             page.on('pageerror', lambda error:errors.append(str(error)))
             def route(request_route):
                 if urlsplit(request_route.request.url).hostname in {'localhost','127.0.0.1','::1'}:
@@ -51,29 +63,25 @@ def test_fx_action_download_and_profile_scope(tmp_path, width, height):
                 assert result['valuation_eligible'] is False and result['point_in_time_eligible'] is False
                 assert b'private-thesis-unique' not in archive.read('review.json')
             for destination in ('sources','saved valuation','saved sources'):
-                page.get_by_role('combobox', name='View', exact=True).click()
-                page.get_by_role('option', name=destination, exact=True).click()
+                select('View', destination)
                 summary=page.locator('summary').filter(has_text='Currency conversion review')
                 expect(summary).to_be_visible()
                 if summary.locator('..').get_attribute('open') is None: summary.click()
                 expect(review).to_be_visible()
                 expect(review).to_contain_text('7.625000 USD/ordinary share')
                 assert (tmp_path/'calls.txt').read_text().splitlines() == ['fetch']
-            page.get_by_role('combobox', name='View', exact=True).click()
-            page.get_by_role('option', name='monitor', exact=True).click()
+            select('View', 'monitor')
             expect(page.get_by_role('heading',name='Saved online research updates',exact=True)).to_be_visible()
             expect(page.get_by_role('button',name='Fetch FX reference',exact=True)).to_have_count(0)
             expect(review).to_have_count(0)
             assert (tmp_path/'calls.txt').read_text().splitlines() == ['fetch']
-            page.get_by_role('combobox', name='View', exact=True).click()
-            page.get_by_role('option', name='sources', exact=True).click()
+            select('View', 'sources')
             summary=page.locator('summary').filter(has_text='Currency conversion review')
             expect(summary).to_be_visible()
             if summary.locator('..').get_attribute('open') is None: summary.click()
             expect(review).to_be_visible()
             expect(review).to_contain_text('7.625000 USD/ordinary share')
-            page.get_by_role('combobox', name='Profile', exact=True).click()
-            page.get_by_role('option', name='two', exact=True).click()
+            select('Profile', 'two')
             expect(review).to_have_count(0)
             assert (tmp_path/'calls.txt').read_text().splitlines() == ['fetch']
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1')
