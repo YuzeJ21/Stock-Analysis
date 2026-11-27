@@ -62,8 +62,23 @@ workflow captures the retained price date November 23, 2026, into disposable run
 storage and preserves only the three named public source files for 30 days.
 Unavailable acquisition exits nonzero and emits an explicit withheld receipt,
 without fabricated XML or values. Subsequent fixes should reuse captured bytes.
-Inspect the acquisition receipt/artifact before asserting actual source success;
-a unit fixture or successful engineering job is not captured-source evidence.
+PR126's [one-shot capture](https://github.com/YuzeJ21/Stock-Analysis/actions/runs/46076941699)
+succeeded at 2026-11-27T22:29:37.486966Z. Its exact November 23 reference is
+**1.0939 USD per EUR**. The 70,573 original XML bytes have SHA-256
+`bcca89ff638aebb161b8da6158e7095891436c1ac74e74070529d4810b29c0d6`.
+The [retained-byte inspection](https://github.com/YuzeJ21/Stock-Analysis/actions/runs/46077581899)
+reused that immutable public artifact, matched the receipt and parsed the raw XML;
+it made no new ECB request. This PR's subsequent fixes inspect that same artifact,
+with public-artifact read access limited to the separate source workflow.
+
+The actual retained SAP review at 2026-11-27T22:36:41.141615Z reproduced filed
+EUR 6.10 × 1.0939 = **USD 6.672790 per ordinary share**. Original context time
+remains 2026-11-24T05:16:08+00:00, with its November 23 price date. The original
+session SHA-256 remains `a76aabe08c0f0ac3f1aaf1e0de863acea85184a2bcb9e2396a0a19fa9bd3ba4e`.
+The offline reconstruction made zero provider requests and changed no original
+bytes. Later retrieval is explicit; valuation, point-in-time and commercial
+eligibility remain false. The separate minimal package contains the original
+XML, receipt/transport metadata, attribution and derived review only.
 
 The parser, Decimal review, explicit UI/cache and export checks were observed RED
 then GREEN. Final focused integration passed 503 checks with one existing dateutil
@@ -77,18 +92,24 @@ pass. A response-completeness concern was treated as material provenance and fix
 in the same pass. Twenty negative cases and an additional mixed-text source case
 were observed failing before corrections. Actual compositor tests now cover current
 and historical Valuation/Sources and absence of FX controls in Monitor. No second
-review is claimed. Exact-head acquisition and browser/full CI still require their
-current-revision results; no new full-suite pass is asserted here.
+review is claimed. First CI passed 172 SAP/FX checks but the phone case exposed
+mobile-selector interaction and download-rerender timing; the harness now uses
+the explicit phone control and existing completed-render/DOM-stability waits.
+No thresholds, route checks or no-refetch assertions were removed. Fresh browser
+and full CI are required for this correction; no new full-suite pass is asserted.
 
 The pending PR125 full run completed with 10,682 passes, three skips and two
 authentication-fixture failures: collection-time future nbf/iat values aged into
 the past during the 67-minute run. A two-hour-delay reproduction failed before
 the fix and passed afterward. PR125 head 43897487 sets those future values at
-execution; production authorization remains unchanged and fresh CI is required.
+execution; production authorization remains unchanged. Its fresh source/browser
+gate passed 98 cases and the strict journey passed, but release regressions exposed
+a refresh-popover geometry assertion (109 passed before stopping). The later
+stage retains full diagnostic geometry output; fresh CI must resolve this gate.
 
 ## Following stages
 
-1. Preserve and inspect actual acquisition evidence, then review any remaining
+1. Complete current-revision release verification, then review remaining
    security/continuity/accounting requirements before proposing valuation use.
 2. Operate a private pilot on a selected actual host, with identity provider,
    named owner, private storage/audit, retention and demonstrated recovery.

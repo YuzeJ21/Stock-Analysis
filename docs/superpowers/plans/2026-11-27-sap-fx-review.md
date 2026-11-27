@@ -58,7 +58,7 @@ Consumes Tasks 1/2; produces render_sap_fx_review(st,context,*,fetcher=None,cloc
 - [x] Run focused integration, wording/range/whitespace/protected manifest checks.
 - [x] Obtain independent final review and fix material findings with RED/GREEN in one pass.
 - [ ] Sync fixed committed tree as a draft PR; inspect separate acquisition receipt/artifact and current-head browser/journey/full CI.
-- [ ] Reuse captured source bytes to review actual retained SAP context at its original dates, reporting later retrieval honestly; record remaining external gates.
+- [x] Reuse captured source bytes to review actual retained SAP context at its original dates, reporting later retrieval honestly; record remaining external gates.
 
 Local execution and one material-review fix pass completed; 503 focused checks pass.
-Actual acquisition and current-head browser/full CI remain required.
+Actual one-shot capture and retained-byte review passed. Current-head browser/full CI remain required.

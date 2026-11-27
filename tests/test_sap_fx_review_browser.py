@@ -6,7 +6,7 @@ from zipfile import ZipFile
 import pytest
 
 from fx_reference_fixtures import write_fx_review_app, XML
-from src.public_performance_gate import _local_demo_server, find_chrome_executable
+from src.public_performance_gate import _local_demo_server, _wait_for_dom_stability, find_chrome_executable
 
 
 @pytest.mark.parametrize('width,height', [(1280,900),(390,844)], ids=['desktop','phone'])
@@ -20,18 +20,25 @@ def test_fx_action_download_and_profile_scope(tmp_path, width, height):
         with sync_playwright() as runtime:
             browser = runtime.chromium.launch(executable_path=str(browser_path), headless=True)
             page = browser.new_page(viewport={'width':width,'height':height}, accept_downloads=True)
+            def settle():
+                page.wait_for_function('''() => document.querySelector('[data-testid="stApp"]')
+                    ?.getAttribute('data-test-script-state') === 'notRunning' ''', timeout=20_000)
+                _wait_for_dom_stability(page, timeout_seconds=8, stable_checks=2)
             def select(label, value):
+                settle()
                 selector = page.get_by_test_id('stSelectbox').filter(has_text=label)
                 box = selector.get_by_role('combobox', name=label, exact=True)
                 if width < 640:
                     opener = selector.get_by_role('button', name='Open', exact=True)
                     opener.scroll_into_view_if_needed()
+                    settle()
                     opener.press('Space')
                 else:
                     box.press('ArrowDown')
                 expect(box).to_have_attribute('aria-expanded', 'true')
                 page.get_by_role('option', name=value, exact=True).click()
                 expect(box).to_have_value(value)
+                settle()
             page.on('pageerror', lambda error:errors.append(str(error)))
             def route(request_route):
                 if urlsplit(request_route.request.url).hostname in {'localhost','127.0.0.1','::1'}:

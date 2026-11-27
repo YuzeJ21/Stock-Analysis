@@ -1,5 +1,6 @@
 """Real framework-wrapper and dark-appearance regression for readable research actions."""
 from pathlib import Path
+import json
 import re
 
 
@@ -77,4 +78,4 @@ def test_actual_company_refresh_popover_has_readable_unclipped_labels_at_phone_w
      assert page.get_by_role('button',name='Prices only',exact=True).is_visible()
      page.close()
    browser.close()
- assert not failures,failures
+ assert not failures,json.dumps(failures,sort_keys=True)
