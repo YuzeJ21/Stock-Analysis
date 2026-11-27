@@ -424,6 +424,9 @@ def render_online_tools(st, section, bundle):
         basis = sap_price_basis_html(context)
         if basis:
             st.markdown(basis, unsafe_allow_html=True)
+        from src.sap_fx_review_ui import render_sap_fx_review
+
+        render_sap_fx_review(st, context)
     if section == 'financials':
         trend = context['business_trend']
         if not trend.get('bank_annual') or trend['metrics']:

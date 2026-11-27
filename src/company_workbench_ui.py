@@ -137,6 +137,9 @@ def render_saved_company_replay(st, snapshot, *, baseline=None):
                     basis = sap_price_basis_html(context)
                     if basis:
                         st.markdown(basis, unsafe_allow_html=True)
+                    from src.sap_fx_review_ui import render_sap_fx_review
+
+                    render_sap_fx_review(st, context)
                     if context.get('scenario'):
                         with st.expander('Saved Scenario Lab result', expanded=False):
                             _scenario_result(st, context['scenario'])
@@ -161,6 +164,9 @@ def render_saved_company_replay(st, snapshot, *, baseline=None):
                         security = saved_depositary_security_html(context)
                         if security:
                             st.markdown(security, unsafe_allow_html=True)
+                        from src.sap_fx_review_ui import render_sap_fx_review
+
+                        render_sap_fx_review(st, context)
                     st.json(context.get('source_receipts') or [], expanded=False)
                 if selected == 'notes' or baseline is not None:
                     render_saved_online_snapshot(st, snapshot, baseline=baseline)

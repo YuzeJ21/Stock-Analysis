@@ -1,0 +1,49 @@
+name: ECB Reference Capture
+
+on:
+  pull_request:
+    types: [opened]
+    branches: [main]
+    paths:
+      - src/ecb_fx_reference.py
+      - .github/workflows/ecb-reference-capture.yml
+
+permissions:
+  contents: read
+
+jobs:
+  capture-public-reference:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Check out exact reviewed source revision
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install existing source-rights parser dependency
+        run: python3 -m pip install 'PyYAML>=6.0'
+      - name: Verify minimal capture CLI imports
+        run: python3 -B -m src.ecb_fx_reference --help
+      - name: Capture one exact public ECB reference
+        run: >-
+          python3 -B -m src.ecb_fx_reference capture
+          --reference-date 2026-11-23
+          --output-dir "$RUNNER_TEMP/ecb-reference"
+      - name: Preserve only public source evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ecb-usd-eur-reference
+          path: |
+            ${{ runner.temp }}/ecb-reference/fx.xml
+            ${{ runner.temp }}/ecb-reference/receipt.json
+            ${{ runner.temp }}/ecb-reference/SOURCE.txt
+          if-no-files-found: error
+          retention-days: 30

@@ -77,6 +77,10 @@ jobs:
           tests/test_sap_depositary_evidence.py
           tests/test_sap_depositary_snapshot.py
           tests/test_sap_price_basis.py
+          tests/test_ecb_fx_reference.py
+          tests/test_sap_fx_review.py
+          tests/test_sap_fx_review_ui.py
+          tests/test_sap_fx_review_browser.py
           tests/test_sap_depositary_browser.py
       - name: Verify release regression cases
         run: >-

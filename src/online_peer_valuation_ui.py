@@ -277,7 +277,8 @@ def sap_price_basis_html(context, *, include_style=True):
         'Older saved research does not acquire newly required source metadata.</p>')
     return ((STYLE if include_style else '') + '<section class="online-peer-valuation" aria-label="SAP valuation basis review">'
         '<h3>' + headline + '</h3>' + evidence
-        + '<p>FX observation remains unverified. USD/ADS EPS and P/E remain withheld. '
+        + '<p>FX observation remains unverified. Any later currency review is separate from this original context. '
+        'USD/ADS EPS and P/E remain withheld. '
         'Vendor issuer identity, historical continuity, price adjustment basis and accounting comparability '
         'remain unverified. This listing context does not replace the separate issuer association '
         'or qualify SAP for the existing US-GAAP/USD peer method.</p>'
