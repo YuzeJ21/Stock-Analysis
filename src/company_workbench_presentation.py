@@ -46,6 +46,11 @@ WORKBENCH_STYLE = '''<style>
 .st-key-company-update-actions{gap:.45rem!important;flex-wrap:wrap!important}
 .st-key-company-update-actions button{min-height:44px!important;padding:.45rem .6rem!important;border-radius:.5rem!important;box-shadow:none!important}
 .st-key-company-update-actions button p{font-size:.78rem!important;line-height:1.3!important;color:#144c3d!important}
+.st-key-company-workbench-layout .st-key-company-update-actions [data-testid="stPopoverButton"],
+.st-key-company-workbench-layout .st-key-company-update-actions [data-testid="stPopoverButton"] button{min-width:min(10rem,100%)!important;max-width:100%!important;box-sizing:border-box!important;min-height:44px!important;background:#f1f6f3!important;color:#173e30!important;border-color:#b8c9be!important}
+.st-key-company-workbench-layout .st-key-company-update-actions [data-testid="stPopoverButton"] p{white-space:normal!important;overflow:visible!important;color:#173e30!important}
+.st-key-company-workbench-layout .st-key-company-update-actions [data-testid="stPopoverButton"]:hover,
+.st-key-company-workbench-layout .st-key-company-update-actions [data-testid="stPopoverButton"] button:hover{background:#e6f0e9!important}
 .st-key-company-workbench-layout .company-answer-summary{grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.4fr)!important;gap:.65rem;margin:.65rem 0 1.25rem!important}
 .st-key-company-workbench-layout .company-answer-summary .company-answer{display:block!important;padding:1rem!important;border:1px solid #d3e0d7!important;border-radius:.65rem!important;background:#fff!important;box-shadow:none!important}
 .st-key-company-workbench-layout .company-answer-summary .company-answer[data-company-answer="valuation"]{background:#e8f3ed!important;border-color:#bbd6c7!important}

@@ -7,10 +7,85 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: commercial-research-beta-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
+  research-journey:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Check out pull request revision
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install declared development and workspace dependencies
+        run: python3 -m pip install -e '.[dev,workspace]'
+
+      - name: Install Playwright Chromium
+        run: python3 -m playwright install --with-deps chromium
+
+      - name: Verify complete desktop and phone research journeys
+        run: make research-journey-check
+
+  release-regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Check out pull request revision
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install declared development and workspace dependencies
+        run: python3 -m pip install -e '.[dev,workspace]'
+      - name: Install Playwright Chromium
+        run: python3 -m playwright install --with-deps chromium
+      - name: Select installed Playwright Chromium
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          from playwright.sync_api import sync_playwright
+          with sync_playwright() as runtime:
+              browser = Path(runtime.chromium.executable_path).resolve()
+          if not browser.is_file() or not os.access(browser, os.X_OK):
+              raise RuntimeError('Installed Playwright Chromium is unavailable')
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as handle:
+              handle.write('STOCK_RESEARCH_BROWSER_EXECUTABLE=' + str(browser) + '\n')
+          PY
+      - name: Verify release regression cases
+        run: >-
+          python3 -B -m src.no_write_artifact_guard --project-root . --
+          python3 -m pytest -q -x -p no:cacheprovider --tb=short
+          tests/test_dashboard_render_smoke.py::test_research_desk_uses_natural_multi_tab_order_in_normal_and_forced_colors
+          tests/test_research_accessibility_browser_gate.py
+          tests/test_company_workbench_button_contrast.py
+          tests/test_dashboard_render_smoke.py::test_company_workbench_opens_secondary_modules_only_after_explicit_action
+          tests/test_online_company_workflow_browser.py::test_online_company_authors_notes_saves_real_sec_baseline_and_returns_without_refetch
+          tests/test_research_monitor_roundtrip_browser.py::test_workbench_sections_and_source_failures_remain_english_without_refetch
+
   local-engineering-gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # The measured full suite alone takes almost 59 minutes; reserve time for
+    # installation and the subsequent startup/render/hygiene gates as well.
+    timeout-minutes: 90
     env:
       PYTHONDONTWRITEBYTECODE: "1"
       PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -28,7 +103,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: python3 -m pip install -e '.[dev]'
+        run: python3 -m pip install -e '.[dev,workspace]'
 
       - name: Install Playwright Chromium
         run: python3 -m playwright install --with-deps chromium

@@ -3338,7 +3338,9 @@ def _company_workbench_primary_brief_assertion(page: Any) -> dict[str, object]:
     )
     if brief.locator(".company-scope-note").count() and page.locator(".st-key-company-section-navigation").count():
         nav=page.locator('.st-key-company-section-navigation label:has(input[type="radio"])')
-        update=page.get_by_role("button",name="Refresh financials and prices",exact=True)
+        update=page.get_by_role("button",name=re.compile(
+            r"^(?:Research company|Refresh financials and prices)$"
+        ))
         observation=dict(brief_count=brief.count(),brief_visible=brief.count()==1 and brief.first.is_visible(),
             display_title=brief.first.locator('h1').inner_text().strip() if brief.count()==1 and brief.first.locator('h1').count()==1 else '',
             h1_count=page.get_by_role("heading",level=1).count(),

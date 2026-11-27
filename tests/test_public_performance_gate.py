@@ -422,6 +422,33 @@ def test_find_chrome_executable_uses_only_an_executable_candidate(tmp_path):
     assert find_chrome_executable((missing,)) is None
 
 
+def test_release_browser_override_is_the_actual_default_executable(tmp_path, monkeypatch):
+    from src.public_performance_gate import find_chrome_executable
+    browser = tmp_path / 'selected-chromium'
+    browser.write_text('#!/bin/sh\nexit 0\n')
+    browser.chmod(0o700)
+    monkeypatch.setenv('STOCK_RESEARCH_BROWSER_EXECUTABLE', str(browser))
+    assert find_chrome_executable() == browser
+
+
+def test_invalid_release_browser_override_cannot_fall_back_to_system_chrome(tmp_path, monkeypatch):
+    from src.public_performance_gate import find_chrome_executable
+    browser = tmp_path / 'not-executable'
+    browser.write_text('not an executable')
+    browser.chmod(0o600)
+    monkeypatch.setenv('STOCK_RESEARCH_BROWSER_EXECUTABLE', str(browser))
+    assert find_chrome_executable() is None
+
+
+def test_explicit_candidate_list_preserves_its_own_scope(tmp_path, monkeypatch):
+    from src.public_performance_gate import find_chrome_executable
+    browser = tmp_path / 'explicit-browser'
+    browser.write_text('#!/bin/sh\nexit 0\n')
+    browser.chmod(0o700)
+    monkeypatch.setenv('STOCK_RESEARCH_BROWSER_EXECUTABLE', str(tmp_path / 'invalid-override'))
+    assert find_chrome_executable((browser,)) == browser
+
+
 def test_performance_result_payload_includes_commit_snapshot_samples_and_gate(tmp_path):
     from src.public_performance_gate import RouteTimingSample, performance_result_payload
 
@@ -573,6 +600,7 @@ def test_local_demo_server_attaches_captured_server_log_to_route_failure(
 
     monkeypatch.setattr(gate.subprocess, "Popen", fake_popen)
     monkeypatch.setattr(gate, "_wait_for_health", lambda *args, **kwargs: None)
+    monkeypatch.setattr(gate, "_free_port", lambda: 43123)
 
     with pytest.raises(RuntimeError, match="route failed") as captured:
         with gate._local_demo_server(tmp_path):
