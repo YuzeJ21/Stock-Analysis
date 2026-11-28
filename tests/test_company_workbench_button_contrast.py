@@ -4,6 +4,17 @@ import json
 import re
 
 
+def _wait_for_completed_research_actions(page):
+ from src.public_performance_gate import _wait_for_dom_stability
+ page.wait_for_function('''() => document.querySelector('[data-testid="stApp"]')
+  ?.getAttribute('data-test-script-state') === 'notRunning' ''', timeout=20_000)
+ page.evaluate('''async () => {
+  await document.fonts.ready;
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+ }''')
+ _wait_for_dom_stability(page, timeout_seconds=8, stable_checks=2)
+
+
 def _contrast(foreground,background):
  def luminance(text):
   values=[float(x)/255 for x in re.findall(r'[\d.]+',text)[:3]]
@@ -27,6 +38,7 @@ def test_research_action_labels_remain_readable_in_light_and_dark_system_appeara
     page=browser.new_page(color_scheme=scheme,viewport={'width':390,'height':844})
     page.goto(base,wait_until='domcontentloaded')
     page.get_by_role('button',name='Check online price history',exact=True).wait_for(timeout=15000)
+    _wait_for_completed_research_actions(page)
     page.get_by_role('button',name='Check SEC annual facts',exact=True).hover()
     rows=page.evaluate('''() => [...document.querySelectorAll('.company-integrated-header a, [data-testid="stButton"] button, [data-testid="stFormSubmitButton"] button, [class*="st-key-company-workbench-html-"] [data-testid="stDownloadButton"] button')].filter(b=>{const r=b.getBoundingClientRect();return r.width>0&&r.height>0}).map(b=>({label:b.textContent,background:getComputedStyle(b).backgroundColor,foreground:getComputedStyle(b.querySelector('p')||b).color,height:b.getBoundingClientRect().height}))''')
     assert {row['label'].strip() for row in rows} == {
@@ -66,6 +78,8 @@ def test_actual_company_refresh_popover_has_readable_unclipped_labels_at_phone_w
      page.goto(base,wait_until='domcontentloaded')
      control=page.get_by_role('button',name='Refresh options',exact=True)
      control.wait_for(timeout=15000)
+     page.locator('.company-integrated-header h1').wait_for(timeout=15000)
+     _wait_for_completed_research_actions(page)
      for hovered in (False,True):
       if hovered:control.hover()
       row=control.evaluate('''b=>{const p=b.querySelector('p'),r=b.getBoundingClientRect(),rail=b.closest('.st-key-company-workbench-rail').getBoundingClientRect();return {background:getComputedStyle(b).backgroundColor,foreground:getComputedStyle(p||b).color,height:r.height,labelWidth:p.clientWidth,labelScroll:p.scrollWidth,left:r.left,right:r.right,railLeft:rail.left,railRight:rail.right}}''')

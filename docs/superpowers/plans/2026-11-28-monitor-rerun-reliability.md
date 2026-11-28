@@ -21,6 +21,7 @@ Retain the complete existing CI matrix and no-write guard. Exact-head evidence o
 
 ### Task 1: Stable process-owned browser fixture and release verification
 **Files:** tests/test_large_research_snapshot_browser.py, tests/test_large_research_snapshot_runtime.py,
+tests/test_company_workbench_button_contrast.py,
 .github/workflows/commercial-research-beta.yml, .github/workflows/ecb-reference-capture.yml,
 docs/MONITOR_RELEASE_RELIABILITY.md, ROADMAP.md.
 **Interfaces:** _run_app(root) consumes one dedicated browser-process root;
@@ -38,3 +39,8 @@ must not repeat that source request.
 
 No new feature should bypass this release failure. Later maturity gates require
 their actual source, host, owner, review environment or researcher inputs.
+
+CI correction: first repair head passed the large-snapshot flow but exposed
+a pre-completion refresh-control measurement. Wait for the complete compositor,
+script/font/frame/DOM readiness; keep all contrast/size/clipping thresholds.
+The actual failing geometry is the RED evidence; exact-head CI must prove GREEN.

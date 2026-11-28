@@ -42,6 +42,23 @@ a later release PR cannot repeat the already-completed source request. The
 November23 capture and minimal historical currency-review package remain separate;
 no new ECB, SEC or price observations are needed for this repair.
 
+## Completed-frame action measurements
+
+The first repair CI passed the repaired desktop/phone snapshot flow, then failed
+the existing refresh-popover check after 113 release passes. Its complete geometry
+diagnostic captured the default framework state: height 40, white background,
+default foreground and a clipped label on the first unhovered desktop sample.
+Later samples in the same test passed. The check had sampled a visible control
+before the company compositor finished delivering its styles.
+
+The action tests now wait for the completed script, the final company heading
+where applicable, loaded fonts, animation frames and the existing DOM-stability
+helper before measurement. Contrast 4.5, minimum 44px height, clipping, rail bounds,
+viewport widths, both appearances, hover and actual popover actions are unchanged.
+An actual rendered defect still fails those assertions; no visual criterion is
+used to decide when measurement can begin. This is measurement readiness, not a
+production style relaxation.
+
 ## Verification boundary
 
 The corrected store/tools/workflow integration passed 99 checks; the broader
