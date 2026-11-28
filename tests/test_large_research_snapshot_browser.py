@@ -17,6 +17,8 @@ from src.public_performance_gate import _free_port, _wait_for_health, find_chrom
 
 SCOPE = dict(profile_key='personal/large-snapshot-test', ticker='TSM', sec_cik='0001046179')
 NOW = datetime(2026, 11, 7, 12, tzinfo=timezone.utc)
+_CONNECT = socket.socket.connect
+_CONNECT_EX = socket.socket.connect_ex
 
 
 def _large_context():
@@ -81,24 +83,25 @@ def _run_app(root):
         return connect
 
     st.set_page_config(page_title='Research snapshot browser test', layout='wide')
-    with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(online_research_context_store, 'PROJECT_ROOT', root)
-        patch.setattr(online_research_tools_ui, 'PROJECT_ROOT', root)
-        patch.setattr(socket.socket, 'connect', local_only(socket.socket.connect))
-        patch.setattr(socket.socket, 'connect_ex', local_only(socket.socket.connect_ex))
-        if st.query_params.get('page') == 'monitor':
-            online_research_tools_ui.render_online_research_monitor(st, profile_key=SCOPE['profile_key'])
-        elif st.query_params.get('research_snapshot'):
-            from src.company_workbench_ui import render_saved_company_replay
+    # This fixture owns a dedicated server process. An older interrupted script
+    # must not restore global roots/guards while a newer script is rendering.
+    online_research_context_store.PROJECT_ROOT = root
+    online_research_tools_ui.PROJECT_ROOT = root
+    socket.socket.connect = local_only(_CONNECT)
+    socket.socket.connect_ex = local_only(_CONNECT_EX)
+    if st.query_params.get('page') == 'monitor':
+        online_research_tools_ui.render_online_research_monitor(st, profile_key=SCOPE['profile_key'])
+    elif st.query_params.get('research_snapshot'):
+        from src.company_workbench_ui import render_saved_company_replay
 
-            snapshot = online_research_context_store.load_research_context(st.query_params['research_snapshot'], **SCOPE)
-            render_saved_company_replay(st, snapshot)
-        else:
-            if 'large-snapshot-test-context' not in st.session_state:
-                st.session_state['large-snapshot-test-context'] = _large_context()
-            context, financial = st.session_state['large-snapshot-test-context']
-            st.markdown('### Research Notes')
-            online_research_tools_ui.render_online_tools(st, 'notes', dict(research_context=context, financial=financial))
+        snapshot = online_research_context_store.load_research_context(st.query_params['research_snapshot'], **SCOPE)
+        render_saved_company_replay(st, snapshot)
+    else:
+        if 'large-snapshot-test-context' not in st.session_state:
+            st.session_state['large-snapshot-test-context'] = _large_context()
+        context, financial = st.session_state['large-snapshot-test-context']
+        st.markdown('### Research Notes')
+        online_research_tools_ui.render_online_tools(st, 'notes', dict(research_context=context, financial=financial))
 
 
 @pytest.fixture

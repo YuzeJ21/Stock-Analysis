@@ -86,6 +86,8 @@ jobs:
         run: >-
           python3 -B -m src.no_write_artifact_guard --project-root . --
           python3 -m pytest -q -x -p no:cacheprovider --tb=short
+          tests/test_large_research_snapshot_runtime.py
+          tests/test_large_research_snapshot_browser.py
           tests/test_dashboard_render_smoke.py::test_research_desk_uses_natural_multi_tab_order_in_normal_and_forced_colors
           tests/test_research_accessibility_browser_gate.py
           tests/test_company_workbench_button_contrast.py

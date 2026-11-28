@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   capture-public-reference:
-    if: github.event.action == 'opened' && github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.action == 'opened' && github.event.pull_request.number == 126 && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
