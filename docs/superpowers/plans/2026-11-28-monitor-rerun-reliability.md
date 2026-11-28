@@ -22,6 +22,7 @@ Retain the complete existing CI matrix and no-write guard. Exact-head evidence o
 ### Task 1: Stable process-owned browser fixture and release verification
 **Files:** tests/test_large_research_snapshot_browser.py, tests/test_large_research_snapshot_runtime.py,
 tests/test_company_workbench_button_contrast.py,
+tests/cross_industry_browser_fixture.py, tests/test_cross_industry_browser_snapshots.py,
 .github/workflows/commercial-research-beta.yml, .github/workflows/ecb-reference-capture.yml,
 docs/MONITOR_RELEASE_RELIABILITY.md, ROADMAP.md.
 **Interfaces:** _run_app(root) consumes one dedicated browser-process root;
@@ -44,3 +45,10 @@ CI correction: first repair head passed the large-snapshot flow but exposed
 a pre-completion refresh-control measurement. Wait for the complete compositor,
 script/font/frame/DOM readiness; keep all contrast/size/clipping thresholds.
 The actual failing geometry is the RED evidence; exact-head CI must prove GREEN.
+
+Full-run corrections: publish constructed cross-industry observation JSON by
+same-directory atomic replacement; test concurrent read at the write boundary
+for existing and first publication plus encoding-failure preservation. Keep
+reader assertions unchanged. Clarify historical roadmap counts without changing
+the documentation guard. Include both browser cases, publication tests and full
+release-documentation checks in the early job, with a 30-minute execution budget.

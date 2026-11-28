@@ -40,7 +40,8 @@ jobs:
 
   release-regressions:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Includes cross-industry desktop/phone and documentation regressions.
+    timeout-minutes: 30
     env:
       PYTHONDONTWRITEBYTECODE: "1"
     steps:
@@ -88,6 +89,9 @@ jobs:
           python3 -m pytest -q -x -p no:cacheprovider --tb=short
           tests/test_large_research_snapshot_runtime.py
           tests/test_large_research_snapshot_browser.py
+          tests/test_cross_industry_browser_snapshots.py
+          tests/test_cross_industry_research_browser.py
+          tests/test_public_v1_release_docs.py
           tests/test_dashboard_render_smoke.py::test_research_desk_uses_natural_multi_tab_order_in_normal_and_forced_colors
           tests/test_research_accessibility_browser_gate.py
           tests/test_company_workbench_button_contrast.py
@@ -97,7 +101,7 @@ jobs:
 
   local-engineering-gate:
     runs-on: ubuntu-latest
-    # The measured full suite alone takes almost 59 minutes; reserve time for
+    # The measured full suite alone takes 75–83 minutes; reserve time for
     # installation and the subsequent startup/render/hygiene gates as well.
     timeout-minutes: 90
     env:

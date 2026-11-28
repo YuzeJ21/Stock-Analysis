@@ -1,7 +1,10 @@
 """Constructed SEC transports for cross-industry dashboard browser evidence."""
 from datetime import datetime, timezone
 import json
+import os
+from pathlib import Path
 import socket
+import tempfile
 from urllib.error import HTTPError
 
 import pytest
@@ -9,6 +12,16 @@ import pytest
 
 IBN_ANNUAL_URL = 'https://www.sec.gov/Archives/edgar/data/1103838/000095010326010820/dp249803_20f.htm'
 IBN_QUARTER_URL = 'https://www.sec.gov/Archives/edgar/data/1103838/000095010326015987/dp255170_6k.htm'
+
+
+def _publish_json_snapshot(path, value):
+    descriptor, temporary = tempfile.mkstemp(dir=path.parent, prefix='.' + path.name + '.', suffix='.tmp')
+    try:
+        with os.fdopen(descriptor, 'w', encoding='utf-8') as handle:
+            json.dump(value, handle)
+        os.replace(temporary, path)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
 
 
 def _ibn_sources():
@@ -178,12 +191,12 @@ def run_cross_industry_fixture(root):
 
     def observed_getter(*args, **kwargs):
         result = getter(*args, **kwargs)
-        (root / 'study-view.json').write_text(json.dumps(result), encoding='utf-8')
+        _publish_json_snapshot(root / 'study-view.json', result)
         return result
 
     def observed_prepare(ticker, *args, **kwargs):
         result = prepare(ticker, *args, **kwargs)
-        (root / ('workbench-' + ticker + '.json')).write_text(json.dumps(result), encoding='utf-8')
+        _publish_json_snapshot(root / ('workbench-' + ticker + '.json'), result)
         return result
 
     original_connect, original_connect_ex = socket.socket.connect, socket.socket.connect_ex

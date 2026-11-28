@@ -61,6 +61,26 @@ production style relaxation.
 
 ## Verification boundary
 
+The next full run passed the Monitor and action repairs but exposed two other
+release failures: a cross-industry fixture observation read was empty during a
+concurrent write, and the roadmap's status wording placed historical counts next
+to a current-status label. That run had 10,761 passes, two failures and three skips;
+its separate 175 SAP/FX, 109 journey and 119 release checks passed.
+
+Constructed study/workbench observation files now publish by same-directory
+temporary file and atomic replacement. Deterministic reads at the write boundary
+were RED for both replacement and first publication; they now see the complete
+previous value or an absent initial destination until publication. Encoding
+failure preserves the previous bytes and removes the temporary file. No reader
+retry or JSON-error suppression was added. Production research persistence is
+unchanged. The roadmap identifies its old count explicitly as historical.
+
+The cross-industry browser, observation-boundary and full release-documentation
+checks now run in early CI. That expanded job has a 30-minute execution budget;
+the full engineering job retains its 90-minute budget and all later checks.
+Focused publication, documentation, store and workflow integration passed
+171 checks with one existing warning. Exact-head full CI remains required.
+
 The corrected store/tools/workflow integration passed 99 checks; the broader
 store, numeric-proof, UI, auth and workflow run passed 160 checks, each with one
 existing dateutil warning. A local browser attempt stopped at the sandbox
