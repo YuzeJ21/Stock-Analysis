@@ -154,6 +154,7 @@ def _eps_numeric_proof(value):
 
 def _normalized(value):
     """Bound complexity before serializing, reject transport bodies at every level."""
+    from src.sec_sap_snapshot_evidence import CIK as SAP_CIK, SUBJECT_PATH as SAP_SUBJECT_PATH, saved_sap_numeric_observation_indices
     active = set()
     nodes = 0
     cover_documents = set()
@@ -203,6 +204,13 @@ def _normalized(value):
         nodes += 1
         if depth > MAX_JSON_DEPTH or nodes > MAX_JSON_NODES:
             raise ValueError('Research context depth or node limit exceeded')
+        if (path == SAP_SUBJECT_PATH and isinstance(item, dict)
+                and (value.get('ticker') == 'SAP' or value.get('sec_cik') == SAP_CIK
+                     or item.get('ticker') == 'SAP' or item.get('sec_cik') == SAP_CIK)):
+            indices = saved_sap_numeric_observation_indices(item, context=value)
+            if indices is None:
+                raise ValueError('Normalized SAP security observations do not match the saved filing scope')
+            inspection_numeric_nodes.update(SAP_SUBJECT_PATH + ('evidence_observations', index) for index in indices)
         if path == ('business_trend', 'bank_annual'):
             from src.sec_online_ibn_evidence import valid_saved_ibn_annual
             if not valid_saved_ibn_annual(item, context=value):

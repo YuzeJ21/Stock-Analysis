@@ -68,6 +68,10 @@ def _section(page, expect, label):
 
 
 def _expect_note_summary(page, expect, summary):
+    # The saved acknowledgement can arrive while Streamlit still retains the
+    # outgoing frame. Assert the sole final note after that rerun has finished.
+    page.wait_for_function("""() => document.querySelector('[data-testid="stApp"]')
+        ?.getAttribute('data-test-script-state') === 'notRunning'""")
     rendered = page.get_by_test_id("stText").get_by_text(summary, exact=True).filter(visible=True)
     expect(rendered).to_have_count(1)
     expect(rendered).to_be_visible()

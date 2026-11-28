@@ -6,6 +6,7 @@ import re
 from urllib.parse import urlsplit
 
 from src.online_peer_valuation import FISCAL_WINDOW_DAYS, MIN_PEERS
+from src.sec_inline_filing import valid_numeric_proof
 
 REASONS = {
     'online_peer_update_not_requested':'Peer research has not been requested for this company.',
@@ -213,17 +214,26 @@ def _observations_html(scope,*,compact=False):
     if any(isinstance(o, Mapping) and o.get('currency_basis') == 'convenience' for o in observations):
         html+='<p>ADS and common shares are shown separately. A convenience USD translation is not earnings converted at the trading-date exchange rate. EPS per ADS is not calculated from rounded common-share EPS.</p>'
     has_numbers=any(isinstance(o,Mapping) and o.get('kind')=='numeric' for o in observations)
+    has_ads=any(isinstance(o,Mapping) and o.get('kind')=='numeric' and o.get('security_basis')=='ADS' for o in observations)
+    if scope.get('ticker')=='SAP' and has_numbers:
+        html+='<p>The filing reports EUR/share and describes the depositary ratio using ADR. USD conversion and the price-to-filing association require separate review. No USD/ADS EPS or P/E is inferred.</p>'
     for o in observations:
         if not isinstance(o,Mapping):continue
-        if compact and has_numbers and (o.get('kind')!='numeric' or o.get('security_basis')!='ADS'):continue
+        if compact and has_numbers:
+            if has_ads and (o.get('kind')!='numeric' or o.get('security_basis')!='ADS'):continue
+            if not has_ads and o.get('kind')!='numeric' and o.get('unit')!='ordinary_shares/ADR':continue
         html+='<p><strong>'+_text(o.get('label'))+'</strong>'
         if _number(o.get('value')):
             unit=o.get('unit','')
             display_unit=unit.replace('/shares','/ADS' if o.get('security_basis')=='ADS' else '/common share')
-            html+=': '+_text(f'{o["value"]:,.6g}')+' '+_text(display_unit)
+            if unit=='ordinary_shares/ADR':display_unit='ordinary shares/ADR'
+            literal=o.get('raw_text') if o.get('kind')=='numeric' and valid_numeric_proof(o) else f'{o["value"]:,.6g}'
+            html+=': '+_text(literal)+' '+_text(display_unit)
         html+='</p>'
         if compact:
-            if not has_numbers:html+='<p>'+_link(o.get('source_ref'),'Verified original evidence')+'</p>'
+            if not has_ads:
+                period=(_text(o.get('period_start'))+' → '+_text(o.get('period_end'))+' · ') if o.get('kind')=='numeric' else ''
+                html+='<p>'+period+_link(o.get('source_ref'),'Verified original evidence')+' · filed '+_text(o.get('publication_date'))+' · observed '+_text(o.get('observed_at'))+'</p>'
             continue
         if o.get('kind')=='numeric':
             html+='<p>'+_text(o.get('period_start'))+' → '+_text(o.get('period_end'))+' · original unit '+_text(o.get('unit'))+' · '+_text(o.get('concept'))+' · '+_text(o.get('namespace_uri'))+'</p>'
@@ -249,6 +259,47 @@ def saved_tsm_security_html(context):
     return (STYLE + '<section class="online-peer-valuation" aria-label="Saved TSM filing evidence">'
             '<h3>Saved TSM filing evidence</h3><p>ADS valuation remains withheld.</p>'
             + _selected_security_html(scope) + '</section>')
+
+
+def sap_price_basis_html(context, *, include_style=True):
+    """One informational projection for current research and historical replay."""
+    if context.get('ticker') != 'SAP':
+        return ''
+    from src.sap_price_basis import assess_sap_price_basis
+
+    basis = assess_sap_price_basis(context)
+    matched = basis['status'] == 'matched_listing_context'
+    headline = 'Selected NYSE ADS price context matched' if matched else 'Price listing context remains unverified'
+    evidence = ('<p>Yahoo SAP / NYQ agrees with the separately verified SAP NYSE ADS listing. '
+        'Daily price dated ' + _text(basis['price_date']) + ' · observed ' + _text(basis['observed_at'])
+        + ' · ' + _link(basis['source_url'], 'Price source') + '</p>') if matched else (
+        '<p>Required listing, price identity, receipt or chronology evidence is missing or contradictory. '
+        'Older saved research does not acquire newly required source metadata.</p>')
+    return ((STYLE if include_style else '') + '<section class="online-peer-valuation" aria-label="SAP valuation basis review">'
+        '<h3>' + headline + '</h3>' + evidence
+        + '<p>FX observation remains unverified. Any later currency review is separate from this original context. '
+        'USD/ADS EPS and P/E remain withheld. '
+        'Vendor issuer identity, historical continuity, price adjustment basis and accounting comparability '
+        'remain unverified. This listing context does not replace the separate issuer association '
+        'or qualify SAP for the existing US-GAAP/USD peer method.</p>'
+        '<p>Personal research only; source permissions and commercial eligibility remain unchanged.</p></section>')
+
+
+def saved_depositary_security_html(context):
+    from src.sec_sap_snapshot_evidence import saved_sap_numeric_observation_indices
+
+    if context.get('ticker') != 'SAP':
+        return saved_tsm_security_html(context)
+    owner = (context.get('peer_read_through') or {}).get('subject_source_context') or {}
+    scope = owner.get('selected_security_scope') or {}
+    if not saved_sap_numeric_observation_indices(scope, context=context):
+        return sap_price_basis_html(context)
+    listing = owner['selected_depositary_listing']
+    return (STYLE + '<section class="online-peer-valuation" aria-label="Saved SAP filing evidence">'
+            '<h3>Saved SAP filing evidence</h3><p>ADS valuation remains withheld.</p>'
+            '<p>' + _link(listing['source_url'], 'Verified NYSE listing') + ' · directory dated '
+            + _text(listing['source_created_at']) + ' · observed ' + _text(listing['observed_at']) + '</p>'
+            + sap_price_basis_html(context, include_style=False) + _selected_security_html(scope) + '</section>')
 
 
 def _selected_security_html(scope):

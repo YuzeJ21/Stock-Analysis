@@ -51,11 +51,14 @@ def test_membership_rechecked_and_profile_bound_to_server(configured):
 @pytest.mark.parametrize('changes', [
     {'is_logged_in': False}, {'is_logged_in': 1}, {'iss': 'https://other.example'},
     {'aud': 'different-app'}, {'sub': 'bob'}, {'exp': 0}, {'exp': True}, {'exp': 'future'},
-    {'exp': float('inf')}, {'nbf': time.time() + 3600}, {'iat': time.time() + 3600},
+    {'exp': float('inf')}, {'nbf': 'future_at_execution'}, {'iat': 'future_at_execution'},
 ])
 def test_unverified_or_expired_principal_denied(configured, changes):
     _, _, claims = configured
-    claims.update(changes)
+    # A full browser suite can outlast one hour after collection. Build future
+    # claims when this case executes so they remain invalid at authorization.
+    claims.update({key: time.time() + 3600 if value == 'future_at_execution' else value
+                   for key, value in changes.items()})
     with pytest.raises(access.WorkspaceAccessDenied):
         access.selected_workspace_session()
 
